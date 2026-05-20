@@ -2177,7 +2177,7 @@ const DB = {
         ME = Object.assign({}, TEAM[0]);
       }
 
-     let allProfs = [];
+      let allProfs = [];
       let from = 0;
       const pageSize = 1000;
       while (true) {
@@ -2198,6 +2198,9 @@ const DB = {
       // já persistidos de novos em memória).
       this._profs = (profsRes.data || []).map(p => ({
         ...p,
+        // snake_case → camelCase (profissional)
+        inicioAtiv:   p.inicioAtiv   || p.inicio_ativ   || "",
+        metodEntrada: p.metodEntrada || p.metod_entrada || "",
         statusHistory: (p.status_history || [])
           .sort((a,b) => a.changed_at.localeCompare(b.changed_at))
           .map(h => ({ s: h.status, ts: h.changed_at.slice(0,10) })),
@@ -2205,13 +2208,44 @@ const DB = {
           .sort((a,b) => (a.n||0) - (b.n||0))
           .map(o => ({
             ...o,
+            // snake_case → camelCase (campos do banco para a UI)
+            tipoDoc:          o.tipoDoc          || o.tipo_doc          || "",
+            tipoAfasta:       o.tipoAfasta       || o.tipo_afasta       || "",
+            dataInicio:       o.dataInicio       || o.data_inicio       || "",
+            periodo:          o.periodo          != null ? o.periodo : null,
+            inss:             o.inss             ?? false,
+            beneficioInssAte: o.beneficioInssAte || o.beneficio_inss_ate || "",
+            dtEntradaNucleo:  o.dtEntradaNucleo  || o.dt_entrada_nucleo  || "",
+            dtCienciaCoord:   o.dtCienciaCoord   || o.dt_ciencia_coord   || "",
+            metodoEntrada:    o.metodoEntrada    || o.metodo_entrada     || "",
+            especEntrada:     o.especEntrada     || o.espec_entrada      || "",
+            faltasInjust:     o.faltasInjust     || o.faltas_injust      || "",
+            retornoDias:      o.retornoDias      || o.retorno_dias       || "",
+            suspBolsa:        o.suspBolsa        || o.susp_bolsa         || "",
+            tipoPagSusp:      o.tipoPagSusp      || o.tipo_pag_susp      || "",
+            folhaCoapeSupsp:  o.folhaCoapeSupsp  || o.folha_coape_susp   || "",
+            numProcSusp:      o.numProcSusp      || o.num_proc_susp      || "",
+            dataReat:         o.dataReat         || o.data_reat          || "",
+            tipoPagReat:      o.tipoPagReat      || o.tipo_pag_reat      || "",
+            folhaCoapeReat:   o.folhaCoapeReat   || o.folha_coape_reat   || "",
+            numProcReat:      o.numProcReat      || o.num_proc_reat      || "",
+            tipoRest:         o.tipoRest         || o.tipo_rest          || "",
+            periodoRest:      o.periodoRest      || o.periodo_rest       || "",
+            numProcRest:      o.numProcRest      || o.num_proc_rest      || "",
+            periodoPagos:     o.periodoPagos     || o.periodo_pagos      || "",
+            procPagRetro:     o.procPagRetro     || o.proc_pag_retro     || "",
+            descontoIni:      o.descontoIni      || o.desconto_ini       || "",
+            descontoFim:      o.descontoFim      || o.desconto_fim       || "",
+            editadoPor:       o.editadoPor       || o.editado_por        || "",
+            editadoEm:        o.editadoEm        || o.editado_em         || "",
+            // JSONB e campos compostos
             cids: o.cids || [],
             lembrete: { data: o.lembrete_data || "", nota: o.lembrete_nota || "" },
-            matPat: o.mat_pat_data || {},
+            matPat: o.mat_pat_data || o.matPat || {},
             restituicoes: o.restituicoes || [],
-            pagSusp: o.pag_susp || null,
-            pagReat: o.pag_reat || null,
-            pagRetro: o.pag_retro || null,
+            pagSusp: o.pag_susp || o.pagSusp || null,
+            pagReat: o.pag_reat || o.pagReat || null,
+            pagRetro: o.pag_retro || o.pagRetro || null,
             _isNew: false,
           })),
       }));
