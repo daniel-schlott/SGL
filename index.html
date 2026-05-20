@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v50</title>
+<title>Mais Médicos — Gestão de Licenças v52</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1154,6 +1154,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 .np-dup-warn svg{flex-shrink:0;margin-top:1px}
 
 @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 .occ-card{animation:fadeIn .16s ease both}
 
 /* ── CÁLCULO VIEW ── */
@@ -1343,6 +1344,11 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
     Cálculo
   </div>
 
+  <div class="ntab" id="tab-cycles" onclick="switchTab('cycles')">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+    Ciclos
+  </div>
+
   <div class="nusr">
     <div class="nusr-pill"><div class="nusr-dot"></div><span id="navUserName">Maria Silva</span></div>
     <div class="ntab" id="tab-cfg" onclick="switchTab('cfg')" style="border-bottom:none;padding:0 10px;height:100%">
@@ -1426,6 +1432,9 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
     <div class="dem-stat c-agu" onclick="demQuickFilter('Pendências')"><div class="dem-stat-num" id="demStatAgu">0</div><div class="dem-stat-lbl">Pendências</div></div>
     <div class="dem-stat c-con" onclick="demQuickFilter('Concluídos')"><div class="dem-stat-num" id="demStatCon">0</div><div class="dem-stat-lbl">Concluídos</div></div>
   </div>
+
+  <!-- Navegação de mês (Item 2) -->
+  <div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 0 4px" id="demMonthNav"></div>
 
   <div class="dem-kanban" id="demKanban"></div>
 
@@ -1866,6 +1875,13 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
                 <option value="nao">Não — sem vaga</option>
               </select>
             </div>
+            <div class="rel-field">
+              <label>Arquivo morto</label>
+              <select id="rf-arquivo" onchange="runSearch()">
+                <option value="">Apenas ativos</option>
+                <option value="incluir">Incluir arquivados</option>
+              </select>
+            </div>
           </div>
           <!-- saved searches -->
           <div class="saved-searches" id="savedSearches">
@@ -1925,6 +1941,11 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
           <thead id="relThead"></thead>
           <tbody id="relTbody"></tbody>
         </table>
+        <!-- loading spinner — mostrado durante busca -->
+        <div id="relLoadingSpinner" style="display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;z-index:10">
+          <div style="width:40px;height:40px;border:3px solid var(--br);border-top:3px solid var(--ac);border-radius:50%;animation:spin 0.6s linear infinite;margin:0 auto 12px"></div>
+          <div style="font-size:0.8571em;color:var(--tx2)">Processando...</div>
+        </div>
         <!-- initial empty state — shown before first search -->
         <div class="rel-init-state" id="relInitState">
           <div class="rel-init-cards" id="relInitCards"></div>
@@ -1995,6 +2016,8 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
           <div class="tb-info">
             <div class="tb-name" id="topName">—</div>
             <div class="tb-sub" id="topSub">—</div>
+            <!-- v52: Seletor de ciclo (aparece se mesmo CPF em múltiplos ciclos) -->
+            <div id="cycleSelector" style="display:none;align-items:center;gap:8px;margin-top:4px"></div>
           </div>
           <div class="collab" id="collabDots"></div>
           <div class="tb-actions">
@@ -2139,6 +2162,8 @@ function _dbError(op, err) {
 
 const DB = {
   _profs: [],
+  _archivedProfs: [],  // v52: profissionais do arquivo morto (sob demanda)
+  _cycles: [],         // v52: ciclos do programa
   _log: [],
   _idx: new Map(),
 
@@ -2146,9 +2171,11 @@ const DB = {
     this._idx.clear();
     this._profs.forEach(p => this._idx.set(p.id, p));
   },
-  getAll()    { return this._profs; },
-  getById(id) { return this._idx.get(id) ?? null; },
-  logGet()    { return this._log; },
+  getAll()       { return this._profs; },
+  getById(id)    { return this._idx.get(id) ?? null; },
+  getCycles()    { return this._cycles; },
+  getArchived()  { return this._archivedProfs; },
+  logGet()       { return this._log; },
 
   _localSave(prof) {
     const ex = this._idx.get(prof.id);
@@ -2177,6 +2204,19 @@ const DB = {
         ME = Object.assign({}, TEAM[0]);
       }
 
+      // v52: Carregar ciclos do programa
+      const cyclesRes = await _supa.from("cycles").select("*").order("numero", { ascending: false });
+      if(cyclesRes.error) {
+        console.warn("[DB.load.cycles] non-fatal:", cyclesRes.error);
+        this._cycles = [];
+      } else {
+        this._cycles = (cyclesRes.data || []).map(c => ({
+          id: c.id, programa: c.programa, numero: c.numero, nome: c.nome,
+          dataInicio: c.data_inicio, dataTermino: c.data_termino,
+          status: c.status, arquivadoEm: c.arquivado_em
+        }));
+      }
+
       let allProfs = [];
       let from = 0;
       const pageSize = 1000;
@@ -2201,6 +2241,7 @@ const DB = {
         // snake_case → camelCase (profissional)
         inicioAtiv:   p.inicioAtiv   || p.inicio_ativ   || "",
         metodEntrada: p.metodEntrada || p.metod_entrada || "",
+        cicloId:      p.cicloId      || p.ciclo_id      || null,  // v52
         statusHistory: (p.status_history || [])
           .sort((a,b) => a.changed_at.localeCompare(b.changed_at))
           .map(h => ({ s: h.status, ts: h.changed_at.slice(0,10) })),
@@ -2249,6 +2290,9 @@ const DB = {
             _isNew: false,
           })),
       }));
+      // v52: Filtrar apenas profs cujo ciclo está vigente
+      const vigentes = new Set(this._cycles.filter(c => c.status === "vigente").map(c => c.id));
+      this._profs = this._profs.filter(p => !p.cicloId || vigentes.has(p.cicloId));
       this._reindex();
 
       // audit_log: falha aqui não impede uso do app, só perde a auditoria
@@ -2268,6 +2312,81 @@ const DB = {
     }
   },
 
+  // v52: Carrega arquivo morto sob demanda (não vem no load inicial)
+  async loadArchive() {
+    try {
+      let all = [];
+      let from = 0;
+      const pageSize = 1000;
+      while (true) {
+        const res = await _supa
+          .from("professionals_archive")
+          .select("*, occurrences:occurrences_archive(*)")
+          .order("nome")
+          .range(from, from + pageSize - 1);
+        if (res.error) return _dbError("loadArchive", res.error);
+        all = all.concat(res.data || []);
+        if ((res.data || []).length < pageSize) break;
+        from += pageSize;
+      }
+      // Mesmo mapeamento snake → camel que profissionais ativos
+      this._archivedProfs = all.map(p => ({
+        ...p,
+        inicioAtiv:   p.inicio_ativ   || "",
+        metodEntrada: p.metod_entrada || "",
+        cicloId:      p.ciclo_id      || null,
+        archived:     true,   // flag para UI distinguir
+        occurrences: (p.occurrences || []).map(o => ({
+          ...o,
+          tipoDoc: o.tipo_doc || "", tipoAfasta: o.tipo_afasta || "",
+          dataInicio: o.data_inicio || "", matPat: o.mat_pat_data || {},
+        })),
+      }));
+      return { ok:true, count: this._archivedProfs.length };
+    } catch(err) { return _dbError("loadArchive", err); }
+  },
+
+  // v52: Recarrega ciclos
+  async reloadCycles() {
+    try {
+      const res = await _supa.from("cycles").select("*").order("numero", { ascending: false });
+      if(res.error) return _dbError("reloadCycles", res.error);
+      this._cycles = (res.data || []).map(c => ({
+        id: c.id, programa: c.programa, numero: c.numero, nome: c.nome,
+        dataInicio: c.data_inicio, dataTermino: c.data_termino,
+        status: c.status, arquivadoEm: c.arquivado_em
+      }));
+      return { ok:true };
+    } catch(err) { return _dbError("reloadCycles", err); }
+  },
+
+  // v52: Arquivar ciclo manualmente (chama RPC)
+  async archiveCycle(cycleId) {
+    try {
+      const res = await _supa.rpc("archive_cycle_manual", { p_cycle_id: cycleId, p_user: ME?.name || "gestor" });
+      if(res.error) return _dbError("archiveCycle", res.error);
+      // Recarrega ciclos e remove profs arquivados do _profs local
+      await this.reloadCycles();
+      this._profs = this._profs.filter(p => p.cicloId !== cycleId);
+      this._reindex();
+      return { ok:true, data: res.data };
+    } catch(err) { return _dbError("archiveCycle", err); }
+  },
+
+  // v52: Roda arquivamento automático de todos os ciclos expirados
+  async archiveExpired() {
+    try {
+      const res = await _supa.rpc("archive_expired_cycles", { p_user: ME?.name || "system" });
+      if(res.error) return _dbError("archiveExpired", res.error);
+      await this.reloadCycles();
+      // Remove profs dos ciclos arquivados do cache
+      const archivedIds = new Set(this._cycles.filter(c => c.status === "arquivado").map(c => c.id));
+      this._profs = this._profs.filter(p => !archivedIds.has(p.cicloId));
+      this._reindex();
+      return { ok:true, data: res.data };
+    } catch(err) { return _dbError("archiveExpired", err); }
+  },
+
   /**
    * Upsert de profissional. Atualiza id (caso novo) e mescla no cache local.
    * @returns {Promise<{ok: boolean, data?: object, error?: string}>}
@@ -2275,6 +2394,7 @@ const DB = {
   async save(prof) {
     const row = {
       id:           prof.id || undefined,
+      ciclo_id:     prof.cicloId || null,  // v52
       nome:         prof.nome,
       cpf:          prof.cpf,
       siape:        prof.siape,
@@ -3813,17 +3933,30 @@ function periodoToMesAno(p){
 }
 
 function demGetFiltered(){
-  const fMes=parseInt(document.getElementById("demFiltMes")?.value||"")||0;
-  const fAno=parseInt(document.getElementById("demFiltAno")?.value||"")||0;
+  const fMesEl=parseInt(document.getElementById("demFiltMes")?.value||"")||0;
+  const fAnoEl=parseInt(document.getElementById("demFiltAno")?.value||"")||0;
+  // Se não há filtro manual, usa o mês/ano corrente (Item 2)
+  const fMes=fMesEl || demFilterMonth.mes;
+  const fAno=fAnoEl || demFilterMonth.ano;
   const fr=document.getElementById("demFiltResp")?.value||"";
   const fe=document.getElementById("demFiltEtapa")?.value||"";
   const fs=document.getElementById("demFiltStatus")?.value||"";
   const fq=(document.getElementById("demFiltProf")?.value||"").toLowerCase().trim();
   return DEM_ENTRIES.filter(d=>{
+    // Filtra pela data de criação do card (campo createdAt) ou pelo período da ocorrência
+    const cardDate = d.createdAt ? new Date(d.createdAt) : null;
+    const cardMes = cardDate ? cardDate.getMonth()+1 : 0;
+    const cardAno = cardDate ? cardDate.getFullYear() : 0;
     if(fMes||fAno){
-      const {mes,ano}=periodoToMesAno(d.periodo);
-      if(fMes && mes!==fMes) return false;
-      if(fAno && ano!==fAno) return false;
+      // Prioriza createdAt se disponível, senão usa periodo
+      if(cardDate){
+        if(fMes && cardMes!==fMes) return false;
+        if(fAno && cardAno!==fAno) return false;
+      } else {
+        const {mes,ano}=periodoToMesAno(d.periodo);
+        if(fMes && mes!==fMes) return false;
+        if(fAno && ano!==fAno) return false;
+      }
     }
     if(fr && d.responsavel!==fr) return false;
     if(fe && d.etapa!==fe)       return false;
@@ -3847,6 +3980,33 @@ function demSetView(v,el){
   document.querySelectorAll(".dem-view-tab").forEach(t=>t.classList.remove("active"));
   el.classList.add("active");
   renderDemKanban();
+}
+
+// ── NAVEGAÇÃO DE MÊS (Item 2) ──
+function demNavMonth(delta){
+  demFilterMonth.mes += delta;
+  if(demFilterMonth.mes > 12){ demFilterMonth.mes=1; demFilterMonth.ano++; }
+  if(demFilterMonth.mes < 1) { demFilterMonth.mes=12; demFilterMonth.ano--; }
+  renderDemKanban();
+  demRenderMonthNav();
+}
+function demGoToday(){
+  const n=new Date();
+  demFilterMonth={mes:n.getMonth()+1,ano:n.getFullYear()};
+  renderDemKanban();
+  demRenderMonthNav();
+}
+function demRenderMonthNav(){
+  const el=document.getElementById("demMonthNav"); if(!el) return;
+  const n=new Date();
+  const isToday=demFilterMonth.mes===n.getMonth()+1 && demFilterMonth.ano===n.getFullYear();
+  const label=MES_NOMES[demFilterMonth.mes-1]+' '+demFilterMonth.ano;
+  el.innerHTML=`
+    <button class="btn btn-ghost btn-sm" onclick="demNavMonth(-1)" title="Mês anterior" style="padding:2px 8px">‹</button>
+    <span style="font-size:0.8571em;font-weight:600;color:var(--tx1);min-width:120px;text-align:center;text-transform:capitalize">${label}</span>
+    <button class="btn btn-ghost btn-sm" onclick="demNavMonth(1)" title="Próximo mês" style="padding:2px 8px">›</button>
+    ${!isToday?`<button class="btn btn-ghost btn-sm" onclick="demGoToday()" style="padding:2px 8px;font-size:0.75em;color:var(--ac)">Hoje</button>`:''}
+  `;
 }
 
 function demQuickFilter(status){
@@ -3900,6 +4060,10 @@ function demClearFilters(){
 function renderDemKanban(){
   demPopulateFilters();
   demRenderChips();
+  demRenderMonthNav();
+  // Item 3: mostrar vazio limpo enquanto processa
+  const kb=document.getElementById("demKanban");
+  if(kb && !kb.innerHTML) kb.innerHTML='<div style="grid-column:1/-1;display:flex;justify-content:center;padding:40px"><div style="text-align:center"><div style="width:32px;height:32px;border:3px solid var(--br);border-top:3px solid var(--ac);border-radius:50%;animation:spin 0.6s linear infinite;margin:0 auto 10px"></div><div style="font-size:0.8571em;color:var(--tx2)">Carregando...</div></div></div>';
   const data=demGetFiltered();
   document.getElementById("demStatPen").textContent=data.filter(d=>d.status==="Novas Demandas").length;
   document.getElementById("demStatAnd").textContent=data.filter(d=>d.status==="Em Andamento").length;
@@ -3908,7 +4072,7 @@ function renderDemKanban(){
   const open=DEM_ENTRIES.filter(d=>d.status!=="Concluídos").length;
   const badge=document.getElementById("demBadge");
   if(badge){badge.textContent=open;badge.style.display=open?"":"none";}
-  const kb=document.getElementById("demKanban"); if(!kb) return;
+  if(!kb) return;
   const sCls={"Novas Demandas":"pendente","Em Andamento":"andamento","Pendências":"aguardando","Concluídos":"concluido"};
   kb.innerHTML=DEM_STATUS.map(st=>{
     const col=data.filter(d=>d.status===st);
@@ -4433,9 +4597,10 @@ function demMPAutoFill(){
     }
   }
 
-  // 6. Retorno à UBS: 1 dia após término da prorrogação (se existir) ou término da licença
-  if(retorno && !retorno.value){
-    const base = termProrrog?.value || terminoVal;
+  // Item 4: Retorno à UBS = 1 dia após término prorrogação (Sim) ou término licença (Não/vazio)
+  // Sempre sobrescreve — comportamento definido pelo cliente
+  if(retorno){
+    const base = (prorrog==="Sim" ? termProrrog?.value : null) || terminoVal;
     if(base){
       const d4 = new Date(base+"T00:00:00");
       d4.setDate(d4.getDate()+1);
@@ -4633,7 +4798,38 @@ function demFieldSave(){
     else if(d.etapa==="Carta de Concessão")    { dd.cartaConcessao=g("df-cartaConcessao"); dd.numProcConcessao=g("df-numProcConcessao"); dd.valorCompMS=g("df-valorCompMS"); }
     else if(d.etapa==="Pagamento Retroativo")  { dd.pagamentos=collectPag("dem-pag-retro"); }
   }
+  const _syncOcc = demGetOcc(d);
+  // Item 1.1: Verificar se há campos já preenchidos que serão sobrescritos
+  if(_syncOcc && demHasConflict(d, _syncOcc)){
+    if(!confirm("Atenção: esta ocorrência já possui dados preenchidos que serão sobrescritos. Deseja continuar?")) return;
+  }
   demSyncToOcc(d);
+  // Persistir ocorrência no banco e re-renderizar tela do profissional se estiver aberta
+  if(_syncOcc){
+    DB.saveOcc(d.profId, _syncOcc).then(res => {
+      if(!res.ok) showToast("Erro ao salvar ocorrência", "error");
+    });
+    if(currentProf && currentProf.id === d.profId) renderOccurrences();
+  }
+}
+
+// Verifica se já há dados preenchidos que seriam sobrescritos (Item 1.1)
+function demHasConflict(d, occ){
+  const dd = d.demData;
+  if(d.tipo==="saude"){
+    if(d.etapa==="Suspensão")          return !!(occ.suspBolsa || occ.numProcSusp);
+    if(d.etapa==="Reativação")         return !!(occ.dataReat || occ.numProcReat);
+    if(d.etapa==="Restituição")        return !!(occ.tipoRest || occ.numProcRest);
+    if(d.etapa==="Pagamento Retroativo") return !!(occ.pagRetro && occ.pagRetro.length);
+  } else {
+    const m = occ.matPat||{};
+    if(d.etapa==="Status / Período da Licença") return !!(m.statusBolsa || m.inicioLic);
+    if(d.etapa==="Suspensão da Bolsa")  return !!(m.numProcSusp || m.mesAnoSusp);
+    if(d.etapa==="Reativação")          return !!(m.tipoReat || m.numProcReat);
+    if(d.etapa==="Restituição ao Erário") return !!(m.procRest);
+    if(d.etapa==="Carta de Concessão")  return !!(m.cartaConcessao || m.numProcConcessao);
+  }
+  return false;
 }
 
 function demSyncToOcc(d){
@@ -4662,28 +4858,43 @@ function demSyncToOcc(d){
   else if(d.etapa==="Pagamento Retroativo"&&!occ.matPat) {
     if(dd.pagamentos) occ.pagRetro=[...dd.pagamentos];
   }
-  else if(d.etapa==="Status / Período da Licença"&&occ.matPat) { if(dd.statusBolsa) occ.matPat.statusBolsa=dd.statusBolsa; if(dd.inicioLic) occ.matPat.inicioLic=dd.inicioLic; if(dd.terminoLic) occ.matPat.terminoLic=dd.terminoLic; }
-  else if(d.etapa==="Suspensão da Bolsa"&&occ.matPat) {
+  else if(d.etapa==="Status / Período da Licença") {
+    if(!occ.matPat) occ.matPat = {};
+    // demFieldSave coleta com prefixo "mp" → normalizar
+    if(dd.mpStatusBolsa  || dd.statusBolsa)  occ.matPat.statusBolsa  = dd.mpStatusBolsa  || dd.statusBolsa;
+    if(dd.mpInicioLic    || dd.inicioLic)    occ.matPat.inicioLic    = dd.mpInicioLic    || dd.inicioLic;
+    if(dd.mpTerminoLic   || dd.terminoLic)   occ.matPat.terminoLic   = dd.mpTerminoLic   || dd.terminoLic;
+    if(dd.mpProrrogacao  || dd.prorrogacao)  occ.matPat.prorrogacao  = dd.mpProrrogacao  || dd.prorrogacao;
+    if(dd.mpInicioProrrog|| dd.inicioProrrog)occ.matPat.inicioProrrog= dd.mpInicioProrrog|| dd.inicioProrrog;
+    if(dd.mpTerminoProrrog||dd.terminoProrrog)occ.matPat.terminoProrrog=dd.mpTerminoProrrog||dd.terminoProrrog;
+    if(dd.mpRetornoUbs   || dd.retornoUbs)   occ.matPat.retornoUbs   = dd.mpRetornoUbs   || dd.retornoUbs;
+  }
+  else if(d.etapa==="Suspensão da Bolsa") {
+    if(!occ.matPat) occ.matPat = {};
     if(dd.numProcSusp) occ.matPat.numProcSusp=dd.numProcSusp;
     if(dd.mesAnoSusp) occ.matPat.mesAnoSusp=dd.mesAnoSusp;
     if(dd.pagamentos) occ.matPat.pagSusp=[...dd.pagamentos];
   }
   else if(d.etapa==="Reativação"&&occ.matPat) {
+    if(!occ.matPat) occ.matPat = {};
     if(dd.tipoReat) occ.matPat.tipoReat=dd.tipoReat;
     if(dd.numProcReat) occ.matPat.numProcReat=dd.numProcReat;
     if(dd.mesAnoReat) occ.matPat.mesAnoReat=dd.mesAnoReat;
     if(dd.pagamentos) occ.matPat.pagReat=[...dd.pagamentos];
   }
-  else if(d.etapa==="Restituição ao Erário"&&occ.matPat) {
+  else if(d.etapa==="Restituição ao Erário") {
+    if(!occ.matPat) occ.matPat = {};
     if(dd.procRest) occ.matPat.procRest=dd.procRest;
     if(dd.mesAnoRest) occ.matPat.mesAnoRest=dd.mesAnoRest;
   }
-  else if(d.etapa==="Carta de Concessão"&&occ.matPat) {
+  else if(d.etapa==="Carta de Concessão") {
+    if(!occ.matPat) occ.matPat = {};
     if(dd.cartaConcessao) occ.matPat.cartaConcessao=dd.cartaConcessao;
     if(dd.numProcConcessao) occ.matPat.numProcConcessao=dd.numProcConcessao;
     if(dd.valorCompMS) occ.matPat.valorCompMS=dd.valorCompMS;
   }
   else if(d.etapa==="Pagamento Retroativo"&&occ.matPat) {
+    if(!occ.matPat) occ.matPat = {};
     if(dd.pagamentos) occ.matPat.pagRetro=[...dd.pagamentos];
   }
   // propagate SEI within group
@@ -4873,7 +5084,7 @@ function demSelectProf(profId){
     +'<div class="dem-occ-ref-ico"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div>'
     +'<div class="dem-occ-ref-info">'
     +'<div class="dem-occ-ref-nm">'+prof.nome+'</div>'
-    +'<div class="dem-occ-ref-sub">'+(profDetails||prof.programa+' \xB7 '+prof.uf+' \xB7 '+prof.municipio)+'</div>'
+    +'<div class="dem-occ-ref-sub">'+prof.programa+' · '+prof.municipio+'/'+prof.uf+'</div>'+(profDetails?'<div style="font-size:0.75em;color:var(--tx3);margin-top:2px">'+profDetails+'</div>':'')
     +'</div>'
     +'<button class="btn btn-ghost btn-sm" onclick="demOpenNew()">Trocar</button>'
     +'</div></div>'
@@ -4907,7 +5118,7 @@ function demSelectOcc(occId){
     const sec=document.getElementById("demNPEtapaSection"); if(!sec) return;
     sec.innerHTML='<div class="dem-dr-section" style="margin-top:4px">'
       +'<div class="dem-dr-section-hd"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>Nova ocorrência — dados mínimos</div>'
-      +'<div class="dem-2col" style="margin-top:8px">'
+      +'<div style="margin-top:8px">'
       +'<div class="dem-field"><label class="dem-label">Tipo de afastamento *</label>'
       +'<select id="npNewTipo" class="dem-input" onchange="demNPNewTipoChange()">'
       +'<option value="">Selecione...</option>'
@@ -4918,8 +5129,6 @@ function demSelectOcc(occId){
       +'<option>Óbito</option>'
       +'<option>Violência Doméstica</option>'
       +'</select></div>'
-      +'<div class="dem-field"><label class="dem-label">Data de início *</label>'
-      +'<input type="date" id="npNewData" class="dem-input"></div>'
       +'</div>'
       +'<button class="btn btn-primary btn-sm" style="margin-top:8px;width:100%" onclick="demConfirmNewOcc()">Confirmar e escolher etapa</button>'
       +'</div>';
@@ -4958,15 +5167,13 @@ function demNPNewTipoChange(){
 function demConfirmNewOcc(){
   const prof=DB.getById(demNewProfId); if(!prof) return;
   const tipo=document.getElementById("npNewTipo")?.value;
-  const dataInicio=document.getElementById("npNewData")?.value;
   if(!tipo){showToast("Selecione o tipo de afastamento","warn");return;}
-  if(!dataInicio){showToast("Informe a data de início","warn");return;}
 
   const newOccId=Math.max(0,...(prof.occurrences||[]).map(o=>o.id))+100+prof.id;
   const newN=(prof.occurrences||[]).length+1;
   const newOcc={
     id:newOccId,n:newN,tipoDoc:"ATESTADO",tipoAfasta:tipo,cids:[],
-    dataInicio,periodo:0,inss:false,beneficioInssAte:"",faltasInjust:"",retornoDias:"",
+    dataInicio:"",periodo:0,inss:false,beneficioInssAte:"",faltasInjust:"",retornoDias:"",
     suspBolsa:"",tipoPagSusp:"INTEGRAL",folhaCoapeSupsp:"",numProcSusp:"",
     dataReat:"",tipoPagReat:"",folhaCoapeReat:"",numProcReat:"",
     tipoRest:"",periodoRest:"",numProcRest:"",periodoPagos:"",procPagRetro:"",
@@ -5019,7 +5226,7 @@ function demSave(){
   const resp=document.getElementById("demNPResp")?.value||prof.responsavel;
   const per=(()=>{ if(!occ.dataInicio) return ""; const d=new Date(occ.dataInicio+"T00:00:00"); return isNaN(d)?"":d.toLocaleString("pt-BR",{month:"long",year:"numeric"}); })();
   const newId = DEM_NEXT_ID++;
-  DEM_ENTRIES.push({id:newId,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa,status:"Novas Demandas",responsavel:resp,periodo:per,seiGrupo:null,demData:demInitData(etapa,occ,isMP)});
+  DEM_ENTRIES.push({id:newId,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa,status:"Novas Demandas",responsavel:resp,periodo:per,seiGrupo:null,createdAt:new Date().toISOString(),demData:demInitData(etapa,occ,isMP)});
   demCloseDrawer();
   renderDemKanban();
   showToast("Demanda criada","success");
@@ -5105,6 +5312,7 @@ function switchTab(t){
     document.getElementById("relScreen2").style.display="none";
   }
   if(t==="calc"){ calcOpenModal(); }
+  if(t==="cycles"){ renderCyclesView(); }
 }
 
 function goBack(){
@@ -5113,6 +5321,81 @@ function goBack(){
     backToResults(); return;
   }
   switchTab(previousTab);
+}
+
+// ──────────────────────────────────────────────────────────────────
+// v52: CICLOS — Gestão e arquivamento
+// ──────────────────────────────────────────────────────────────────
+function renderCyclesView(){
+  const cycles = DB.getCycles();
+  const today = new Date();
+  const in60d = new Date(); in60d.setDate(today.getDate() + 60);
+
+  // Stats
+  const vigentes = cycles.filter(c => c.status === "vigente");
+  const arquivados = cycles.filter(c => c.status === "arquivado");
+  const proximos = vigentes.filter(c => {
+    const expira = new Date(c.dataTermino);
+    expira.setMonth(expira.getMonth() + 6);
+    return expira <= in60d && expira >= today;
+  });
+  document.getElementById("cyclesStatsVigentes").textContent = vigentes.length;
+  document.getElementById("cyclesStatsArquivados").textContent = arquivados.length;
+  document.getElementById("cyclesStatsProximos").textContent = proximos.length;
+  document.getElementById("cyclesStatsTotal").textContent = cycles.length;
+
+  // Conta profs por ciclo (entre ativos)
+  const profsPorCiclo = new Map();
+  DB.getAll().forEach(p => {
+    if(p.cicloId) profsPorCiclo.set(p.cicloId, (profsPorCiclo.get(p.cicloId)||0) + 1);
+  });
+
+  const rows = cycles.map(c => {
+    const expira = new Date(c.dataTermino);
+    expira.setMonth(expira.getMonth() + 6);
+    const expiraStr = expira.toLocaleDateString("pt-BR");
+    const isExpired = expira < today && c.status === "vigente";
+    const isArch = c.status === "arquivado";
+    const statusChip = isArch
+      ? '<span style="background:#f3f4f6;color:#6b7280;padding:3px 10px;border-radius:12px;font-size:0.78em;font-weight:500">📦 Arquivado</span>'
+      : isExpired
+        ? '<span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:12px;font-size:0.78em;font-weight:500">⚠ Expirado</span>'
+        : '<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:12px;font-size:0.78em;font-weight:500">● Vigente</span>';
+    const profCount = profsPorCiclo.get(c.id) || 0;
+    const actionBtn = !isArch
+      ? `<button class="btn btn-ghost btn-sm" onclick="cyclesArchiveOne(${c.id},'${c.nome}')" title="Arquivar manualmente" style="padding:3px 10px;font-size:0.78em">Arquivar</button>`
+      : '<span style="color:var(--tx3);font-size:0.78em">—</span>';
+    return `<tr style="border-top:1px solid var(--br)">
+      <td style="padding:10px;font-weight:500">${c.nome}</td>
+      <td>${c.programa}</td>
+      <td>${new Date(c.dataInicio).toLocaleDateString("pt-BR")}</td>
+      <td>${new Date(c.dataTermino).toLocaleDateString("pt-BR")}</td>
+      <td>${expiraStr}</td>
+      <td>${statusChip}</td>
+      <td>${profCount}</td>
+      <td>${actionBtn}</td>
+    </tr>`;
+  }).join("");
+  document.getElementById("cyclesTableBody").innerHTML = rows;
+}
+
+async function cyclesRunAutoArchive(){
+  if(!confirm("Isso vai arquivar TODOS os ciclos cuja data de término + 6 meses já passou. Continuar?")) return;
+  showToast("Arquivando ciclos expirados...", "info");
+  const res = await DB.archiveExpired();
+  if(!res.ok){ showToast("Erro ao arquivar: "+(res.error||""), "error"); return; }
+  showToast(`${res.data?.length || 0} ciclos arquivados`, "success");
+  renderCyclesView();
+}
+
+async function cyclesArchiveOne(cycleId, cycleName){
+  if(!confirm(`Arquivar manualmente o ${cycleName}? Os profissionais e ocorrências serão movidos para o arquivo morto.`)) return;
+  showToast("Arquivando...", "info");
+  const res = await DB.archiveCycle(cycleId);
+  if(!res.ok){ showToast("Erro: "+(res.error||""), "error"); return; }
+  const r = res.data?.[0] || {};
+  showToast(`${cycleName} arquivado · ${r.profs_moved||0} profs, ${r.occs_moved||0} ocs`, "success");
+  renderCyclesView();
 }
 
 
@@ -5130,8 +5413,108 @@ function openProf(id){
     `<div class="collab">` +
     TEAM.slice(0,n).map(t=>`<div class="collab-dot" style="background:${t.color}" title="${t.name}">${t.ini}</div>`).join("") +
     `</div>`;
+  renderCycleSelector();  // v52
   renderProfCard();
   renderOccurrences();
+}
+
+// v52: Seletor de ciclo para o mesmo CPF (caso reingresso)
+function renderCycleSelector(){
+  const p = currentProf;
+  if(!p) return;
+  // Busca todas as ocorrências do mesmo CPF em ciclos ativos
+  const allProfs = DB.getAll();
+  const sameCpf = allProfs.filter(x => x.cpf === p.cpf);
+  // Inclui também arquivados se já foram carregados
+  const archived = DB.getArchived().filter(x => x.cpf === p.cpf);
+  const allInstances = [...sameCpf, ...archived];
+
+  const container = document.getElementById("cycleSelector");
+  if(!container) return;
+
+  if(allInstances.length <= 1){
+    container.style.display = "none";
+    return;
+  }
+  container.style.display = "flex";
+  const opts = allInstances.map(inst => {
+    const isCurrent = inst.id === p.id;
+    const isArch = inst.archived;
+    return `<option value="${inst.id}"${isCurrent?' selected':''}>
+      ${inst.ciclo || '?'}${isArch ? ' · 📦 arquivado' : ''}
+    </option>`;
+  }).join("");
+  container.innerHTML = `
+    <label style="font-size:0.7857em;color:var(--tx3);font-weight:500">Ciclo:</label>
+    <select onchange="switchCycle(this.value)" style="padding:4px 8px;border:1px solid var(--br);border-radius:var(--r);background:var(--bg);font-size:0.85em">${opts}</select>
+    <button class="btn btn-ghost btn-sm" onclick="showFullHistory('${p.cpf}')" title="Ver histórico completo de todos os ciclos" style="padding:3px 10px;font-size:0.78em">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="11" height="11"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
+      Histórico completo
+    </button>
+  `;
+}
+
+function switchCycle(profId){
+  const id = parseInt(profId);
+  const fromActive = DB.getById(id);
+  if(fromActive){ openProf(id); return; }
+  // É um arquivado
+  const fromArchive = DB.getArchived().find(x => x.id === id);
+  if(fromArchive){
+    currentProf = fromArchive;
+    document.getElementById("topName").textContent = fromArchive.nome + " 📦";
+    document.getElementById("topSub").textContent  = `${fromArchive.cpf} · ${fromArchive.programa} ${fromArchive.ciclo} · ${fromArchive.municipio}/${fromArchive.uf} · ARQUIVADO`;
+    renderCycleSelector();
+    renderProfCard();
+    renderOccurrences();
+    showToast("Visualizando registro arquivado (somente leitura)", "info");
+  }
+}
+
+// v52: Modal com histórico consolidado de todos os ciclos do CPF
+async function showFullHistory(cpf){
+  // Garantir arquivo carregado
+  if(DB.getArchived().length === 0){
+    showToast("Carregando histórico...", "info");
+    await DB.loadArchive();
+  }
+  const all = [...DB.getAll(), ...DB.getArchived()].filter(p => p.cpf === cpf);
+  all.sort((a,b) => (a.ciclo||"").localeCompare(b.ciclo||""));
+
+  const rows = all.map(p => {
+    const occCount = (p.occurrences||[]).length;
+    const isArch = p.archived ? '<span style="color:#6b7280;font-size:0.85em">📦 arquivado</span>' : '<span style="color:#059669;font-size:0.85em">● vigente</span>';
+    return `<tr>
+      <td>${p.ciclo || '?'}</td>
+      <td>${p.programa || ''}</td>
+      <td>${p.municipio}/${p.uf}</td>
+      <td>${p.status || '-'}</td>
+      <td>${occCount}</td>
+      <td>${isArch}</td>
+    </tr>`;
+  }).join("");
+
+  const modal = document.createElement("div");
+  modal.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center";
+  modal.innerHTML = `
+    <div style="background:var(--bg);border-radius:8px;padding:24px;max-width:700px;width:90%;max-height:80vh;overflow:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div>
+          <h3 style="margin:0">Histórico completo · ${all[0]?.nome || ''}</h3>
+          <div style="font-size:0.85em;color:var(--tx3);margin-top:4px">CPF ${cpf} · ${all.length} ciclos</div>
+        </div>
+        <button onclick="this.closest('div[style*=fixed]').remove()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--tx3)">×</button>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:0.9em">
+        <thead><tr style="background:var(--sf2);text-align:left">
+          <th style="padding:8px">Ciclo</th><th>Programa</th><th>Município/UF</th><th>Status</th><th>Ocorrências</th><th>Situação</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+  modal.addEventListener("click", e => { if(e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
 }
 
 // ── PROF CARD ──
@@ -6464,7 +6847,7 @@ const TIPOS_AFASTAMENTO = [
 
 // column definitions — no checkbox col; expand + open-case handled separately
 const REL_COLS = [
-  {key:"nome",      label:"Nome",             vis:true,  sortable:true,  fn:p=>p.nome},
+  {key:"nome",      label:"Nome",             vis:true,  sortable:true,  fn:p=>p.archived?`${p.nome} <span style="display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:10px;background:#f3f4f6;color:#6b7280;font-size:0.75em;font-weight:500;margin-left:4px">📦 Arquivado</span>`:p.nome},
   {key:"cpf",       label:"CPF",              vis:true,  sortable:true,  fn:p=>p.cpf},
   {key:"uf",        label:"UF",               vis:true,  sortable:true,  fn:p=>p.uf},
   {key:"municipio", label:"Município",        vis:true,  sortable:true,  fn:p=>p.municipio},
@@ -6620,10 +7003,24 @@ function liveSearch(){
 
 function grf(id){ return (document.getElementById(id)?.value||"").trim(); }
 
-function runSearch(){
+async function runSearch(){
   searchDone = true;
+  const spinner = document.getElementById("relLoadingSpinner");
+  if(spinner) spinner.style.display = "flex"; // mostra spinner
+  
   document.getElementById("relInitState").style.display = "none";
   document.getElementById("relTable").style.display     = "";
+
+  // v52: Toggle de arquivo morto — se ativo, carrega sob demanda
+  const incluirArquivo = (document.getElementById("rf-arquivo")?.value === "incluir");
+  if(incluirArquivo && DB.getArchived().length === 0) {
+    showToast("Carregando arquivo morto...", "info");
+    const res = await DB.loadArchive();
+    if(!res.ok){ showToast("Erro ao carregar arquivo morto", "error"); }
+  }
+  const baseProfs = incluirArquivo
+    ? [...DB.getAll(), ...DB.getArchived()]
+    : DB.getAll();
 
   const nome   = grf("rf-nome").toLowerCase();
   const prog   = grf("rf-programa");
@@ -6642,7 +7039,7 @@ function runSearch(){
   const rfStatus = document.getElementById("rf-status");
   if(rfStatus && activeStatusFilter) rfStatus.value = activeStatusFilter;
 
-  relResults = DB.getAll().filter(p=>{
+  relResults = baseProfs.filter(p=>{
     if(nome){
       const nomeMatch  = p.nome.toLowerCase().includes(nome);
       const emailMatch = p.email && p.email.toLowerCase().includes(nome);
@@ -6671,9 +7068,9 @@ function runSearch(){
     return true;
   });
 
-  // pre-calculate total dias for all results (O(1) lookup in table render)
-  window._totalDiasCache = new Map();
-  relResults.forEach(p=> window._totalDiasCache.set(p.id, calcTotalDias(p)));
+  // Lazy cache: calcular totalDias apenas quando renderizar a tabela
+  // (evita travamento ao clicar "buscar" com 10k+ profs)
+  window._totalDiasCache = window._totalDiasCache || new Map();
 
   expandedRows.clear();
   relPage = 0;
@@ -6681,6 +7078,9 @@ function runSearch(){
   renderRelTable();
   renderRelSummary();
   updateFilterCount();
+  
+  const spinnerEnd = document.getElementById("relLoadingSpinner");
+  if(spinnerEnd) spinnerEnd.style.display = "none"; // esconde spinner
 }
 
 function sortRelResults(){
@@ -8293,6 +8693,36 @@ initApp();
         </button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ── CICLOS VIEW (v52) ── -->
+<div class="view" id="view-cycles">
+  <div style="padding:24px;max-width:1200px;margin:0 auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div>
+        <h2 style="margin:0;font-size:1.3em">Gestão de Ciclos</h2>
+        <div style="font-size:0.85em;color:var(--tx3);margin-top:4px">Visualize ciclos vigentes e arquivados · Arquivamento automático 6 meses após término</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="cyclesRunAutoArchive()">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+        Arquivar ciclos expirados
+      </button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+      <div style="background:var(--sf2);padding:14px;border-radius:8px"><div style="font-size:0.75em;color:var(--tx3);text-transform:uppercase">Vigentes</div><div style="font-size:1.6em;font-weight:600;color:#059669" id="cyclesStatsVigentes">—</div></div>
+      <div style="background:var(--sf2);padding:14px;border-radius:8px"><div style="font-size:0.75em;color:var(--tx3);text-transform:uppercase">Arquivados</div><div style="font-size:1.6em;font-weight:600;color:#6b7280" id="cyclesStatsArquivados">—</div></div>
+      <div style="background:var(--sf2);padding:14px;border-radius:8px"><div style="font-size:0.75em;color:var(--tx3);text-transform:uppercase">A arquivar (60d)</div><div style="font-size:1.6em;font-weight:600;color:#ea580c" id="cyclesStatsProximos">—</div></div>
+      <div style="background:var(--sf2);padding:14px;border-radius:8px"><div style="font-size:0.75em;color:var(--tx3);text-transform:uppercase">Total ciclos</div><div style="font-size:1.6em;font-weight:600" id="cyclesStatsTotal">—</div></div>
+    </div>
+
+    <table style="width:100%;border-collapse:collapse;background:var(--bg);border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
+      <thead><tr style="background:var(--sf2);text-align:left;font-size:0.78em;text-transform:uppercase;color:var(--tx3)">
+        <th style="padding:10px">Ciclo</th><th>Programa</th><th>Início</th><th>Término</th><th>Arquivamento em</th><th>Status</th><th>Profs.</th><th></th>
+      </tr></thead>
+      <tbody id="cyclesTableBody"></tbody>
+    </table>
   </div>
 </div>
 
