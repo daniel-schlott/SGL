@@ -2177,11 +2177,21 @@ const DB = {
         ME = Object.assign({}, TEAM[0]);
       }
 
-      const profsRes = await _supa
-        .from("professionals")
-        .select("*, occurrences(*), status_history(*)")
-        .order("nome");
-      if(profsRes.error) return _dbError("load.professionals", profsRes.error);
+     let allProfs = [];
+      let from = 0;
+      const pageSize = 1000;
+      while (true) {
+        const res = await _supa
+          .from("professionals")
+          .select("*, occurrences(*), status_history(*)")
+          .order("nome")
+          .range(from, from + pageSize - 1);
+        if (res.error) return _dbError("load.professionals", res.error);
+        allProfs = allProfs.concat(res.data || []);
+        if ((res.data || []).length < pageSize) break;
+        from += pageSize;
+      }
+      const profsRes = { data: allProfs };
 
       // Normaliza shape DB → shape esperado pela UI (snake_case → camelCase,
       // colunas JSONB para subcampos, flag _isNew para distinguir registros
