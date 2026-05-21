@@ -1777,7 +1777,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
                 <label>Programa</label>
                 <select id="rf-programa" onchange="liveSearch();updateFilterCount()">
                   <option value="">Todos</option>
-                  <option>PMMB</option><option>PMM</option>
+                  <option>PMMB</option><option>PMME</option>
                 </select>
               </div>
               <div class="rel-field">
@@ -2242,6 +2242,7 @@ const DB = {
         inicioAtiv:   p.inicioAtiv   || p.inicio_ativ   || "",
         metodEntrada: p.metodEntrada || p.metod_entrada || "",
         cicloId:      p.cicloId      || p.ciclo_id      || null,  // v52
+        dismissedAlerts: p.dismissedAlerts || p.dismissed_alerts || [],
         statusHistory: (p.status_history || [])
           .sort((a,b) => a.changed_at.localeCompare(b.changed_at))
           .map(h => ({ s: h.status, ts: h.changed_at.slice(0,10) })),
@@ -2393,6 +2394,35 @@ const DB = {
     } catch(err) { return _dbError("reloadCycles", err); }
   },
 
+  // v56: Criar/editar ciclo
+  async saveCycle(cycle) {
+    const row = {
+      programa:      cycle.programa,
+      numero:        cycle.numero || 0,
+      nome:          cycle.nome,
+      data_inicio:   cycle.dataInicio,
+      data_termino:  cycle.dataTermino,
+      status:        cycle.status || "vigente",
+    };
+    if(cycle.id) row.id = cycle.id;
+    try {
+      const { data, error } = await _supa.from("cycles").upsert(row).select().single();
+      if(error) return _dbError("saveCycle", error);
+      await this.reloadCycles();
+      return { ok:true, data };
+    } catch(err) { return _dbError("saveCycle", err); }
+  },
+
+  // v56: Excluir ciclo
+  async deleteCycle(cycleId) {
+    try {
+      const { error } = await _supa.from("cycles").delete().eq("id", cycleId);
+      if(error) return _dbError("deleteCycle", error);
+      this._cycles = this._cycles.filter(c => c.id !== cycleId);
+      return { ok:true };
+    } catch(err) { return _dbError("deleteCycle", err); }
+  },
+
   // v52: Arquivar ciclo manualmente (chama RPC)
   async archiveCycle(cycleId) {
     try {
@@ -2440,6 +2470,7 @@ const DB = {
       metod_entrada:prof.metodEntrada || "",
       status:       prof.status,
       responsavel:  prof.responsavel,
+      dismissed_alerts: prof.dismissedAlerts || [],
     };
     try {
       const { data, error } = await _supa.from("professionals").upsert(row).select().single();
@@ -2659,10 +2690,10 @@ let isCompact    = false;
 let searchDebounceTimer = null;
 
 // Status do profissional: códigos longos vs. abreviados, classes CSS e dots
-const SL = {an:"Analisando",re:"Reativada",va:"Vaga Disp.",su:"Suspensa"};
+const SL = {an:"Analisando",re:"Reativada",va:"Vaga Disp.",su:"Suspensa",ru:"Retorno UBS"};
 const SC = {analisando:"s-an",reativada:"s-re",vaga:"s-va",suspensa:"s-su"};
 const DC = {analisando:"dot-an",reativada:"dot-re",vaga:"dot-va",suspensa:"dot-su"};
-const SK = {analisando:"an",reativada:"re",vaga:"va",suspensa:"su"};
+const SK = {analisando:"an",reativada:"re",vaga:"va",suspensa:"su",retorno_ubs:"ru"};
 
 function statusLbl(s){ return SL[SK[s]]||SL[s]||s; }
 function statusCls(s){ return SC[s]||"s-an"; }
@@ -2757,6 +2788,20 @@ function _logIdxRebuild(){
   DB.logGet().forEach(l=>{
     if(l.profId && !_logIdx.has(l.profId)) _logIdx.set(l.profId, l.ts);
   });
+}
+
+// ── DISMISS ALERT ──
+async function dismissAlert(profId, tagId){
+  if(!confirm("Tem certeza que deseja dispensar este alerta? Ele não aparecerá mais para este profissional.")) return;
+  const p = DB.getById(profId);
+  if(!p) return;
+  if(!p.dismissedAlerts) p.dismissedAlerts = [];
+  if(!p.dismissedAlerts.includes(tagId)) p.dismissedAlerts.push(tagId);
+  const res = await DB.save(p);
+  if(!res.ok){ showToast("Erro ao dispensar alerta: "+(res.error||""), "error"); return; }
+  renderDashboard();
+  if(currentProf && currentProf.id === profId) renderProfCard();
+  showToast("Alerta dispensado","success");
 }
 
 async function addLog(acao,profId,profNome,campo,antes,depois){
@@ -3078,6 +3123,10 @@ let FIXED_TAGS = [
    desc:"Licença Mat/Pat encerrada sem retorno à UBS registrado · Some ao preencher a data de Retorno à UBS na ocorrência",
    rule:"Mat/Pat com término anterior a hoje e Retorno à UBS vazio",
    sev:"warn",  iconIdx:4, colorId:"teal",   fixed:true},
+  {id:"ft-susp60",      name:"Suspensão prolongada (≥60d)",
+   desc:"Bolsa suspensa por 60+ dias corridos consecutivos (exceto Licença Maternidade) · Some ao registrar a reativação da bolsa",
+   rule:"Dias corridos com bolsa suspensa ≥ 60 (sem reativação entre elas)",
+   sev:"crit",  iconIdx:1, colorId:"red",    fixed:true},
 ];
 
 // ── CUSTOM TAGS STORE ──
@@ -3115,6 +3164,31 @@ function evalTag(tag, p){
         const fim = mp.terminoProrrog||mp.terminoLic;
         return fim && fim < tsNow();
       });
+      case "ft-susp60": {
+        // Dias corridos suspensos consecutivos: ordena ocorrências com suspBolsa por data,
+        // encontra sequência mais recente sem reativação entre elas.
+        // Regra: se ocorrência reativada (dataReat) → a sequência posterior começa do zero.
+        // Exclui Licença Maternidade.
+        const suspOccs = p.occurrences
+          .filter(o => o.suspBolsa && o.tipoAfasta !== "Licença Maternidade")
+          .sort((a,b) => a.suspBolsa.localeCompare(b.suspBolsa));
+        if(!suspOccs.length) return false;
+        // Encontrar última sequência contínua (após a última reativação)
+        let seqStart = null;
+        for(const o of suspOccs){
+          if(o.dataReat){
+            // reativação → zera sequência
+            seqStart = null;
+          } else {
+            // suspensa sem reativação → início da sequência atual se não tem início
+            if(!seqStart) seqStart = o.suspBolsa;
+          }
+        }
+        if(!seqStart) return false;
+        const today = tsNow();
+        const dias = Math.floor((new Date(today+"T00:00:00") - new Date(seqStart+"T00:00:00"))/86400000);
+        return dias >= 60;
+      }
       default: return false;
     }
   }
@@ -3171,7 +3245,8 @@ function evalTag(tag, p){
 // ── GET ACTIVE TAGS FOR A PROF ──
 function getActiveTags(p){
   const all = [...FIXED_TAGS, ...CUSTOM_TAGS];
-  return all.filter(t => evalTag(t, p));
+  const dismissed = p.dismissedAlerts || [];
+  return all.filter(t => evalTag(t, p) && !dismissed.includes(t.id));
 }
 
 // ── GET COLOR CONFIG ──
@@ -3209,6 +3284,7 @@ function buildTagAlerts(){
     p._overlapCache = detectOverlaps(p.occurrences);
     tagsToEval.forEach(t=>{
       if(!evalTag(t, p)) return;
+      if((p.dismissedAlerts||[]).includes(t.id)) return;
       // sub-texto contextual por tag
       let sub = t.desc || "";
       if(t.id==="ft-suspbolsa"){
@@ -3240,8 +3316,13 @@ function buildTagAlerts(){
           return fim && fim<today;
         });
         if(o) sub = `Oc.${o.n} · ${o.tipoAfasta} · término ${fmtI(o.matPat?.terminoProrrog||o.matPat?.terminoLic)}`;
+      } else if(t.id==="ft-susp60"){
+        const suspOccs = p.occurrences.filter(o=>o.suspBolsa&&o.tipoAfasta!=="Licença Maternidade").sort((a,b)=>a.suspBolsa.localeCompare(b.suspBolsa));
+        let seqStart=null;
+        for(const o of suspOccs){ if(o.dataReat){seqStart=null;}else{if(!seqStart)seqStart=o.suspBolsa;} }
+        if(seqStart){ const dias=Math.floor((new Date(today+"T00:00:00")-new Date(seqStart+"T00:00:00"))/86400000); sub=`Suspenso desde ${fmtI(seqStart)} · ${dias}d corridos`; }
       }
-      alerts.push({type:t.sev||"info", prof:p, occ:null, msg:t.name, sub, tagId:t.id});
+      alerts.push({type:t.sev||"info", prof:p, occ:null, msg:t.name, sub, tagId:t.id, profId:p.id});
     });
   });
   // limpar cache temporário
@@ -3832,7 +3913,10 @@ function renderAlertList(allAlerts){
         <div class="alert-title">${a.prof.nome}</div>
         <div class="alert-desc">${a.msg} · ${a.sub}</div>
       </div>
-      <div class="alert-meta">${a.prof.uf}<br><span style="font-size:0.7143em">${a.prof.responsavel.split(" ")[0]}</span></div>`;
+      <div class="alert-meta">${a.prof.uf}<br><span style="font-size:0.7143em">${a.prof.responsavel.split(" ")[0]}</span></div>
+      ${a.tagId?`<button title="Dispensar alerta" onclick="event.stopPropagation();dismissAlert(${a.profId||a.prof.id},'${a.tagId}')" style="background:none;border:none;cursor:pointer;color:var(--tx3);padding:4px;border-radius:4px;flex-shrink:0;line-height:0" onmouseover="this.style.color='var(--rd)'" onmouseout="this.style.color='var(--tx3)'">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>`:''}`;
     row.onclick=()=>{
       if(a.occ) openRelProfAndOcc(a.prof.id, a.occ.id, null);
       else openProfFromDash(a.prof.id);
@@ -5395,11 +5479,12 @@ function goBack(){
 // v52: CICLOS — Gestão e arquivamento
 // ──────────────────────────────────────────────────────────────────
 function renderCyclesView(){
-  const cycles = DB.getCycles();
+  const allCycles = DB.getCycles();
+  const cycles = allCycles.filter(c => c.programa === _cyclesTab);
   const today = new Date();
   const in60d = new Date(); in60d.setDate(today.getDate() + 60);
 
-  // Stats
+  // Stats (todos os ciclos do programa selecionado)
   const vigentes = cycles.filter(c => c.status === "vigente");
   const arquivados = cycles.filter(c => c.status === "arquivado");
   const proximos = vigentes.filter(c => {
@@ -5430,9 +5515,15 @@ function renderCyclesView(){
         ? '<span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:12px;font-size:0.78em;font-weight:500">⚠ Expirado</span>'
         : '<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:12px;font-size:0.78em;font-weight:500">● Vigente</span>';
     const profCount = profsPorCiclo.get(c.id) || 0;
-    const actionBtn = !isArch
-      ? `<button class="btn btn-ghost btn-sm" onclick="cyclesArchiveOne(${c.id},'${c.nome}')" title="Arquivar manualmente" style="padding:3px 10px;font-size:0.78em">Arquivar</button>`
-      : '<span style="color:var(--tx3);font-size:0.78em">—</span>';
+    const actionBtn = `<div style="display:flex;gap:4px">
+      ${!isArch?`<button class="btn btn-ghost btn-sm" onclick="cyclesArchiveOne(${c.id},'${c.nome}')" style="padding:3px 8px;font-size:0.78em">Arquivar</button>`:''}
+      <button class="btn btn-ghost btn-sm" onclick="cyclesOpenForm(${c.id})" style="padding:3px 8px;font-size:0.78em" title="Editar">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
+      ${profCount===0&&isArch?`<button class="btn btn-ghost btn-sm" onclick="cyclesDeleteOne(${c.id},'${c.nome}')" style="padding:3px 8px;font-size:0.78em;color:var(--rd)" title="Excluir">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/></svg>
+      </button>`:''}
+    </div>`;
     return `<tr style="border-top:1px solid var(--br)">
       <td style="padding:10px;font-weight:500">${c.nome}</td>
       <td>${c.programa}</td>
@@ -5445,6 +5536,85 @@ function renderCyclesView(){
     </tr>`;
   }).join("");
   document.getElementById("cyclesTableBody").innerHTML = rows;
+}
+
+let _cyclesTab = "PMMB"; // aba ativa
+
+function cyclesSetTab(prog){
+  _cyclesTab = prog;
+  document.getElementById("cyclesTabPMMB").className = prog==="PMMB" ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm";
+  document.getElementById("cyclesTabPMME").className = prog==="PMME" ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm";
+  renderCyclesView();
+}
+
+let _cycleEditId = null;
+
+function cyclesOpenForm(cycleId){
+  _cycleEditId = cycleId || null;
+  const overlay = document.getElementById("cycleFormOverlay");
+  overlay.style.display = "flex";
+  if(cycleId){
+    const cy = DB.getCycles().find(c=>c.id===cycleId);
+    if(!cy) return;
+    document.getElementById("cycleFormTitle").textContent = "Editar Ciclo";
+    document.getElementById("cf-nome").value = cy.nome||"";
+    document.getElementById("cf-programa").value = cy.programa||"PMMB";
+    document.getElementById("cf-numero").value = cy.numero||"";
+    document.getElementById("cf-inicio").value = cy.dataInicio||"";
+    document.getElementById("cf-termino").value = cy.dataTermino||"";
+    document.getElementById("cf-status").value = cy.status||"vigente";
+  } else {
+    document.getElementById("cycleFormTitle").textContent = "Novo Ciclo";
+    document.getElementById("cf-nome").value = "";
+    document.getElementById("cf-programa").value = _cyclesTab;
+    document.getElementById("cf-numero").value = "";
+    document.getElementById("cf-inicio").value = "";
+    document.getElementById("cf-termino").value = "";
+    document.getElementById("cf-status").value = "vigente";
+  }
+}
+
+function cyclesCloseForm(){
+  document.getElementById("cycleFormOverlay").style.display = "none";
+  _cycleEditId = null;
+}
+
+async function cyclesSaveForm(){
+  const nome    = document.getElementById("cf-nome").value.trim();
+  const programa= document.getElementById("cf-programa").value;
+  const inicio  = document.getElementById("cf-inicio").value;
+  const termino = document.getElementById("cf-termino").value;
+  if(!nome||!programa||!inicio||!termino){ showToast("Preencha todos os campos obrigatórios","error"); return; }
+  const btn = document.getElementById("cfSaveBtn");
+  await withLoading(btn, async()=>{
+    const cycle = {
+      id:          _cycleEditId || undefined,
+      nome, programa,
+      numero:      parseInt(document.getElementById("cf-numero").value)||0,
+      dataInicio:  inicio,
+      dataTermino: termino,
+      status:      document.getElementById("cf-status").value,
+    };
+    const res = await DB.saveCycle(cycle);
+    if(!res.ok){ showToast("Erro: "+(res.error||""), "error"); return; }
+    cyclesCloseForm();
+    _cyclesTab = programa;
+    renderCyclesView();
+    showToast(_cycleEditId?"Ciclo atualizado":"Ciclo criado","success");
+  });
+}
+
+async function cyclesDeleteOne(cycleId, cycleName){
+  const profs = DB.getAll().filter(p=>p.cicloId===cycleId);
+  if(profs.length>0){
+    alert(`Não é possível excluir "${cycleName}" pois há ${profs.length} profissional(is) vinculado(s). Arquive o ciclo ou remova os profissionais primeiro.`);
+    return;
+  }
+  if(!confirm(`Excluir permanentemente o ciclo "${cycleName}"?\n\nEsta ação é irreversível.`)) return;
+  const res = await DB.deleteCycle(cycleId);
+  if(!res.ok){ showToast("Erro ao excluir: "+(res.error||""), "error"); return; }
+  showToast(`Ciclo "${cycleName}" excluído`,"success");
+  renderCyclesView();
 }
 
 async function cyclesRunAutoArchive(){
@@ -5643,7 +5813,7 @@ function renderProfCard(editMode=false){
         <div class="field"><label>Nome completo</label><input id="ce-nome" value="${p.nome}"></div>
         <div class="field"><label>Programa</label>
           <select id="ce-programa">
-            ${["PMMB","PMM"].map(v=>`<option${p.programa===v?" selected":""}>${v}</option>`).join("")}
+            ${["PMMB","PMME"].map(v=>`<option${p.programa===v?" selected":""}>${v}</option>`).join("")}
           </select></div>
         <div class="field"><label>Ciclo</label><input id="ce-ciclo" value="${p.ciclo||""}"></div>
         <div class="field"><label>UF</label><input id="ce-uf" value="${p.uf||""}"></div>
@@ -5655,11 +5825,17 @@ function renderProfCard(editMode=false){
           </select></div>
         <div class="field" style="grid-column:span 3"><label>E-mail</label><input id="ce-email" value="${p.email||""}"></div>
       </div>
-      <div style="display:flex;gap:6px;margin-top:10px">
-        <button class="btn btn-primary btn-sm" onclick="saveCadastral(event)">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>Salvar dados
+      <div style="display:flex;gap:6px;margin-top:10px;justify-content:space-between">
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-primary btn-sm" onclick="saveCadastral(event)">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>Salvar dados
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="renderProfCard(false)">Cancelar</button>
+        </div>
+        <button class="btn btn-sm" style="color:var(--rd);border:1px solid var(--rd);background:transparent" onclick="confirmDeleteProf()">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+          Excluir profissional
         </button>
-        <button class="btn btn-ghost btn-sm" onclick="renderProfCard(false)">Cancelar</button>
       </div>
       ${histHtml}`;
     return;
@@ -5694,6 +5870,30 @@ function renderProfCard(editMode=false){
     </button></div>`:""}
     ${histHtml}
   `;
+}
+
+async function confirmDeleteProf(){
+  const p = currentProf;
+  if(!p) return;
+  const hasOccs = (p.occurrences||[]).length > 0;
+  if(hasOccs){
+    alert(`Não é possível excluir "${p.nome}" pois existem ${p.occurrences.length} ocorrência(s) cadastrada(s). Exclua todas as ocorrências antes de excluir o profissional.`);
+    return;
+  }
+  const cicloNome = DB.getCycles().find(cy=>cy.id===p.cicloId)?.nome || p.ciclo || "?";
+  if(!confirm(`Tem certeza que deseja excluir "${p.nome}" do ciclo ${cicloNome}?\n\nEsta ação é irreversível e remove apenas o registro deste ciclo.`)) return;
+  const res = await DB.delete(p.id);
+  if(!res.ok){ showToast("Erro ao excluir: "+(res.error||""), "error"); return; }
+  await addLog("Exclusão", p.id, p.nome, "Profissional excluído", p.ciclo, "—");
+  showToast(`"${p.nome}" excluído`, "success");
+  currentProf = null;
+  document.getElementById("profView").style.display = "none";
+  document.getElementById("emptyState").style.display = "flex";
+  relResults = DB.getAll();
+  relPage = 0;
+  sortRelResults();
+  renderInitState();
+  renderDashboard();
 }
 
 async function saveCadastral(ev){
@@ -6112,8 +6312,9 @@ function buildFormMatPat(occ){
     return d.toISOString().slice(0,10);
   }
 
-  // 1. Término licença = início + 119 (120 dias), se não preenchido
-  const terminoLicVal = mp.terminoLic || (mp.inicioLic ? addDays(mp.inicioLic,119) : "");
+  // 1. Término licença = início + 119/19 dias (120d Mat / 20d Pat), se não preenchido
+  const _licDias = isMat ? 119 : 19; // Maternidade=120d, Paternidade=20d
+  const terminoLicVal = mp.terminoLic || (mp.inicioLic ? addDays(mp.inicioLic,_licDias) : "");
   // 2. Prorrogação: início = término+1, término = início prorrog + 59 (60 dias)
   const iniProrrogVal = mp.inicioProrrog || (mp.prorrogacao==="Sim"&&terminoLicVal ? addDays(terminoLicVal,1) : "");
   const termProrrogVal = mp.terminoProrrog || (iniProrrogVal ? addDays(iniProrrogVal,59) : "");
@@ -8690,7 +8891,7 @@ initApp();
           <select id="np-programa">
             <option value="">Selecione</option>
             <option>PMMB</option>
-            <option>PMM</option>
+            <option>PMME</option>
           </select>
           <span class="np-errmsg" id="np-programa-err"></span>
         </div>
@@ -8766,31 +8967,90 @@ initApp();
 
 <!-- ── CICLOS VIEW (v52) ── -->
 <div class="view" id="view-cycles">
-  <div style="padding:24px;max-width:1200px;margin:0 auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+  <div style="padding:24px;max-width:1200px;margin:0 auto;height:100%;display:flex;flex-direction:column">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-shrink:0">
       <div>
         <h2 style="margin:0;font-size:1.3em">Gestão de Ciclos</h2>
-        <div style="font-size:0.85em;color:var(--tx3);margin-top:4px">Visualize ciclos vigentes e arquivados · Arquivamento automático 6 meses após término</div>
+        <div style="font-size:0.85em;color:var(--tx3);margin-top:4px">Cadastre, edite e arquive ciclos de PMMB e PMME</div>
       </div>
-      <button class="btn btn-primary btn-sm" onclick="cyclesRunAutoArchive()">
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-        Arquivar ciclos expirados
-      </button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="cyclesRunAutoArchive()">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+          Arquivar expirados
+        </button>
+        <button class="btn btn-primary btn-sm" onclick="cyclesOpenForm()">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Novo ciclo
+        </button>
+      </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+    <!-- Seletor PMMB/PMME -->
+    <div style="display:flex;gap:4px;margin-bottom:16px;flex-shrink:0">
+      <button id="cyclesTabPMMB" class="btn btn-primary btn-sm" onclick="cyclesSetTab('PMMB')" style="border-radius:6px 0 0 6px">PMMB</button>
+      <button id="cyclesTabPMME" class="btn btn-ghost btn-sm" onclick="cyclesSetTab('PMME')" style="border-radius:0 6px 6px 0">PMME</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;flex-shrink:0">
       <div style="background:var(--sf2);padding:14px;border-radius:8px"><div style="font-size:0.75em;color:var(--tx3);text-transform:uppercase">Vigentes</div><div style="font-size:1.6em;font-weight:600;color:#059669" id="cyclesStatsVigentes">—</div></div>
       <div style="background:var(--sf2);padding:14px;border-radius:8px"><div style="font-size:0.75em;color:var(--tx3);text-transform:uppercase">Arquivados</div><div style="font-size:1.6em;font-weight:600;color:#6b7280" id="cyclesStatsArquivados">—</div></div>
       <div style="background:var(--sf2);padding:14px;border-radius:8px"><div style="font-size:0.75em;color:var(--tx3);text-transform:uppercase">A arquivar (60d)</div><div style="font-size:1.6em;font-weight:600;color:#ea580c" id="cyclesStatsProximos">—</div></div>
       <div style="background:var(--sf2);padding:14px;border-radius:8px"><div style="font-size:0.75em;color:var(--tx3);text-transform:uppercase">Total ciclos</div><div style="font-size:1.6em;font-weight:600" id="cyclesStatsTotal">—</div></div>
     </div>
 
-    <table style="width:100%;border-collapse:collapse;background:var(--bg);border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
-      <thead><tr style="background:var(--sf2);text-align:left;font-size:0.78em;text-transform:uppercase;color:var(--tx3)">
-        <th style="padding:10px">Ciclo</th><th>Programa</th><th>Início</th><th>Término</th><th>Arquivamento em</th><th>Status</th><th>Profs.</th><th></th>
-      </tr></thead>
-      <tbody id="cyclesTableBody"></tbody>
-    </table>
+    <div style="overflow-y:auto;flex:1;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
+      <table style="width:100%;border-collapse:collapse;background:var(--bg)">
+        <thead style="position:sticky;top:0;z-index:2"><tr style="background:var(--sf2);text-align:left;font-size:0.78em;text-transform:uppercase;color:var(--tx3)">
+          <th style="padding:10px">Ciclo</th><th>Programa</th><th>Início</th><th>Término</th><th>Arquivamento em</th><th>Status</th><th>Profs.</th><th></th>
+        </tr></thead>
+        <tbody id="cyclesTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal form ciclo -->
+  <div id="cycleFormOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;align-items:center;justify-content:center" onclick="if(event.target===this)cyclesCloseForm()">
+    <div style="background:var(--sf);border-radius:12px;padding:24px;width:460px;max-width:95vw;box-shadow:var(--shm)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 id="cycleFormTitle" style="margin:0;font-size:1.05em">Novo Ciclo</h3>
+        <button onclick="cyclesCloseForm()" style="background:none;border:none;cursor:pointer;color:var(--tx3);font-size:1.3em">×</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="field" style="grid-column:span 2">
+          <label>Nome do ciclo <span class="req">*</span></label>
+          <input id="cf-nome" type="text" placeholder="Ex.: 41°">
+        </div>
+        <div class="field">
+          <label>Programa <span class="req">*</span></label>
+          <select id="cf-programa">
+            <option>PMMB</option><option>PMME</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Número (ordem)</label>
+          <input id="cf-numero" type="number" placeholder="Ex.: 41" min="1">
+        </div>
+        <div class="field">
+          <label>Data de início <span class="req">*</span></label>
+          <input id="cf-inicio" type="date">
+        </div>
+        <div class="field">
+          <label>Data de término <span class="req">*</span></label>
+          <input id="cf-termino" type="date">
+        </div>
+        <div class="field">
+          <label>Status</label>
+          <select id="cf-status">
+            <option value="vigente">Vigente</option>
+            <option value="arquivado">Arquivado</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
+        <button class="btn btn-ghost btn-sm" onclick="cyclesCloseForm()">Cancelar</button>
+        <button class="btn btn-primary btn-sm" id="cfSaveBtn" onclick="cyclesSaveForm()">Salvar ciclo</button>
+      </div>
+    </div>
   </div>
 </div>
 
