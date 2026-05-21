@@ -1434,7 +1434,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
   </div>
 
   <!-- Navegação de mês (Item 2) -->
-  <div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 0 4px" id="demMonthNav"></div>
+
 
   <div class="dem-kanban" id="demKanban"></div>
 
@@ -2263,6 +2263,7 @@ const DB = {
             faltasInjust:     o.faltasInjust     || o.faltas_injust      || "",
             retornoDias:      o.retornoDias      || o.retorno_dias       || "",
             suspBolsa:        o.suspBolsa        || o.susp_bolsa         || "",
+            statusBolsa:      o.statusBolsa      || o.status_bolsa       || "",
             tipoPagSusp:      o.tipoPagSusp      || o.tipo_pag_susp      || "",
             folhaCoapeSupsp:  o.folhaCoapeSupsp  || o.folha_coape_susp   || "",
             numProcSusp:      o.numProcSusp      || o.num_proc_susp      || "",
@@ -2322,58 +2323,32 @@ const DB = {
   // v52: Carrega arquivo morto sob demanda (não vem no load inicial)
   async loadArchive() {
     try {
-      // Carregar professionals_archive e occurrences_archive separadamente
-      // (não há FK entre as tabelas archive no schema, então JOIN automático falha)
-      let allProfs = [];
+      let all = [];
       let from = 0;
       const pageSize = 1000;
       while (true) {
         const res = await _supa
           .from("professionals_archive")
-          .select("*")
+          .select("*, occurrences:occurrences_archive(*)")
           .order("nome")
           .range(from, from + pageSize - 1);
         if (res.error) return _dbError("loadArchive", res.error);
-        allProfs = allProfs.concat(res.data || []);
+        all = all.concat(res.data || []);
         if ((res.data || []).length < pageSize) break;
         from += pageSize;
       }
-      // Carregar todas as ocorrências arquivadas separadamente
-      let allOccs = [];
-      from = 0;
-      while (true) {
-        const res = await _supa
-          .from("occurrences_archive")
-          .select("*")
-          .range(from, from + pageSize - 1);
-        if (res.error) return _dbError("loadArchive", res.error);
-        allOccs = allOccs.concat(res.data || []);
-        if ((res.data || []).length < pageSize) break;
-        from += pageSize;
-      }
-      // Mapear ocorrências por prof_id para lookup O(1)
-      const occByProf = new Map();
-      allOccs.forEach(o => {
-        const pid = o.prof_id;
-        if (!occByProf.has(pid)) occByProf.set(pid, []);
-        occByProf.get(pid).push(o);
-      });
-      // Montar estrutura igual aos profissionais ativos
-      this._archivedProfs = allProfs.map(p => ({
+      // Mesmo mapeamento snake → camel que profissionais ativos
+      this._archivedProfs = all.map(p => ({
         ...p,
         inicioAtiv:   p.inicio_ativ   || "",
         metodEntrada: p.metod_entrada || "",
         cicloId:      p.ciclo_id      || null,
-        archived:     true,
-        occurrences: (occByProf.get(p.id) || [])
-          .sort((a,b) => (a.n||0) - (b.n||0))
-          .map(o => ({
-            ...o,
-            tipoDoc:    o.tipo_doc    || "",
-            tipoAfasta: o.tipo_afasta || "",
-            dataInicio: o.data_inicio || "",
-            matPat:     o.mat_pat_data || {},
-          })),
+        archived:     true,   // flag para UI distinguir
+        occurrences: (p.occurrences || []).map(o => ({
+          ...o,
+          tipoDoc: o.tipo_doc || "", tipoAfasta: o.tipo_afasta || "",
+          dataInicio: o.data_inicio || "", matPat: o.mat_pat_data || {},
+        })),
       }));
       return { ok:true, count: this._archivedProfs.length };
     } catch(err) { return _dbError("loadArchive", err); }
@@ -2503,6 +2478,7 @@ const DB = {
       metodo_entrada:   occ.metodoEntrada || "",
       espec_entrada:    occ.especEntrada || "",
       susp_bolsa:       occ.suspBolsa || null,
+      status_bolsa:     occ.statusBolsa || "",
       tipo_pag_susp:    occ.tipoPagSusp || "",
       folha_coape_susp: occ.folhaCoapeSupsp || null,
       num_proc_susp:    occ.numProcSusp || "",
@@ -3853,6 +3829,8 @@ let previousTab = "lic";
 // ── State ──
 let demViewMode  = "geral";
 let demSeiMode   = false;
+const _now = new Date();
+let demFilterMonth = {mes: _now.getMonth()+1, ano: _now.getFullYear()};
 let demSeiSel    = new Set();
 let demEditId    = null;
 let demNewProfId = null;
@@ -3939,8 +3917,8 @@ function demBootstrap(){
 
 function demInitData(etapa,occ,isMP){
   if(!isMP){
-    if(etapa==="Suspensão")          return {suspBolsa:occ.suspBolsa||"",folhaCoapeSupsp:occ.folhaCoapeSupsp||"",numProcSusp:occ.numProcSusp||"",emailSusp:"",obsSusp:"",pagamentos:occ.pagSusp?[...occ.pagSusp]:[]};
-    if(etapa==="Reativação")         return {dataReatIni:occ.dataReat||"",folhaCoapeReat:occ.folhaCoapeReat||"",numProcReat:occ.numProcReat||"",descontoIni:occ.descontoIni||"",descontoFim:occ.descontoFim||"",pagamentos:occ.pagReat?[...occ.pagReat]:[]};
+    if(etapa==="Suspensão")          return {statusBolsa:occ.statusBolsa||"",suspBolsa:occ.suspBolsa||"",folhaCoapeSupsp:occ.folhaCoapeSupsp||"",numProcSusp:occ.numProcSusp||"",emailSusp:"",obsSusp:"",pagamentos:occ.pagSusp?[...occ.pagSusp]:[]};
+    if(etapa==="Reativação")         return {statusBolsa:occ.statusBolsa||"",dataReatIni:occ.dataReat||"",folhaCoapeReat:occ.folhaCoapeReat||"",numProcReat:occ.numProcReat||"",descontoIni:occ.descontoIni||"",descontoFim:occ.descontoFim||"",pagamentos:occ.pagReat?[...occ.pagReat]:[]};
     if(etapa==="Restituição")        { const rs=occEnsureRestituicoes(occ); return {restituicoes: rs.length ? rs.map(r=>({...r})) : [restBlank()]}; }
     if(etapa==="Pagamento Retroativo") return {pagamentos:(occ.pagRetro||[]).map(p=>({...p}))};
   } else {
@@ -3966,22 +3944,17 @@ function periodoToMesAno(p){
 }
 
 function demGetFiltered(){
-  const fMesEl=parseInt(document.getElementById("demFiltMes")?.value||"")||0;
-  const fAnoEl=parseInt(document.getElementById("demFiltAno")?.value||"")||0;
-  // Se não há filtro manual, usa o mês/ano corrente (Item 2)
-  const fMes=fMesEl || demFilterMonth.mes;
-  const fAno=fAnoEl || demFilterMonth.ano;
+  const fMes=parseInt(document.getElementById("demFiltMes")?.value||"")||0;
+  const fAno=parseInt(document.getElementById("demFiltAno")?.value||"")||0;
   const fr=document.getElementById("demFiltResp")?.value||"";
   const fe=document.getElementById("demFiltEtapa")?.value||"";
   const fs=document.getElementById("demFiltStatus")?.value||"";
   const fq=(document.getElementById("demFiltProf")?.value||"").toLowerCase().trim();
   return DEM_ENTRIES.filter(d=>{
-    // Filtra pela data de criação do card (campo createdAt) ou pelo período da ocorrência
     const cardDate = d.createdAt ? new Date(d.createdAt) : null;
     const cardMes = cardDate ? cardDate.getMonth()+1 : 0;
     const cardAno = cardDate ? cardDate.getFullYear() : 0;
     if(fMes||fAno){
-      // Prioriza createdAt se disponível, senão usa periodo
       if(cardDate){
         if(fMes && cardMes!==fMes) return false;
         if(fAno && cardAno!==fAno) return false;
@@ -4015,32 +3988,10 @@ function demSetView(v,el){
   renderDemKanban();
 }
 
-// ── NAVEGAÇÃO DE MÊS (Item 2) ──
-function demNavMonth(delta){
-  demFilterMonth.mes += delta;
-  if(demFilterMonth.mes > 12){ demFilterMonth.mes=1; demFilterMonth.ano++; }
-  if(demFilterMonth.mes < 1) { demFilterMonth.mes=12; demFilterMonth.ano--; }
-  renderDemKanban();
-  demRenderMonthNav();
-}
-function demGoToday(){
-  const n=new Date();
-  demFilterMonth={mes:n.getMonth()+1,ano:n.getFullYear()};
-  renderDemKanban();
-  demRenderMonthNav();
-}
-function demRenderMonthNav(){
-  const el=document.getElementById("demMonthNav"); if(!el) return;
-  const n=new Date();
-  const isToday=demFilterMonth.mes===n.getMonth()+1 && demFilterMonth.ano===n.getFullYear();
-  const label=MES_NOMES[demFilterMonth.mes-1]+' '+demFilterMonth.ano;
-  el.innerHTML=`
-    <button class="btn btn-ghost btn-sm" onclick="demNavMonth(-1)" title="Mês anterior" style="padding:2px 8px">‹</button>
-    <span style="font-size:0.8571em;font-weight:600;color:var(--tx1);min-width:120px;text-align:center;text-transform:capitalize">${label}</span>
-    <button class="btn btn-ghost btn-sm" onclick="demNavMonth(1)" title="Próximo mês" style="padding:2px 8px">›</button>
-    ${!isToday?`<button class="btn btn-ghost btn-sm" onclick="demGoToday()" style="padding:2px 8px;font-size:0.75em;color:var(--ac)">Hoje</button>`:''}
-  `;
-}
+// ── NAVEGAÇÃO DE MÊS — substituída pelo select; funções mantidas por compatibilidade ──
+function demNavMonth(delta){}
+function demGoToday(){}
+function demRenderMonthNav(){}
 
 function demQuickFilter(status){
   const sel=document.getElementById("demFiltStatus");
@@ -4049,11 +4000,7 @@ function demQuickFilter(status){
 }
 
 function demPopulateFilters(){
-  // Anos baseados em createdAt do cartão (quando foi criado), com fallback em d.periodo
-  const anos=[...new Set(DEM_ENTRIES.map(d=>{
-    if(d.createdAt) return new Date(d.createdAt).getFullYear();
-    return periodoToMesAno(d.periodo).ano;
-  }).filter(Boolean))].sort().reverse();
+  const anos=[...new Set(DEM_ENTRIES.map(d=>periodoToMesAno(d.periodo).ano).filter(Boolean))].sort().reverse();
   const resps=[...new Set(DEM_ENTRIES.map(d=>d.responsavel).filter(Boolean))].sort();
   const fa=document.getElementById("demFiltAno");
   const fr=document.getElementById("demFiltResp");
@@ -4097,7 +4044,6 @@ function demClearFilters(){
 function renderDemKanban(){
   demPopulateFilters();
   demRenderChips();
-  demRenderMonthNav();
   // Item 3: mostrar vazio limpo enquanto processa
   const kb=document.getElementById("demKanban");
   if(kb && !kb.innerHTML) kb.innerHTML='<div style="grid-column:1/-1;display:flex;justify-content:center;padding:40px"><div style="text-align:center"><div style="width:32px;height:32px;border:3px solid var(--br);border-top:3px solid var(--ac);border-radius:50%;animation:spin 0.6s linear infinite;margin:0 auto 10px"></div><div style="font-size:0.8571em;color:var(--tx2)">Carregando...</div></div></div>';
@@ -4326,13 +4272,9 @@ function demRenderCardBody(d){
       <div class="dem-dr-section-hd"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profissional e ocorrência</div>
       <div class="dem-occ-ref">
         <div class="dem-occ-ref-ico"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
-        <div class="dem-occ-ref-info">
-          <div class="dem-occ-ref-nm">${d.profNome} <span class="dem-id-badge" style="margin-left:4px">#${d.id}</span></div>
-          <div class="dem-occ-ref-sub">${[DB.getById(d.profId)?.email, DB.getById(d.profId)?.cpf, DB.getById(d.profId)?.siape ? 'SIAPE '+DB.getById(d.profId).siape : ''].filter(Boolean).join(' · ')}</div>
-          <div class="dem-occ-ref-sub">Ocorrência ${d.occN} · ${occSub}</div>
-        </div>
+        <div class="dem-occ-ref-info"><div class="dem-occ-ref-nm">${d.profNome} <span class="dem-id-badge" style="margin-left:4px">#${d.id}</span></div><div class="dem-occ-ref-sub">Ocorrência ${d.occN} · ${occSub}</div></div>
         <div style="display:flex;gap:4px;align-items:center">
-          <button class="btn btn-ghost btn-sm" onclick="openProfFromDashOcc(${d.profId},${d.occId})" title="Abrir no Relatório"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>
+          <button class="btn btn-ghost btn-sm" onclick="openProfFromDash(${d.profId})" title="Abrir no Relatório"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>
           ${isGestor()?`<button class="btn btn-ghost btn-sm" style="color:var(--tx3);font-size:0.72em" onclick="demForceNewCard(${d.occId},'${d.etapa}')" title="Criar novo card independente para esta etapa (apenas gestores)"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="11" height="11"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Novo card</button>`:''}
         </div>
       </div>
@@ -4442,8 +4384,15 @@ function demFormMPStatusFixed(dd){
 }
 
 function demFormSuspensao(dd){
+  const STATUS_BOLSA_SAUDE = ["Bolsa Suspensa","Bolsa Reativada","Sem Suspensão de Bolsa","Outros"];
   return `<div class="dem-dr-section">
     <div class="dem-dr-section-hd"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>Suspensão da bolsa</div>
+    <div class="dem-field"><label>Status da bolsa</label>
+      <select id="df-statusBolsa" onchange="demFieldSave()">
+        <option value="">—</option>
+        ${STATUS_BOLSA_SAUDE.map(v=>`<option${(dd.statusBolsa||"")===v?" selected":""}>${v}</option>`).join("")}
+      </select>
+    </div>
     <div class="dem-2col">
       <div class="dem-field"><label>Data de suspensão</label><input type="date" id="df-suspBolsa" value="${dd.suspBolsa||""}" onchange="demFieldSave()"></div>
       <div class="dem-field"><label>Folha COAPE (Susp.)</label><input type="text" id="df-folhaCoapeSupsp" value="${dd.folhaCoapeSupsp||""}" placeholder="Data ou ref." onchange="demFieldSave()"></div>
@@ -4461,8 +4410,15 @@ function demFormSuspensao(dd){
 }
 
 function demFormReativacao(dd){
+  const STATUS_BOLSA_SAUDE = ["Bolsa Suspensa","Bolsa Reativada","Sem Suspensão de Bolsa","Outros"];
   return `<div class="dem-dr-section">
     <div class="dem-dr-section-hd"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>Reativação da bolsa</div>
+    <div class="dem-field"><label>Status da bolsa</label>
+      <select id="df-statusBolsa" onchange="demFieldSave()">
+        <option value="">—</option>
+        ${STATUS_BOLSA_SAUDE.map(v=>`<option${(dd.statusBolsa||"")===v?" selected":""}>${v}</option>`).join("")}
+      </select>
+    </div>
     <div class="dem-2col">
       <div class="dem-field"><label>Data reativação</label><input type="date" id="df-dataReatIni" value="${dd.dataReatIni||""}" onchange="demFieldSave()"></div>
       <div class="dem-field"><label>Folha COAPE (Reat.)</label><input type="text" id="df-folhaCoapeReat" value="${dd.folhaCoapeReat||""}" placeholder="Data ou ref." onchange="demFieldSave()"></div>
@@ -4809,12 +4765,12 @@ function demFieldSave(){
   }));
   if(d.tipo==="saude"){
     if(d.etapa==="Suspensão") {
-      dd.suspBolsa=g("df-suspBolsa"); dd.folhaCoapeSupsp=g("df-folhaCoapeSupsp");
+      dd.statusBolsa=g("df-statusBolsa"); dd.suspBolsa=g("df-suspBolsa"); dd.folhaCoapeSupsp=g("df-folhaCoapeSupsp");
       dd.numProcSusp=g("df-numProcSusp"); dd.obsSusp=g("df-obsSusp");
       dd.pagamentos=collectPag("dem-pag-susp");
     }
     else if(d.etapa==="Reativação") {
-      dd.dataReatIni=g("df-dataReatIni"); dd.folhaCoapeReat=g("df-folhaCoapeReat");
+      dd.statusBolsa=g("df-statusBolsa"); dd.dataReatIni=g("df-dataReatIni"); dd.folhaCoapeReat=g("df-folhaCoapeReat");
       dd.numProcReat=g("df-numProcReat"); dd.descontoIni=g("df-descontoIni"); dd.descontoFim=g("df-descontoFim");
       dd.pagamentos=collectPag("dem-pag-reat");
     }
@@ -4840,16 +4796,6 @@ function demFieldSave(){
     else if(d.etapa==="Pagamento Retroativo")  { dd.pagamentos=collectPag("dem-pag-retro"); }
   }
   const _syncOcc = demGetOcc(d);
-  // Detectar cartão órfão (ocorrência foi deletada)
-  if(!_syncOcc){
-    if(confirm("A ocorrência vinculada a este cartão foi excluída. Deseja remover este cartão de demanda?")){
-      DEM_ENTRIES = DEM_ENTRIES.filter(x => x.id !== d.id);
-      demCloseDrawer();
-      renderDemKanban();
-      showToast("Cartão removido", "warn");
-    }
-    return;
-  }
   // Item 1.1: Verificar se há campos já preenchidos que serão sobrescritos
   if(_syncOcc && demHasConflict(d, _syncOcc)){
     if(!confirm("Atenção: esta ocorrência já possui dados preenchidos que serão sobrescritos. Deseja continuar?")) return;
@@ -4891,6 +4837,11 @@ function demSyncToOcc(d){
     if(dd.numProcSusp) occ.numProcSusp=dd.numProcSusp;
     if(dd.folhaCoapeSupsp) occ.folhaCoapeSupsp=dd.folhaCoapeSupsp;
     if(dd.pagamentos) occ.pagSusp=[...dd.pagamentos];
+    // Auto-atualiza statusBolsa e status do profissional
+    if(dd.suspBolsa && occ.statusBolsa!=="Bolsa Suspensa"){
+      occ.statusBolsa="Bolsa Suspensa";
+      const p=DB.getById(d.profId); if(p && p.status!=="suspensa"){ p.status="suspensa"; DB.save(p); }
+    }
   }
   else if(d.etapa==="Reativação"&&!occ.matPat) {
     if(dd.dataReatIni) occ.dataReat=dd.dataReatIni;
@@ -4899,6 +4850,11 @@ function demSyncToOcc(d){
     if(dd.descontoIni) occ.descontoIni=dd.descontoIni;
     if(dd.descontoFim) occ.descontoFim=dd.descontoFim;
     if(dd.pagamentos) occ.pagReat=[...dd.pagamentos];
+    // Auto-atualiza statusBolsa e status do profissional
+    if(dd.dataReatIni && occ.statusBolsa!=="Bolsa Reativada"){
+      occ.statusBolsa="Bolsa Reativada";
+      const p=DB.getById(d.profId); if(p && p.status==="suspensa"){ p.status="reativada"; DB.save(p); }
+    }
   }
   else if(d.etapa==="Restituição") {
     occ.restituicoes = (dd.restituicoes||[]).map(r=>({...r}));
@@ -5334,6 +5290,11 @@ function openProfFromDashOcc(profId, occId){
 function initDemandas(){
   demBootstrap();
   demPopulateFilters();
+  // Pré-selecionar mês atual se o select ainda não tiver valor
+  const mesSel = document.getElementById("demFiltMes");
+  if(mesSel && !mesSel.value){
+    mesSel.value = String(new Date().getMonth()+1);
+  }
   renderDemKanban();
 }
 
@@ -5974,7 +5935,20 @@ function occRemoveRestituicao(occId, idx){
 function buildFormSaude(occ){
   const {dia16,termino} = calcDates(occ);
   const id = occ.id;
+  const STATUS_BOLSA_SAUDE = ["Bolsa Suspensa","Bolsa Reativada","Sem Suspensão de Bolsa","Outros"];
   return `<div style="padding-top:12px">
+  <div class="fs">
+    <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>Status da Bolsa</div>
+    <div class="fg-grid g4">
+      <div class="field sp2"><label>Status da bolsa</label>
+        <select id="f${id}-statusBolsa" onchange="saudeStatusBolsaChange(${id})">
+          <option value="">—</option>
+          ${STATUS_BOLSA_SAUDE.map(v=>`<option${(occ.statusBolsa||"")===v?" selected":""}>${v}</option>`).join("")}
+        </select></div>
+      <div class="field"><label>Data suspensão</label><input type="date" id="f${id}-suspBolsa" value="${occ.suspBolsa||""}" oninput="onChange(${id})"></div>
+      <div class="field"><label>Data reativação</label><input type="date" id="f${id}-dataReat" value="${occ.dataReat||""}" oninput="onChange(${id})"></div>
+    </div>
+  </div>
   <div class="fs">
     <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M8 5v6"/></svg>Entrada no Núcleo</div>
     <div class="fg-grid g4">
@@ -6025,11 +5999,10 @@ function buildFormSaude(occ){
     </div>
   </div>
   <div class="fs">
-    <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>Suspensão da Bolsa</div>
+    <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>Processo de Suspensão</div>
     <div class="fg-grid g4">
-      <div class="field"><label>Data suspensão</label><input type="date" id="f${id}-suspBolsa" value="${occ.suspBolsa||""}" oninput="onChange(${id})"></div>
       <div class="field"><label>Folha COAPE (susp.)</label><input type="date" id="f${id}-folhaSusp" value="${occ.folhaCoapeSupsp||""}" oninput="onChange(${id})"></div>
-      <div class="field sp2"><label>Nº proc. suspensão</label><input id="f${id}-numProcSusp" value="${occ.numProcSusp||""}" oninput="procMask(this);onChange(${id})" style="font-family:'DM Mono',monospace;font-size:0.7857em" placeholder="${SEI_PH}"></div>
+      <div class="field sp3"><label>Nº proc. suspensão</label><input id="f${id}-numProcSusp" value="${occ.numProcSusp||""}" oninput="procMask(this);onChange(${id})" style="font-family:'DM Mono',monospace;font-size:0.7857em" placeholder="${SEI_PH}"></div>
     </div>
     <div class="fs-sub-hd" style="display:flex;align-items:center;justify-content:space-between;margin-top:10px">
       <span style="font-size:0.78em;font-weight:600;color:var(--tx2)">Pagamentos da Suspensão</span>
@@ -6038,9 +6011,8 @@ function buildFormSaude(occ){
     ${occPagListHTML(id, "susp", occ.pagSusp)}
   </div>
   <div class="fs">
-    <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><polyline points="10 1 14 5 10 9"/><path d="M2 6v-1a4 4 0 014-4h8M6 15l-4-4 4-4"/></svg>Reativação da Bolsa</div>
+    <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><polyline points="10 1 14 5 10 9"/><path d="M2 6v-1a4 4 0 014-4h8M6 15l-4-4 4-4"/></svg>Processo de Reativação</div>
     <div class="fg-grid g4">
-      <div class="field"><label>Data reativação</label><input type="date" id="f${id}-dataReat" value="${occ.dataReat||""}" oninput="onChange(${id})"></div>
       <div class="field"><label>Folha COAPE (reat.)</label><input type="date" id="f${id}-folhaReat" value="${occ.folhaCoapeReat||""}" oninput="onChange(${id})"></div>
       <div class="field"><label>Nº proc. reativação</label><input id="f${id}-numProcReat" value="${occ.numProcReat||""}" oninput="procMask(this);onChange(${id})" style="font-family:'DM Mono',monospace;font-size:0.7857em" placeholder="${SEI_PH}"></div>
       <div class="field"><label>Desconto Folha — início</label><input type="date" id="f${id}-descontoIni" value="${occ.descontoIni||""}" oninput="onChange(${id})"></div>
@@ -6404,6 +6376,21 @@ function toggleOcc(id){
   document.getElementById(`occ-${id}`)?.classList.toggle("open");
 }
 
+// ── AUTO-PREENCHIMENTO STATUS BOLSA SAÚDE ──
+// Quando o usuário altera o status da bolsa no bloco de status,
+// limpa/mantém os campos de data conforme o novo status.
+function saudeStatusBolsaChange(id){
+  const status = document.getElementById(`f${id}-statusBolsa`)?.value||"";
+  // Se mudou para "Sem Suspensão de Bolsa" ou "Outros", limpa as datas
+  if(status==="Sem Suspensão de Bolsa"||status==="Outros"){
+    const suspEl = document.getElementById(`f${id}-suspBolsa`);
+    const reatEl = document.getElementById(`f${id}-dataReat`);
+    if(suspEl && !suspEl.value) suspEl.value="";
+    if(reatEl && !reatEl.value) reatEl.value="";
+  }
+  onChange(id);
+}
+
 // ──────────────────────────────────────────────────────────────────
 // 9. OCCURRENCES (save / delete)
 // ──────────────────────────────────────────────────────────────────
@@ -6493,14 +6480,24 @@ async function saveOcc(id, ev){
     occ.beneficioInssAte= g(id,"inssAte");
     occ.faltasInjust    = g(id,"faltas");
     occ.retornoDias     = g(id,"retorno");
+    // Bloco de status da bolsa — salvar statusBolsa + datas de susp/reat
+    occ.statusBolsa     = g(id,"statusBolsa");
     occ.suspBolsa       = g(id,"suspBolsa");
+    occ.dataReat        = g(id,"dataReat");
     occ.folhaCoapeSupsp = g(id,"folhaSusp");
     occ.numProcSusp     = g(id,"numProcSusp");
-    occ.dataReat        = g(id,"dataReat");
     occ.folhaCoapeReat  = g(id,"folhaReat");
     occ.numProcReat     = g(id,"numProcReat");
     occ.descontoIni     = g(id,"descontoIni");
     occ.descontoFim     = g(id,"descontoFim");
+    // Auto-atualização do status do profissional baseado no statusBolsa
+    if(occ.statusBolsa==="Bolsa Suspensa" && currentProf.status!=="suspensa"){
+      currentProf.status="suspensa";
+      await DB.save(currentProf);
+    } else if(occ.statusBolsa==="Bolsa Reativada" && currentProf.status==="suspensa"){
+      currentProf.status="reativada";
+      await DB.save(currentProf);
+    }
     // Pagamentos de suspensão, reativação e retroativo — ler do DOM
     occSavePagamentos(id, "susp");
     occSavePagamentos(id, "reat");
