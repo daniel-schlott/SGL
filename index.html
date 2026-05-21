@@ -2288,6 +2288,7 @@ const DB = {
             pagSusp: o.pag_susp || o.pagSusp || null,
             pagReat: o.pag_reat || o.pagReat || null,
             pagRetro: o.pag_retro || o.pagRetro || null,
+            demCardsStatus: o.dem_cards_status || o.demCardsStatus || {},
             _isNew: false,
           })),
       }));
@@ -2556,6 +2557,7 @@ const DB = {
       pag_susp:         occ.pagSusp || null,
       pag_reat:         occ.pagReat || null,
       pag_retro:        occ.pagRetro || null,
+      dem_cards_status: occ.demCardsStatus || null,
       editado_por:      ME.name,
       editado_em:       nowStr(),
     };
@@ -3262,9 +3264,10 @@ function renderProfTags(p){
     ${tags.map(t=>{
       const c = tagColor(t.colorId);
       const ico = TAG_ICON_SVGS[t.iconIdx]||TAG_ICON_SVGS[0];
-      return `<span class="prof-tag" style="background:${c.bg};color:${c.fg};border:1px solid ${c.border}">
+      return `<span class="prof-tag" style="background:${c.bg};color:${c.fg};border:1px solid ${c.border};gap:5px;padding-right:4px">
         <span style="width:10px;height:10px;display:inline-flex;align-items:center;flex-shrink:0">${ico}</span>
         ${t.name}
+        <button title="Dispensar alerta" onclick="event.stopPropagation();dismissAlert(${p.id},'${t.id}')" style="background:none;border:none;cursor:pointer;color:inherit;opacity:0.6;padding:0 2px;line-height:0;font-size:10px" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">×</button>
       </span>`;
     }).join("")}
   </div>`;
@@ -3984,18 +3987,19 @@ function demBootstrap(){
       // ── SAÚDE: SÓ CRIA CARD PARA ETAPAS QUE JÁ TÊM DADOS ──
       if(!isMP){
         // Suspensão — sempre cria (toda ocorrência de saúde tem ou terá suspensão)
-        const statusSusp = occ.numProcSusp ? "Concluídos" : occ.suspBolsa ? "Em Andamento" : "Novas Demandas";
+        const _dcs = occ.demCardsStatus || {};
+        const statusSusp = _dcs["Suspensão"] || (occ.numProcSusp ? "Concluídos" : occ.suspBolsa ? "Em Andamento" : "Novas Demandas");
         DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Suspensão",status:statusSusp,responsavel:prof.responsavel,periodo:per,seiGrupo:null,demData:demInitData("Suspensão",occ,false)});
 
         // Reativação — só cria se há dados registrados
         if(occ.dataReat || occ.numProcReat){
-          const statusReat = occ.numProcReat ? "Concluídos" : "Em Andamento";
+          const statusReat = _dcs["Reativação"] || (occ.numProcReat ? "Concluídos" : "Em Andamento");
           DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Reativação",status:statusReat,responsavel:prof.responsavel,periodo:per,seiGrupo:null,demData:demInitData("Reativação",occ,false)});
         }
 
         // Restituição — só cria se há dados registrados
         if(occ.tipoRest || occ.numProcRest){
-          const statusRest = occ.numProcRest ? "Concluídos" : "Em Andamento";
+          const statusRest = _dcs["Restituição"] || (occ.numProcRest ? "Concluídos" : "Em Andamento");
           DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Restituição",status:statusRest,responsavel:prof.responsavel,periodo:per,seiGrupo:null,demData:demInitData("Restituição",occ,false)});
         }
 
@@ -4008,12 +4012,13 @@ function demBootstrap(){
         const m = occ.matPat||{};
 
         // Suspensão da Bolsa — sempre cria (toda ocorrência mat/pat tem ou terá suspensão)
-        const statusSuspMP = m.numProcSusp ? "Concluídos" : m.mesAnoSusp ? "Em Andamento" : "Novas Demandas";
+        const _dcsMP = occ.demCardsStatus || {};
+        const statusSuspMP = _dcsMP["Suspensão da Bolsa"] || (m.numProcSusp ? "Concluídos" : m.mesAnoSusp ? "Em Andamento" : "Novas Demandas");
         DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Suspensão da Bolsa",status:statusSuspMP,responsavel:prof.responsavel,periodo:per,seiGrupo:null,demData:demInitData("Suspensão da Bolsa",occ,true)});
 
         // Reativação — só se há dados
         if(m.numProcReat || m.mesAnoReat || m.tipoReat){
-          const statusReatMP = m.numProcReat ? "Concluídos" : "Em Andamento";
+          const statusReatMP = _dcsMP["Reativação"] || (m.numProcReat ? "Concluídos" : "Em Andamento");
           DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Reativação",status:statusReatMP,responsavel:prof.responsavel,periodo:per,seiGrupo:null,demData:demInitData("Reativação",occ,true)});
         }
 
@@ -4310,7 +4315,19 @@ function demDrop(e,st){
     d.status=st;
     renderDemKanban();
     showToast(`Movido para "${st}"`,"success");
+    demPersistCardStatus(d);
   }
+}
+
+// ── PERSIST CARD STATUS ──
+async function demPersistCardStatus(d){
+  const prof = DB.getById(d.profId);
+  if(!prof) return;
+  const occ = (prof.occurrences||[]).find(o=>o.id===d.occId);
+  if(!occ) return;
+  if(!occ.demCardsStatus) occ.demCardsStatus = {};
+  occ.demCardsStatus[d.etapa] = d.status;
+  await DB.saveOcc(prof.id, occ, {skipLock:true});
 }
 
 // ── SEI UNLINK ──
@@ -5452,6 +5469,7 @@ function initDemandas(){
 function switchTab(t){
   previousTab = currentTab;
   currentTab  = t;
+  sessionStorage.setItem("activeTab", t);
   document.querySelectorAll(".ntab").forEach(e=>e.classList.remove("active"));
   document.querySelectorAll(".view").forEach(e=>e.classList.remove("active"));
   document.getElementById("tab-"+t)?.classList.add("active");
@@ -5525,14 +5543,14 @@ function renderCyclesView(){
       </button>`:''}
     </div>`;
     return `<tr style="border-top:1px solid var(--br)">
-      <td style="padding:10px;font-weight:500">${c.nome}</td>
-      <td>${c.programa}</td>
-      <td>${new Date(c.dataInicio).toLocaleDateString("pt-BR")}</td>
-      <td>${new Date(c.dataTermino).toLocaleDateString("pt-BR")}</td>
-      <td>${expiraStr}</td>
-      <td>${statusChip}</td>
-      <td>${profCount}</td>
-      <td>${actionBtn}</td>
+      <td style="padding:10px 12px;font-weight:500;white-space:nowrap">${c.nome}</td>
+      <td style="padding:10px 12px">${c.programa}</td>
+      <td style="padding:10px 12px;white-space:nowrap">${new Date(c.dataInicio).toLocaleDateString("pt-BR")}</td>
+      <td style="padding:10px 12px;white-space:nowrap">${new Date(c.dataTermino).toLocaleDateString("pt-BR")}</td>
+      <td style="padding:10px 12px;white-space:nowrap">${expiraStr}</td>
+      <td style="padding:10px 12px">${statusChip}</td>
+      <td style="padding:10px 12px;text-align:center">${profCount}</td>
+      <td style="padding:10px 12px">${actionBtn}</td>
     </tr>`;
   }).join("");
   document.getElementById("cyclesTableBody").innerHTML = rows;
@@ -8837,7 +8855,7 @@ async function initApp(){
   applySize("16px");
 
   document.getElementById("appLoading")?.remove();
-  switchTab("lic");
+  switchTab(sessionStorage.getItem("activeTab")||"lic");
 }
 
 initApp();
@@ -9001,7 +9019,14 @@ initApp();
     <div style="overflow-y:auto;flex:1;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
       <table style="width:100%;border-collapse:collapse;background:var(--bg)">
         <thead style="position:sticky;top:0;z-index:2"><tr style="background:var(--sf2);text-align:left;font-size:0.78em;text-transform:uppercase;color:var(--tx3)">
-          <th style="padding:10px">Ciclo</th><th>Programa</th><th>Início</th><th>Término</th><th>Arquivamento em</th><th>Status</th><th>Profs.</th><th></th>
+          <th style="padding:10px 12px;min-width:100px">Ciclo</th>
+          <th style="padding:10px 12px;min-width:70px">Programa</th>
+          <th style="padding:10px 12px;min-width:90px;white-space:nowrap">Início</th>
+          <th style="padding:10px 12px;min-width:90px;white-space:nowrap">Término</th>
+          <th style="padding:10px 12px;min-width:110px;white-space:nowrap">Arquivamento em</th>
+          <th style="padding:10px 12px;min-width:100px">Status</th>
+          <th style="padding:10px 12px;min-width:60px">Profs.</th>
+          <th style="padding:10px 12px;min-width:130px"></th>
         </tr></thead>
         <tbody id="cyclesTableBody"></tbody>
       </table>
