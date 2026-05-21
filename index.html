@@ -2291,8 +2291,15 @@ const DB = {
           })),
       }));
       // v52: Filtrar apenas profs cujo ciclo está vigente
-      const vigentes = new Set(this._cycles.filter(c => c.status === "vigente").map(c => c.id));
-      this._profs = this._profs.filter(p => !p.cicloId || vigentes.has(p.cicloId));
+      // Se cycles não carregou, não filtra (evita tela vazia)
+      if(this._cycles.length > 0){
+        const vigentes = new Set(this._cycles.filter(c => c.status === "vigente").map(c => c.id));
+        const antes = this._profs.length;
+        this._profs = this._profs.filter(p => !p.cicloId || vigentes.has(p.cicloId));
+        console.log(`[DB] ciclos vigentes: ${vigentes.size} | profs antes: ${antes} | depois: ${this._profs.length}`);
+      } else {
+        console.warn("[DB] cycles vazio — exibindo todos os profs sem filtro de ciclo");
+      }
       this._reindex();
 
       // audit_log: falha aqui não impede uso do app, só perde a auditoria
