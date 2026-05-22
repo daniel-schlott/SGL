@@ -1159,7 +1159,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 
 /* ── CÁLCULO VIEW ── */
 /* BODY LAYOUT */
-.page-.calc-wrap{width:700px;max-width:100%;display:flex;flex-direction:column;gap:14px}
+.calc-wrap{width:700px;max-width:100%;display:flex;flex-direction:column;gap:14px}
 
 /* HEADER */
 .calc-hd{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:2px}
@@ -1199,7 +1199,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 .calc-card-hd svg{width:14px;height:14px;flex-shrink:0}
 .calc-card-hd-title{font-size:0.857em;font-weight:600}
 .calc-card-hd-sub{font-size:0.714em;color:rgba(255,255,255,.75);margin-top:1px}
-.calc-card-
+.calc-card-body{padding:14px 16px}
 /* Info cells */
 .calc-info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .calc-info-cell{background:var(--sf2);border:1px solid var(--br);border-radius:var(--r);padding:9px 11px}
@@ -1231,7 +1231,8 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 .calc-cenario-title{font-size:0.857em;font-weight:600;font-family:'DM Sans',sans-serif}
 .calc-cenario-tag{font-size:0.714em;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,.2);padding:2px 8px;border-radius:20px}
 /* Body: 3 colunas sem gap, separadas por border-left */
-.calc-cenario-/* Cada coluna interna: mesma altura, mesmo padding, mesma fonte */
+.calc-cenario-body{display:grid;grid-template-columns:170px 1fr 190px;align-items:stretch}
+/* Cada coluna interna: mesma altura, mesmo padding, mesma fonte */
 .calc-cenario-col{padding:12px 14px;font-family:'DM Sans',sans-serif;font-size:0.857em}
 .calc-cenario-col + .calc-cenario-col{border-left:1px solid var(--br)}
 .calc-cenario-col-lbl{font-size:0.714em;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:8px;font-family:'DM Sans',sans-serif}
@@ -1281,7 +1282,8 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 .calc-preset-overlay.open .calc-preset-modal{transform:scale(1);opacity:1}
 .calc-preset-head{padding:13px 18px;border-bottom:1px solid var(--br);display:flex;align-items:center;justify-content:space-between}
 .calc-preset-head-title{font-size:1em;font-weight:600;color:var(--tx)}
-.calc-preset-.calc-preset-foot{padding:12px 18px;border-top:1px solid var(--br);display:flex;gap:8px;justify-content:flex-end}
+.calc-preset-body{padding:18px;display:flex;flex-direction:column;gap:12px;max-height:calc(100vh - 160px);overflow-y:auto}
+.calc-preset-foot{padding:12px 18px;border-top:1px solid var(--br);display:flex;gap:8px;justify-content:flex-end}
 .calc-rule-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
 .calc-rule-opt{padding:7px 10px;border-radius:var(--r);border:1px solid var(--br);background:var(--sf2);font-size:0.786em;cursor:pointer;font-family:inherit;color:var(--tx2);text-align:center;transition:all .12s}
 .calc-rule-opt:hover{border-color:var(--br2)}
@@ -1302,7 +1304,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
   .calc-cenarios-grid{grid-template-columns:1fr}
   .calc-3col{grid-template-columns:1fr 1fr}
   .calc-mode-grid{grid-template-columns:1fr}
-  .page-}
+}
 
 </style>
 <body>
@@ -9181,7 +9183,6 @@ initApp();
 <div class="view" id="view-calc">
 <div style="flex:1;overflow-y:auto;padding:20px 24px;display:flex;justify-content:center">
 <div class="calc-wrap">
-<div class="calc-wrap">
 
   <!-- HEADER -->
   <div class="calc-hd">
@@ -9329,7 +9330,6 @@ initApp();
   </div>
 
 </div><!-- /calc-wrap -->
-</div>
 </div>
 </div>
 
