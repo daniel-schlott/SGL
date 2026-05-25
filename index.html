@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v61</title>
+<title>Mais Médicos — Gestão de Licenças v62</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1819,15 +1819,10 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
                   <option value="">Todas</option>
                 </select>
               </div>
-              <div class="rel-field">
-                <label>Responsável</label>
-                <select id="rf-resp" onchange="liveSearch();updateFilterCount()">
-                  <option value="">Todos</option>
-                </select>
-              </div>
-            </div>
           </div>
         </div>
+        <!-- rf-resp removido da UI (v62) — mantido hidden para compatibilidade -->
+        <select id="rf-resp" style="display:none"><option value="">Todos</option></select>
 
         <!-- grupo 2: afastamento -->
         <div class="rel-group">
@@ -2004,7 +1999,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
           <button id="relPgNext" onclick="changeRelPage(1)">Próxima →</button>
         </div>
       </div>
-      <div style="position:sticky;bottom:0;left:0;padding:4px 12px;font-size:0.6786em;color:var(--tx3);pointer-events:none;background:var(--sf);border-top:1px solid var(--br)">v0.59.0</div>
+      <div style="position:sticky;bottom:0;left:0;padding:4px 12px;font-size:0.6786em;color:var(--tx3);pointer-events:none;background:var(--sf);border-top:1px solid var(--br)">v0.62.0</div>
     </div>
   </div>
 
@@ -2064,9 +2059,6 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
           <div class="tb-actions">
             <button class="btn btn-ghost btn-sm" onclick="openStatusDialog()">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>Status
-            </button>
-            <button class="btn btn-ghost btn-sm" onclick="openRespDialog()">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Responsável
             </button>
             <div class="exp-wrap" id="expProfWrap">
               <button class="btn btn-ghost btn-sm" onclick="toggleExpMenu('expProfMenu')">
@@ -2895,9 +2887,19 @@ async function authDoLogin() {
     // Login OK — grava data do login no banco
     const today = new Date().toISOString().slice(0, 10);
     await _supa.from("team").update({ last_login_date: today }).eq("auth_id", data.user.id);
+    // Popula ME com dados reais do banco antes de iniciar o app
+    const { data: tmLogin, error: tmLoginErr } = await _supa
+      .from("team")
+      .select("id, name, initials, color, role")
+      .eq("auth_id", data.user.id)
+      .single();
+    if (!tmLoginErr && tmLogin) {
+      ME = { id: tmLogin.id, auth_id: data.user.id, name: tmLogin.name, ini: tmLogin.initials || tmLogin.name.slice(0,2).toUpperCase(), color: tmLogin.color || "#1A4F3A", role: tmLogin.role || "analista" };
+    }
     // Verifica se está ativo e carrega app
     document.getElementById("authScreen")?.remove();
     await initApp();
+    authStartPeriodicCheck();
   } catch(e) {
     btn.disabled = false;
     btn.innerHTML = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg> Entrar`;
@@ -3117,9 +3119,9 @@ function openNewProf(){
     const ufs=["AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS","MT","PA","PB","PE","PI","PR","RJ","RN","RO","RR","RS","SC","SE","SP","TO"];
     ufs.forEach(u=>{ const o=document.createElement("option"); o.value=u; o.textContent=u; ufSel.appendChild(o); });
   }
-  // popular responsável
+  // popular responsável (np-responsavel agora é hidden em v62 — ignorar select)
   const respSel = document.getElementById("np-responsavel");
-  if(respSel && respSel.options.length<=1){
+  if(respSel && respSel.tagName==="SELECT" && respSel.options.length<=1){
     TEAM.forEach(t=>{ const o=document.createElement("option"); o.value=t.name; o.textContent=t.name+(t.role==="gestor"?" (Gestor)":""); respSel.appendChild(o); });
   }
   // popular ciclos (sempre recarrega para pegar vigentes atuais)
@@ -3145,7 +3147,7 @@ function openNewProf(){
   document.querySelectorAll(".np-errmsg").forEach(e=>e.textContent="");
   document.querySelectorAll(".np-field input,.np-field select").forEach(e=>e.classList.remove("err"));
   document.getElementById("npDupWarn").style.display="none";
-  // pré-selecionar responsável atual
+  // pré-selecionar responsável atual (np-responsavel agora é hidden — apenas setar value)
   const respEl = document.getElementById("np-responsavel");
   if(respEl) respEl.value = ME.name;
   // abrir
@@ -3197,7 +3199,7 @@ function npValidateField(id){
   if(id==="np-ciclo"   && !v)                               msg = "Ciclo é obrigatório";
   if(id==="np-uf"      && !v)                               msg = "Selecione a UF";
   if(id==="np-municipio"&& !v)                              msg = "Município é obrigatório";
-  if(id==="np-responsavel"&& !v)                            msg = "Selecione o responsável";
+  if(id==="np-responsavel"&& !v)                            msg = ""; // responsável removido (v62)
   err.textContent = msg;
   el.classList.toggle("err", !!msg);
   return !msg;
@@ -3225,7 +3227,7 @@ function npCheckDup(){
 
 // Validar todos os campos obrigatórios
 function npValidateAll(){
-  const fields = ["np-nome","np-cpf","np-siape","np-programa","np-ciclo","np-uf","np-municipio","np-responsavel"];
+  const fields = ["np-nome","np-cpf","np-siape","np-programa","np-ciclo","np-uf","np-municipio"];
   return fields.map(f=>npValidateField(f)).every(Boolean);
 }
 
@@ -3255,7 +3257,7 @@ async function saveNewProf(){
       email:       document.getElementById("np-email").value.trim(),
       inicioAtiv:  document.getElementById("np-inicio").value.trim(),
       metodEntrada:document.getElementById("np-metodo").value,
-      responsavel: document.getElementById("np-responsavel").value,
+      responsavel: ME.name,
       status:      "analisando",
       statusHistory:[{s:"analisando", ts:tsDisplay}],
       occurrences: [],
@@ -4254,23 +4256,24 @@ function demBootstrap(){
         // Suspensão — sempre cria (toda ocorrência de saúde tem ou terá suspensão)
         const _dcs = occ.demCardsStatus || {};
         const statusSusp = _dcs["Suspensão"] || (occ.numProcSusp ? "Concluídos" : occ.suspBolsa ? "Em Andamento" : "Novas Demandas");
-        DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Suspensão",status:statusSusp,responsavel:prof.responsavel,periodo:per,seiGrupo:null,demData:demInitData("Suspensão",occ,false)});
+        const _legacyDate = occ.dataInicio ? new Date(occ.dataInicio+"T00:00:00").toISOString() : undefined;
+        DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Suspensão",status:statusSusp,responsavel:prof.responsavel,periodo:per,seiGrupo:null,createdAt:_legacyDate,demData:demInitData("Suspensão",occ,false)});
 
         // Reativação — só cria se há dados registrados
         if(occ.dataReat || occ.numProcReat){
           const statusReat = _dcs["Reativação"] || (occ.numProcReat ? "Concluídos" : "Em Andamento");
-          DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Reativação",status:statusReat,responsavel:prof.responsavel,periodo:per,seiGrupo:null,demData:demInitData("Reativação",occ,false)});
+          DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Reativação",status:statusReat,responsavel:prof.responsavel,periodo:per,seiGrupo:null,createdAt:_legacyDate,demData:demInitData("Reativação",occ,false)});
         }
 
         // Restituição — só cria se há dados registrados
         if(occ.tipoRest || occ.numProcRest){
           const statusRest = _dcs["Restituição"] || (occ.numProcRest ? "Concluídos" : "Em Andamento");
-          DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Restituição",status:statusRest,responsavel:prof.responsavel,periodo:per,seiGrupo:null,demData:demInitData("Restituição",occ,false)});
+          DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Restituição",status:statusRest,responsavel:prof.responsavel,periodo:per,seiGrupo:null,createdAt:_legacyDate,demData:demInitData("Restituição",occ,false)});
         }
 
         // Pagamento Retroativo — só cria se há dados
         if(occ.pagRetro && occ.pagRetro.length){
-          DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Pagamento Retroativo",status:"Em Andamento",responsavel:prof.responsavel,periodo:per,seiGrupo:null,demData:demInitData("Pagamento Retroativo",occ,false)});
+          DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Pagamento Retroativo",status:"Em Andamento",responsavel:prof.responsavel,periodo:per,seiGrupo:null,createdAt:_legacyDate,demData:demInitData("Pagamento Retroativo",occ,false)});
         }
       } else {
         // ── MAT/PAT: CRIA CARD PARA ETAPAS COM DADOS; "STATUS/PERÍODO" AGORA É BLOCO FIXO EM TODAS AS ETAPAS ──
@@ -4279,27 +4282,27 @@ function demBootstrap(){
         // Suspensão da Bolsa — sempre cria (toda ocorrência mat/pat tem ou terá suspensão)
         const _dcsMP = occ.demCardsStatus || {};
         const statusSuspMP = _dcsMP["Suspensão da Bolsa"] || (m.numProcSusp ? "Concluídos" : m.mesAnoSusp ? "Em Andamento" : "Novas Demandas");
-        DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Suspensão da Bolsa",status:statusSuspMP,responsavel:prof.responsavel,periodo:per,seiGrupo:null,demData:demInitData("Suspensão da Bolsa",occ,true)});
+        DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Suspensão da Bolsa",status:statusSuspMP,responsavel:prof.responsavel,periodo:per,seiGrupo:null,createdAt:_legacyDate,demData:demInitData("Suspensão da Bolsa",occ,true)});
 
         // Reativação — só se há dados
         if(m.numProcReat || m.mesAnoReat || m.tipoReat){
           const statusReatMP = _dcsMP["Reativação"] || (m.numProcReat ? "Concluídos" : "Em Andamento");
-          DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Reativação",status:statusReatMP,responsavel:prof.responsavel,periodo:per,seiGrupo:null,demData:demInitData("Reativação",occ,true)});
+          DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Reativação",status:statusReatMP,responsavel:prof.responsavel,periodo:per,seiGrupo:null,createdAt:_legacyDate,demData:demInitData("Reativação",occ,true)});
         }
 
         // Restituição ao Erário — só se há dados
         if(m.procRest || m.mesAnoRest){
-          DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Restituição ao Erário",status:"Em Andamento",responsavel:prof.responsavel,periodo:per,seiGrupo:null,demData:demInitData("Restituição ao Erário",occ,true)});
+          DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Restituição ao Erário",status:"Em Andamento",responsavel:prof.responsavel,periodo:per,seiGrupo:null,createdAt:_legacyDate,demData:demInitData("Restituição ao Erário",occ,true)});
         }
 
         // Carta de Concessão — só se há dados
         if(m.cartaConcessao || m.numProcConcessao){
-          DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Carta de Concessão",status:"Em Andamento",responsavel:prof.responsavel,periodo:per,seiGrupo:null,demData:demInitData("Carta de Concessão",occ,true)});
+          DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Carta de Concessão",status:"Em Andamento",responsavel:prof.responsavel,periodo:per,seiGrupo:null,createdAt:_legacyDate,demData:demInitData("Carta de Concessão",occ,true)});
         }
 
         // Pagamento Retroativo MP — só se há dados
         if(m.pagRetro && m.pagRetro.length){
-          DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Pagamento Retroativo",status:"Em Andamento",responsavel:prof.responsavel,periodo:per,seiGrupo:null,demData:demInitData("Pagamento Retroativo",occ,true)});
+          DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Pagamento Retroativo",status:"Em Andamento",responsavel:prof.responsavel,periodo:per,seiGrupo:null,createdAt:_legacyDate,demData:demInitData("Pagamento Retroativo",occ,true)});
         }
       }
     });
@@ -4328,9 +4331,10 @@ function demInitData(etapa,occ,isMP){
 const MES_NOMES=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
 function periodoToMesAno(p){
   if(!p) return {mes:0,ano:0};
-  const parts=p.toLowerCase().split(" ");
+  const s=p.toLowerCase().replace(" de "," ").trim();
+  const parts=s.split(" ");
   const mes=MES_NOMES.indexOf(parts[0])+1;
-  const ano=parseInt(parts[1])||0;
+  const ano=parseInt(parts.find(x=>/^\d{4}$/.test(x)))||0;
   return {mes,ano};
 }
 
@@ -4431,12 +4435,14 @@ function demPopulateFilters(){
   anosSet.add(anoAtual);
   const anos = [...anosSet].sort().reverse();
 
-  const resps=[...new Set(DEM_ENTRIES.map(d=>d.responsavel).filter(Boolean))].sort();
+  const resps=TEAM.map(t=>t.name).filter(Boolean).sort();
   const fa=document.getElementById("demFiltAno");
   const fr=document.getElementById("demFiltResp");
   if(!fa||!fr) return;
-  // Mantém seleção atual; se ainda não foi selecionado nada, pré-seleciona ano atual
-  const av = fa.value || String(anoAtual);
+  // Mantém seleção atual; se é o primeiro carregamento (valor ainda não foi tocado pelo usuário),
+  // pré-seleciona ano atual. Se usuário já escolheu "", mantém "Todos os anos".
+  const av = fa.dataset.touched ? fa.value : (fa.value || String(anoAtual));
+  if(!fa.dataset.touched) fa.dataset.touched = "1";
   const rv = fr.value;
   fa.innerHTML=`<option value="">Todos os anos</option>`+anos.map(a=>`<option value="${a}"${String(a)===av?" selected":""}>${a}</option>`).join("");
   fr.innerHTML=`<option value="">Todos os responsáveis</option>`+resps.map(r=>`<option${r===rv?" selected":""}>${r}</option>`).join("");
@@ -4652,7 +4658,8 @@ function demOpenCard(id){
   demEditId=id;
   _demHistLoaded = false;
   document.getElementById("demDrTitle").textContent=d.profNome;
-  document.getElementById("demDrSub").textContent=`Ocorrência ${d.occN} · ${d.etapa}`;
+  const createdLabel = d.createdAt ? ` · ${new Date(d.createdAt).toLocaleDateString("pt-BR")}` : "";
+  document.getElementById("demDrSub").textContent=`Ocorrência ${d.occN} · ${d.etapa}${createdLabel}`;
   const saveBtn=document.getElementById("demSaveBtn");
   if(saveBtn) saveBtn.innerHTML=`<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>Salvar Demanda`;
   demRenderCardBody(d);
@@ -5509,23 +5516,25 @@ function demOpenCreateProf(nome){
   document.getElementById("demDrBody").innerHTML=`
     <div class="dem-dr-section">
       <div class="dem-dr-section-hd"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Novo profissional</div>
-      <div class="dem-dr-section-hd" style="font-size:0.8em;color:var(--tx3);margin-top:4px">Preencha os dados básicos. Os demais campos podem ser completados no cadastro completo.</div>
       <div class="dem-2col" style="margin-top:8px">
         <div class="dem-field"><label class="dem-label">Nome completo *</label><input class="dem-input" id="cpNome" value="${nome||""}"></div>
         <div class="dem-field"><label class="dem-label">CPF</label><input class="dem-input" id="cpCpf" placeholder="000.000.000-00" maxlength="14" oninput="this.value=this.value.replace(/\D/g,'').slice(0,11).replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/,'$1.$2.$3-$4')"></div>
       </div>
       <div class="dem-2col">
-        <div class="dem-field"><label class="dem-label">E-mail</label><input class="dem-input" id="cpEmail" type="email"></div>
         <div class="dem-field"><label class="dem-label">SIAPE</label><input class="dem-input" id="cpSiape" maxlength="7" oninput="this.value=this.value.replace(/\D/g,'').slice(0,7)"></div>
+        <div class="dem-field"><label class="dem-label">E-mail</label><input class="dem-input" id="cpEmail" type="email"></div>
       </div>
       <div class="dem-2col">
         <div class="dem-field"><label class="dem-label">UF</label><select class="dem-input" id="cpUf"><option value="">Selecione</option>${ufOpts}</select></div>
         <div class="dem-field"><label class="dem-label">Município</label><input class="dem-input" id="cpMunicipio"></div>
       </div>
-      <div class="dem-field"><label class="dem-label">Responsável</label><select class="dem-input" id="cpResp">${respOpts}</select></div>
+      <div class="dem-2col">
+        <div class="dem-field"><label class="dem-label">Método de entrada</label><select class="dem-input" id="cpMetodo"><option value="">—</option><option>E-MAIL</option><option>E-GESTOR</option><option>SEI</option><option>PRESENCIAL</option></select></div>
+        <div class="dem-field"><label class="dem-label">Início de atividade</label><input class="dem-input" id="cpInicioAtiv" placeholder="DD/MM/AAAA" maxlength="10"></div>
+      </div>
       <div style="display:flex;gap:8px;margin-top:8px">
         <button class="btn btn-ghost btn-sm" onclick="demOpenNew()">Cancelar</button>
-        <button class="btn btn-primary btn-sm" onclick="demSaveNewProf(event)">Criar e selecionar</button>
+        <button class="btn btn-primary btn-sm" onclick="demSaveNewProf(event)">Criar Demanda</button>
       </div>
     </div>`;
 }
@@ -5543,8 +5552,10 @@ async function demSaveNewProf(ev){
       siape:document.getElementById("cpSiape")?.value?.trim()||"",
       uf:document.getElementById("cpUf")?.value?.trim().toUpperCase()||"",
       municipio:document.getElementById("cpMunicipio")?.value?.trim()||"",
-      responsavel:document.getElementById("cpResp")?.value||TEAM[0].name,
-      programa:"PMMB",ciclo:"—",inicioAtiv:"",metodEntrada:"",
+      metodEntrada:document.getElementById("cpMetodo")?.value||"",
+      inicioAtiv:document.getElementById("cpInicioAtiv")?.value?.trim()||"",
+      responsavel:ME.name,
+      programa:"PMMB",ciclo:"—",
       status:"analisando",statusHistory:[],occurrences:[],
     };
     const saveRes = await DB.save(prof);
@@ -5558,7 +5569,7 @@ function demSelectProf(profId){
   demNewProfId=profId;
   const prof=DB.getById(profId); if(!prof) return;
   const occs=prof.occurrences||[];
-  const respOpts=TEAM.map(u=>'<option'+(prof.responsavel===u.name?' selected':'')+'>'+u.name+'</option>').join("");
+  const respOpts=TEAM.map(u=>'<option'+(u.name===ME.name?' selected':'')+'>'+u.name+'</option>').join("");
   const profDetails=[prof.email,prof.cpf,prof.siape?'SIAPE '+prof.siape:''].filter(Boolean).join(' \xB7 ');
 
   // Build occurrence list HTML without nested template literals
@@ -5651,7 +5662,7 @@ function demSelectOcc(occId){
       +'<option>Violência Doméstica</option>'
       +'</select></div>'
       +'</div>'
-      +'<button class="btn btn-primary btn-sm" style="margin-top:8px;width:100%" onclick="demConfirmNewOcc()">Confirmar e escolher etapa</button>'
+      +'<div id="demNPEtapasNovaOcc"></div>'
       +'</div>';
     return;
   }
@@ -5682,7 +5693,9 @@ function demNPSelEtapa(btn){
 }
 
 function demNPNewTipoChange(){
-  // nothing needed yet — reserved for future CID/doc-type filtering
+  const tipo=document.getElementById("npNewTipo")?.value;
+  if(!tipo) { document.getElementById("demNPEtapasNovaOcc").innerHTML=""; return; }
+  demConfirmNewOcc();
 }
 
 function demConfirmNewOcc(){
@@ -5702,18 +5715,21 @@ function demConfirmNewOcc(){
     editadoPor:ME.name,editadoEm:new Date().toLocaleString("pt-BR")
   };
   prof.occurrences=prof.occurrences||[];
-  prof.occurrences.push(newOcc);
+  // Evitar duplicar ocorrência ao re-selecionar tipo
+  if(!prof.occurrences.find(o=>o.id===newOccId)) prof.occurrences.push(newOcc);
   demNewOccId=newOccId;
-  showToast(`Oc.${newN} criada para ${prof.nome}  (${tipo})`,"success");
 
-  // Now show etapa selector for the new occurrence
+  // Mostrar etapas no container dedicado (dentro do bloco de nova ocorrência)
   const isMP=tipo==="Licença Maternidade"||tipo==="Licença Paternidade";
   const etapas=isMP?DEM_ETAPAS_MP:DEM_ETAPAS_SAUDE;
-  const sec=document.getElementById("demNPEtapaSection"); if(!sec) return;
-  sec.innerHTML=`
-    <div class="dem-dr-section-hd" style="margin-top:4px"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Etapa</div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
-      ${etapas.map(e=>`<button type="button" class="dem-status-chip" data-etapa="${e}" onclick="demNPSelEtapa(this)">${e}</button>`).join("")}
+  const container=document.getElementById("demNPEtapasNovaOcc")||document.getElementById("demNPEtapaSection");
+  if(!container) return;
+  container.innerHTML=`
+    <div style="margin-top:10px">
+      <div class="dem-dr-section-hd" style="margin-top:0"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Etapa</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+        ${etapas.map(e=>`<button type="button" class="dem-status-chip" data-etapa="${e}" onclick="demNPSelEtapa(this)">${e}</button>`).join("")}
+      </div>
     </div>`;
 }
 
@@ -5727,7 +5743,7 @@ function demSave(){
     return;
   }
   if(!demNewProfId||!demNewOccId){showToast("Selecione profissional e ocorrência","warn");return;}
-  const etapaBtn=document.querySelector("#demNPEtapaSection .sel-and");
+  const etapaBtn=document.querySelector("#demNPEtapaSection .sel-and, #demNPEtapasNovaOcc .sel-and");
   if(!etapaBtn){showToast("Selecione a etapa","warn");return;}
   const etapa=etapaBtn.dataset.etapa;
 
@@ -5744,7 +5760,7 @@ function demSave(){
   const occ=(prof.occurrences||[]).find(o=>o.id===demNewOccId);
   const isMP=occ.tipoAfasta==="Licença Maternidade"||occ.tipoAfasta==="Licença Paternidade";
   const tipo=occ.tipoAfasta==="Licença Maternidade"?"maternidade":occ.tipoAfasta==="Licença Paternidade"?"paternidade":"saude";
-  const resp=document.getElementById("demNPResp")?.value||prof.responsavel;
+  const resp=document.getElementById("demNPResp")?.value||ME.name;
   const per=(()=>{ if(!occ.dataInicio) return ""; const d=new Date(occ.dataInicio+"T00:00:00"); return isNaN(d)?"":d.toLocaleString("pt-BR",{month:"long",year:"numeric"}); })();
   const newId = DEM_NEXT_ID++;
   DEM_ENTRIES.push({id:newId,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa,status:"Novas Demandas",responsavel:resp,periodo:per,seiGrupo:null,createdAt:new Date().toISOString(),demData:demInitData(etapa,occ,isMP)});
@@ -6229,11 +6245,6 @@ function renderProfCard(editMode=false){
       </div>
       <div class="pc-badges">
         <span class="badge-status ${statusCls(p.status)}">${statusLbl(p.status)}</span>
-        <div class="resp-badge" onclick="openRespDialog()">
-          <div class="resp-av" style="background:${tm.color}">${tm.ini}</div>
-          <span>${tm.name}</span>
-          <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
-        </div>
       </div>
     </div>
     <div class="fg" style="grid-column:span 4">${renderProfTags(p)}</div>
@@ -7508,7 +7519,7 @@ const REL_COLS = [
   {key:"municipio", label:"Município",        vis:true,  sortable:true,  fn:p=>p.municipio},
   {key:"programa",  label:"Programa/Ciclo",   vis:true,  sortable:true,  fn:p=>`${p.programa} ${p.ciclo}`},
   {key:"status",    label:"Status",           vis:true,  sortable:true,  fn:p=>`<span class="badge-status ${statusCls(p.status)}" style="font-size:0.7143em;padding:2px 8px">${statusLbl(p.status)}</span>`},
-  {key:"responsavel",label:"Responsável",     vis:true,  sortable:true,  fn:p=>{ const t=teamBy(p.responsavel); return `<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:14px;height:14px;border-radius:50%;background:${t.color};display:inline-flex;align-items:center;justify-content:center;font-size:0.5em;font-weight:700;color:#fff">${t.ini}</span>${p.responsavel.split(" ")[0]}</span>`; }},
+  {key:"responsavel",label:"Responsável",     vis:false, sortable:true,  fn:p=>{ const t=teamBy(p.responsavel); return `<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:14px;height:14px;border-radius:50%;background:${t.color};display:inline-flex;align-items:center;justify-content:center;font-size:0.5em;font-weight:700;color:#fff">${t.ini}</span>${p.responsavel.split(" ")[0]}</span>`; }},
   {key:"ocorrencias",label:"Afastamentos",      vis:true,  sortable:true,  fn:p=>{
     const vig=p.occurrences.filter(o=>occStatus(o)==="vigente").length;
     const enc=p.occurrences.length-vig;
@@ -9361,14 +9372,9 @@ bootstrap();
       <div class="np-divider"></div>
 
       <!-- gestão -->
+      <!-- campo responsavel removido (v62) — responsável é por etapa/ocorrência -->
+      <input type="hidden" id="np-responsavel" value="">
       <div class="np-2col">
-        <div class="np-field">
-          <label>Responsável<span class="req">*</span></label>
-          <select id="np-responsavel">
-            <option value="">Selecione</option>
-          </select>
-          <span class="np-errmsg" id="np-responsavel-err"></span>
-        </div>
         <div class="np-field">
           <label>Método de entrada</label>
           <select id="np-metodo">
@@ -9379,13 +9385,13 @@ bootstrap();
             <option>PRESENCIAL</option>
           </select>
         </div>
-      </div>
-
-      <div class="np-2col">
         <div class="np-field">
           <label>E-mail institucional</label>
           <input id="np-email" type="email" placeholder="nome@dominio.gov.br">
         </div>
+      </div>
+
+      <div class="np-2col">
         <div class="np-field">
           <label>Início de atividade</label>
           <input id="np-inicio" type="text" placeholder="DD/MM/AAAA" maxlength="10" oninput="npMaskDate(this)">
