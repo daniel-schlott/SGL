@@ -3,10 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v58</title>
+<title>Mais Médicos — Gestão de Licenças v59</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+// Captura o fetch nativo ANTES que qualquer iframe override o substitua.
+// Necessário porque o ambiente srcdoc do Claude.ai injeta um wrapper de
+// fetch via postMessage que não consegue clonar objetos Headers — o que
+// quebra o Supabase. Armazenamos a referência nativa aqui e a passamos
+// como customFetch na criação do cliente Supabase.
+window.__nativeFetch = window.fetch.bind(window);
+</script>
 <style>
 :root{
   --nav-bg:#071D41;--nav-ac:#6FA8FF;--nav-tx:#FFFFFF;
@@ -367,6 +376,12 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 .col-menu-item{display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:var(--r);cursor:pointer;font-size:0.8571em;transition:background .1s}
 .col-menu-item:hover{background:var(--sf2)}
 .col-menu-item input[type=checkbox]{width:13px;height:13px;accent-color:var(--ac);flex-shrink:0}
+.exp-wrap{position:relative;display:inline-flex}
+.exp-menu{position:absolute;top:100%;right:0;margin-top:4px;background:var(--sf);border:1px solid var(--br);border-radius:var(--rl);box-shadow:var(--shm);padding:6px;z-index:50;min-width:160px;display:none}
+.exp-menu.open{display:block}
+.exp-menu-item{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:var(--r);cursor:pointer;font-size:0.8214em;transition:background .1s;color:var(--tx2)}
+.exp-menu-item:hover{background:var(--sf2);color:var(--tx)}
+.exp-menu-sep{height:1px;background:var(--br);margin:4px 0}
 .rel-table-wrap{flex:1;overflow-y:auto}
 .rel-table{width:100%;border-collapse:collapse}
 .rel-table thead th{padding:8px 12px;font-size:0.7143em;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em;background:var(--sf2);border-bottom:1px solid var(--br);text-align:left;white-space:nowrap;position:sticky;top:0;z-index:2;cursor:pointer;user-select:none;transition:color .12s}
@@ -474,7 +489,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 .rel-collapse-toggle{display:flex;align-items:center;gap:5px;font-size:0.7857em;font-weight:600;color:var(--tx2);flex-shrink:0}
 .rel-collapse-toggle svg{width:12px;height:12px;transition:transform .25s}
 
-.rel-filter-summary{display:flex;gap:4px;flex-wrap:nowrap;align-items:center;overflow:hidden;max-width:600px}
+.rel-filter-summary{display:flex;gap:4px;flex-wrap:wrap;align-items:center;overflow:visible;max-width:700px}
 .rf-active-tag{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:20px;font-size:0.7143em;font-weight:500;background:var(--acl);color:var(--acm);border:1px solid var(--acm);white-space:nowrap;flex-shrink:0}
 .rf-active-tag .x{margin-left:2px;cursor:pointer;opacity:.6;font-size:0.7857em;line-height:1}
 .rf-active-tag .x:hover{opacity:1;color:var(--rd)}
@@ -1422,9 +1437,6 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
     <div class="dem-stat c-con" onclick="demQuickFilter('Concluídos')"><div class="dem-stat-num" id="demStatCon">0</div><div class="dem-stat-lbl">Concluídos</div></div>
   </div>
 
-  <!-- Navegação de mês (Item 2) -->
-  <div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 0 4px" id="demMonthNav"></div>
-
   <div class="dem-kanban" id="demKanban"></div>
 
 </div>
@@ -1872,16 +1884,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
               </select>
             </div>
           </div>
-          <!-- saved searches -->
-          <div class="saved-searches" id="savedSearches">
-            <span style="font-size:0.7143em;color:var(--tx3);align-self:center">Salvas:</span>
-          </div>
-          <div style="margin-top:6px">
-            <button class="save-search-btn" onclick="saveCurrentSearch()">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="11" height="11"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
-              Salvar busca atual
-            </button>
-          </div>
+
         </div>
       </div>
     </div>
@@ -1910,12 +1913,34 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
         </h3>
         <div class="rel-summary" id="relSummary"></div>
         <div class="rel-results-actions">
-          <button class="btn btn-ghost btn-sm" onclick="exportRelList()">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Exportar lista
-          </button>
-          <button class="btn btn-ghost btn-sm" onclick="exportRelDetailed()">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Exportar detalhado
-          </button>
+          <div class="exp-wrap" id="expListWrap">
+            <button class="btn btn-ghost btn-sm" onclick="toggleExpMenu('expListMenu')">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Exportar lista
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="10" height="10"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div class="exp-menu" id="expListMenu">
+              <div class="exp-menu-item" onclick="exportRelListXlsx();closeExpMenus()">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Excel (.xlsx)
+              </div>
+              <div class="exp-menu-item" onclick="exportRelList();closeExpMenus()">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15h6M9 11h6M9 7h3"/></svg>PDF
+              </div>
+            </div>
+          </div>
+          <div class="exp-wrap" id="expDetWrap">
+            <button class="btn btn-ghost btn-sm" onclick="toggleExpMenu('expDetMenu')">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Exportar detalhado
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="10" height="10"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div class="exp-menu" id="expDetMenu">
+              <div class="exp-menu-item" onclick="exportRelDetailedXlsx();closeExpMenus()">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Excel (.xlsx)
+              </div>
+              <div class="exp-menu-item" onclick="exportRelDetailed();closeExpMenus()">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15h6M9 11h6M9 7h3"/></svg>PDF
+              </div>
+            </div>
+          </div>
           <div class="col-toggle-wrap">
             <button class="btn btn-ghost btn-sm" onclick="toggleColMenu()">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Colunas
@@ -1953,6 +1978,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
           <button id="relPgNext" onclick="changeRelPage(1)">Próxima →</button>
         </div>
       </div>
+      <div style="position:sticky;bottom:0;left:0;padding:4px 12px;font-size:0.6786em;color:var(--tx3);pointer-events:none;background:var(--sf);border-top:1px solid var(--br)">v0.59.0</div>
     </div>
   </div>
 
@@ -2016,12 +2042,20 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
             <button class="btn btn-ghost btn-sm" onclick="openRespDialog()">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Responsável
             </button>
-            <button class="btn btn-ghost btn-sm" onclick="exportPDF()">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15h6M9 11h6M9 7h3"/></svg>Exportar PDF
-            </button>
-            <button class="btn btn-ghost btn-sm" onclick="exportExcel()">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Excel (.csv)
-            </button>
+            <div class="exp-wrap" id="expProfWrap">
+              <button class="btn btn-ghost btn-sm" onclick="toggleExpMenu('expProfMenu')">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Exportar
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="10" height="10"><path d="M6 9l6 6 6-6"/></svg>
+              </button>
+              <div class="exp-menu" id="expProfMenu">
+                <div class="exp-menu-item" onclick="exportExcel();closeExpMenus()">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Excel (.xlsx)
+                </div>
+                <div class="exp-menu-item" onclick="exportPDF();closeExpMenus()">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15h6M9 11h6M9 7h3"/></svg>PDF
+                </div>
+              </div>
+            </div>
             <button class="btn btn-primary btn-sm" onclick="addOccurrence()">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Nova ocorrência
             </button>
@@ -2122,7 +2156,9 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 // ──────────────────────────────────────────────────────────────────
 const SUPABASE_URL = "https://bwkrmlpcsojxanoldhbr.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ3a3JtbHBjc29qeGFub2xkaGJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMTcwMTQsImV4cCI6MjA5NDc5MzAxNH0.WbZJKB78fPA1utO5T_isNhNKywPxojqyMnv974JR4f8";
-const _supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const _supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  global: { fetch: window.__nativeFetch || window.fetch.bind(window) }
+});
 
 // ──────────────────────────────────────────────────────────────────
 // 2. DB
@@ -4188,7 +4224,10 @@ function demPopulateFilters(){
   const fa=document.getElementById("demFiltAno");
   const fr=document.getElementById("demFiltResp");
   if(!fa||!fr) return;
-  const av=fa.value,rv=fr.value;
+  const anoAtual=new Date().getFullYear();
+  // Manter valor atual se já selecionado, caso contrário pré-selecionar ano atual
+  const av=fa.value || (anos.includes(anoAtual)?String(anoAtual):"");
+  const rv=fr.value;
   fa.innerHTML=`<option value="">Todos os anos</option>`+anos.map(a=>`<option${String(a)===av?" selected":""}>${a}</option>`).join("");
   fr.innerHTML=`<option value="">Todos os responsáveis</option>`+resps.map(r=>`<option${r===rv?" selected":""}>${r}</option>`).join("");
 }
@@ -4589,7 +4628,10 @@ function demFormMPStatusFixed(dd){
     </div>
     <div class="dem-2col">
       <div class="dem-field"><label>Término da Prorrogação</label><input type="date" id="df-mpTerminoProrrog" value="${dd.mpTerminoProrrog||""}" onchange="demMPAutoFill();demFieldSave()"></div>
-      <div class="dem-field"><label>Retorno à UBS</label><input type="date" id="df-mpRetornoUbs" value="${dd.mpRetornoUbs||""}" onchange="demFieldSave()"></div>
+      <div class="dem-field"><label>Retorno previsto à UBS</label><input type="date" id="df-mpRetornoUbs" value="${dd.mpRetornoUbs||""}" onchange="demFieldSave()"></div>
+    </div>
+    <div class="dem-2col">
+      <div class="dem-field"><label>Retorno Efetivo à UBS</label><input type="date" id="df-mpRetornoEfetivo" value="${dd.mpRetornoEfetivo||""}" onchange="demFieldSave()"></div>
     </div>
   </div>`;
 }
@@ -5012,6 +5054,7 @@ function demFieldSave(){
     dd.mpTerminoLic=g("df-mpTerminoLic"); dd.mpProrrogacao=g("df-mpProrrogacao");
     dd.mpInicioProrrog=g("df-mpInicioProrrog"); dd.mpTerminoProrrog=g("df-mpTerminoProrrog");
     dd.mpRetornoUbs=g("df-mpRetornoUbs");
+    dd.mpRetornoEfetivo=g("df-mpRetornoEfetivo");
   }
   // Etapa-specific fields
   const collectPag = (listId) => (dd.pagamentos||[]).map((_,i)=>({
@@ -5130,6 +5173,7 @@ function demSyncToOcc(d){
     if(dd.mpInicioProrrog|| dd.inicioProrrog)occ.matPat.inicioProrrog= dd.mpInicioProrrog|| dd.inicioProrrog;
     if(dd.mpTerminoProrrog||dd.terminoProrrog)occ.matPat.terminoProrrog=dd.mpTerminoProrrog||dd.terminoProrrog;
     if(dd.mpRetornoUbs   || dd.retornoUbs)   occ.matPat.retornoUbs   = dd.mpRetornoUbs   || dd.retornoUbs;
+    if(dd.mpRetornoEfetivo||dd.retornoEfetivo) occ.matPat.retornoEfetivo=dd.mpRetornoEfetivo||dd.retornoEfetivo;
   }
   else if(d.etapa==="Suspensão da Bolsa") {
     if(!occ.matPat) occ.matPat = {};
@@ -5542,9 +5586,16 @@ function openProfFromDash(profId){
 }
 
 function openProfFromDashOcc(profId, occId){
-  // Open in new tab so the demanda modal stays open
-  const url=window.location.href.split('?')[0]+'?profId='+profId+'&occId='+occId;
-  window.open(url,'_blank');
+  demCloseDrawer();
+  switchTab("lic");
+  setTimeout(()=>{
+    openProf(profId);
+    // scroll para a ocorrência específica após render
+    if(occId) setTimeout(()=>{
+      const el=document.getElementById(`occ-${occId}`);
+      if(el){ el.scrollIntoView({behavior:"smooth",block:"start"}); el.classList.add("open"); }
+    }, 200);
+  }, 80);
 }
 
 function initDemandas(){
@@ -6182,7 +6233,8 @@ function buildOccCard(occ, idx){
   const {dia16,termino} = calcDates(occ);
   const pend      = occPendencies(occ);
   const hasPend   = pend.length > 0;
-  const alerta16  = !occ.inss && occ.periodo>=16;
+  const isMpOcc = occ.tipoAfasta==="Licença Maternidade"||occ.tipoAfasta==="Licença Paternidade";
+  const alerta16  = !occ.inss && !isMpOcc && occ.periodo>=16;
   const hasLembrete = occ.lembrete && occ.lembrete.data;
   const tipoLabel = occ.tipoAfasta || occ.tipoDoc || "Afastamento";
 
@@ -6472,8 +6524,10 @@ function buildFormMatPat(occ){
         <input type="date" id="f${id}-mpInicioProrrog" value="${iniProrrogVal}" oninput="mpAutoFill(${id})"></div>
       <div class="field"><label>Término da Prorrogação</label>
         <input type="date" id="f${id}-mpTerminoProrrog" value="${termProrrogVal}" oninput="mpAutoFill(${id})"></div>
-      <div class="field"><label>Retorno à UBS</label>
+      <div class="field"><label>Retorno previsto à UBS</label>
         <input type="date" id="f${id}-mpRetornoUbs" value="${retornoVal}" oninput="onChange(${id})"></div>
+      <div class="field"><label>Retorno Efetivo à UBS</label>
+        <input type="date" id="f${id}-mpRetornoEfetivo" value="${mp.retornoEfetivo||""}" oninput="onChange(${id})"></div>
     </div>
   </div>
   <div class="fs">
@@ -6727,7 +6781,10 @@ function onChange(id){
     const te  = new Date(d); te.setDate(te.getDate()+pe-1);
     const el16 = document.getElementById(`f${id}-d16`); if(el16) el16.textContent = fmt(d16);
     const elte = document.getElementById(`f${id}-te`);  if(elte) elte.textContent  = fmt(te);
-    document.getElementById(`alert-${id}`)?.classList.toggle("show", pe>=16);
+    const tipoAfEl = document.getElementById(`f${id}-tipoAfasta`);
+    const tipoAf = tipoAfEl ? tipoAfEl.value : "";
+    const isMpOnChange = tipoAf==="Licença Maternidade"||tipoAf==="Licença Paternidade";
+    document.getElementById(`alert-${id}`)?.classList.toggle("show", pe>=16 && !isMpOnChange);
   }
   document.getElementById(`occ-${id}`)?.classList.add("editing");
   ["tipoDoc","dataInicio"].forEach(k=>{
@@ -6777,7 +6834,7 @@ async function saveOcc(id, ev){
     const gmp = k=> document.getElementById(`f${id}-mp${k}`)?.value??"";
     const old = occ.matPat||{};
     const fields = ["StatusBolsa","InicioLic","TerminoLic","Prorrogacao","InicioProrrog","TerminoProrrog",
-      "RetornoUbs","NumProcSusp","MesAnoSusp","TipoReat","NumProcReat","MesAnoReat",
+      "RetornoUbs","RetornoEfetivo","NumProcSusp","MesAnoSusp","TipoReat","NumProcReat","MesAnoReat",
       "PeriodoRest","GruDesconto","ProcRest","MesAnoRest",
       "CartaConcessao","NumProcConcessao","ValorCompMS"];
     const newMP = {};
@@ -7087,7 +7144,8 @@ function exportPDF(){
           ${fld("Prorrogação",mp.prorrogacao)}
           ${mp.inicioProrrog?fld("Início prorrogação",fmtI(mp.inicioProrrog)):""}
           ${mp.terminoProrrog?fld("Término prorrogação",fmtI(mp.terminoProrrog)):""}
-          ${fld("Retorno à UBS",fmtI(mp.retornoUbs))}
+          ${fld("Retorno previsto à UBS",fmtI(mp.retornoUbs))}
+          ${mp.retornoEfetivo?fld("Retorno Efetivo à UBS",fmtI(mp.retornoEfetivo)):""}
         </div>`;
       if(mp.numProcSusp||mp.numProcReat){
         body += `<div class="pr-section-title">Suspensão e Reativação</div>
@@ -7196,8 +7254,8 @@ function exportExcel(){
       (o.obs||"").replace(/\n/g," "),
       o.lembrete?.data?fmtI(o.lembrete.data):"",o.lembrete?.nota||""]);
   });
-  doCSV(rows,`${p.nome.replace(/\s+/g,"_")}_${tsNow()}.csv`);
-  showToast("Exportado — abrir no Excel ou usar no Power Automate","success");
+  doXlsx(rows,`${p.nome.replace(/\s+/g,"_")}_${tsNow()}.xlsx`);
+  showToast("Exportado como Excel (.xlsx)","success");
 }
 
 function exportCSV(){ exportExcel(); }
@@ -7314,7 +7372,7 @@ const FILTER_LABELS = {
   "rf-nome":"Nome/CPF/E-mail","rf-programa":"Programa","rf-ciclo":"Ciclo",
   "rf-uf":"UF","rf-resp":"Responsável","rf-tipo":"Tipo afastamento",
   "rf-de":"Período de","rf-ate":"Período até","rf-susp":"Bolsa suspensa",
-  "rf-vigente":"Vigente","rf-status":"Status","rf-vaga":"Vaga"
+  "rf-vigente":"Vigente","rf-status":"Status","rf-vaga":"Vaga Disponibilizada"
 };
 
 function getActiveFilters(){
@@ -7752,6 +7810,7 @@ function toggleColMenu(){
   m.classList.add("open");
 }
 document.addEventListener("click",e=>{ if(!e.target.closest(".col-toggle-wrap")) document.getElementById("colMenu")?.classList.remove("open"); });
+document.addEventListener("click",e=>{ if(!e.target.closest(".exp-wrap")) closeExpMenus(); });
 function toggleCol(i,on){ REL_COLS[i].vis=on; renderRelTable(); }
 
 // ── SAVED SEARCHES ──
@@ -7945,6 +8004,52 @@ function doCSV(rows,filename){
   const a=document.createElement("a");
   a.href="data:text/csv;charset=utf-8,\uFEFF"+encodeURIComponent(csv);
   a.download=filename; a.click();
+}
+
+function doXlsx(rows,filename){
+  if(typeof XLSX==="undefined"){ showToast("Biblioteca XLSX não carregada","warn"); return; }
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Dados");
+  XLSX.writeFile(wb,filename);
+}
+
+function toggleExpMenu(id){
+  const all=["expListMenu","expDetMenu","expProfMenu"];
+  all.forEach(mid=>{ if(mid!==id) document.getElementById(mid)?.classList.remove("open"); });
+  document.getElementById(id)?.classList.toggle("open");
+}
+function closeExpMenus(){
+  ["expListMenu","expDetMenu","expProfMenu"].forEach(id=>document.getElementById(id)?.classList.remove("open"));
+}
+
+function exportRelListXlsx(){
+  const profs=getExportProfs();
+  if(!profs.length){ showToast("Nenhum resultado para exportar","warn"); return; }
+  const rows=[["Nome","CPF","Programa","Ciclo","UF","Município","Status","Responsável","Ocorrências","Último Afastamento","Pendências"]];
+  profs.forEach(p=>{
+    const pend=p.occurrences.reduce((s,o)=>s+occPendencies(o).length,0);
+    const last=[...p.occurrences].sort((a,b)=>(b.dataInicio||"").localeCompare(a.dataInicio||""))[0];
+    rows.push([p.nome,p.cpf,p.programa,p.ciclo,p.uf,p.municipio,statusLbl(p.status),p.responsavel,p.occurrences.length,fmtI(last?.dataInicio||""),pend]);
+  });
+  doXlsx(rows,`relatorio_lista_${tsNow()}.xlsx`);
+  showToast(`Lista exportada como Excel (${profs.length} profissionais)`,"success");
+}
+
+function exportRelDetailedXlsx(){
+  const profs=getExportProfs();
+  if(!profs.length){ showToast("Nenhum resultado para exportar","warn"); return; }
+  const rows=[["Nome","CPF","Programa","Ciclo","UF","Município","Status","Responsável","Oc.","Tipo Doc","CIDs","Data Início","Período","16º Dia","Término","Bolsa Suspensa","Data Reativação","Tipo Restituição","INSS até","Observação"]];
+  profs.forEach(p=>{
+    p.occurrences.forEach(o=>{
+      const {dia16,termino}=calcDates(o);
+      rows.push([p.nome,p.cpf,p.programa,p.ciclo,p.uf,p.municipio,statusLbl(p.status),p.responsavel,
+        o.n,o.tipoDoc,o.cids.join(";"),fmtI(o.dataInicio),o.periodo??"",dia16,termino,
+        fmtI(o.suspBolsa),fmtI(o.dataReat),o.tipoRest,fmtI(o.beneficioInssAte),o.obs.replace(/\n/g," ")]);
+    });
+  });
+  doXlsx(rows,`relatorio_detalhado_${tsNow()}.xlsx`);
+  showToast(`Detalhado exportado como Excel (${profs.length} profissionais)`,"success");
 }
 
 // ──────────────────────────────────────────────────────────────────
@@ -10382,6 +10487,11 @@ calcInitIfNeeded();
 // ── WRAPPERS para botão no drawer de demandas ──
 function calcOpenDrawer() {
   // Navega para a aba de cálculo
+  switchTab('calc');
+}
+function calcOpenModal() {
+  // Fecha o drawer e navega para a aba calculadora
+  demCloseDrawer();
   switchTab('calc');
 }
 function calcCloseDrawer() {}
