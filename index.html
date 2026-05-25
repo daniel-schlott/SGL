@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v60</title>
+<title>Mais Médicos — Gestão de Licenças v61</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -2767,19 +2767,10 @@ async function authCheck() {
     const { data: { session } } = await _supa.auth.getSession();
     if (!session) return { ok: false, reason: "no_session" };
 
-    // Verifica login no dia de hoje (dia calendário)
-    const lastLogin = new Date(session.user.last_sign_in_at);
-    const today = new Date();
-    const loginedToday = lastLogin.toDateString() === today.toDateString();
-    if (!loginedToday) {
-      await _supa.auth.signOut();
-      return { ok: false, reason: "expired_daily" };
-    }
-
     // Verifica se usuário está ativo na tabela team
     const { data: tm, error } = await _supa
       .from("team")
-      .select("id, name, initials, color, role, active")
+      .select("id, name, initials, color, role, active, last_login_date")
       .eq("auth_id", session.user.id)
       .single();
 
@@ -2787,6 +2778,13 @@ async function authCheck() {
     if (!tm.active) {
       await _supa.auth.signOut();
       return { ok: false, reason: "revoked" };
+    }
+
+    // Verifica login no dia de hoje usando last_login_date (gravado no banco)
+    const today = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+    if (tm.last_login_date !== today) {
+      await _supa.auth.signOut();
+      return { ok: false, reason: "expired_daily" };
     }
 
     return { ok: true, user: session.user, teamMember: tm };
@@ -2894,7 +2892,10 @@ async function authDoLogin() {
       alertEl.className = "auth-alert err";
       return;
     }
-    // Login OK — verifica se está ativo e carrega app
+    // Login OK — grava data do login no banco
+    const today = new Date().toISOString().slice(0, 10);
+    await _supa.from("team").update({ last_login_date: today }).eq("auth_id", data.user.id);
+    // Verifica se está ativo e carrega app
     document.getElementById("authScreen")?.remove();
     await initApp();
   } catch(e) {
