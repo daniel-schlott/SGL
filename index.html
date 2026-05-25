@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v59</title>
+<title>Mais Médicos — Gestão de Licenças v60</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1172,6 +1172,29 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 .occ-card{animation:fadeIn .16s ease both}
 
+/* ── AUTH / LOGIN ── */
+.auth-screen{position:fixed;inset:0;background:var(--nav-bg);display:flex;align-items:center;justify-content:center;z-index:99999;padding:20px}
+.auth-card{background:var(--sf);border:1px solid var(--br);border-radius:16px;width:100%;max-width:400px;box-shadow:0 24px 64px rgba(0,0,0,.35);overflow:hidden}
+.auth-header{background:var(--nav-bg);padding:28px 32px 24px;text-align:center}
+.auth-logo{width:44px;height:44px;border-radius:10px;background:var(--nav-ac);display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px}
+.auth-logo svg{width:22px;height:22px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round}
+.auth-title{font-size:1.1em;font-weight:600;color:#fff;margin-bottom:4px}
+.auth-sub{font-size:0.8em;color:rgba(255,255,255,.55)}
+.auth-body{padding:28px 32px}
+.auth-field{display:flex;flex-direction:column;gap:5px;margin-bottom:16px}
+.auth-field label{font-size:0.8em;font-weight:500;color:var(--tx2)}
+.auth-field input{padding:9px 12px;border:1px solid var(--br);border-radius:var(--r);background:var(--sf2);color:var(--tx);font-size:0.9em;font-family:inherit;outline:none;transition:border-color .12s,box-shadow .12s}
+.auth-field input:focus{border-color:var(--acm);box-shadow:0 0 0 2px var(--acl)}
+.auth-field input.err{border-color:var(--rd);box-shadow:0 0 0 2px var(--rdl)}
+.auth-errmsg{font-size:0.75em;color:var(--rd);margin-top:2px;min-height:16px}
+.auth-btn{width:100%;padding:10px;border-radius:var(--r);background:var(--ac);color:#fff;font-size:0.9em;font-weight:600;border:none;cursor:pointer;font-family:inherit;transition:background .15s;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px}
+.auth-btn:hover{background:var(--acm)}
+.auth-btn:disabled{opacity:.6;cursor:default}
+.auth-footer{padding:14px 32px;border-top:1px solid var(--br);text-align:center;font-size:0.75em;color:var(--tx3)}
+.auth-alert{padding:10px 14px;border-radius:var(--r);font-size:0.82em;margin-bottom:14px;display:none}
+.auth-alert.err{background:var(--rdl);color:var(--rd);border:1px solid #FECACA;display:block}
+.auth-alert.info{background:var(--bll);color:var(--bl);border:1px solid #BFDBFE;display:block}
+
 /* ── CÁLCULO VIEW ── */
 /* BODY LAYOUT */
 .calc-wrap{width:700px;max-width:100%;display:flex;flex-direction:column;gap:14px}
@@ -1355,6 +1378,9 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 
   <div class="nusr">
     <div class="nusr-pill"><div class="nusr-dot"></div><span id="navUserName">Maria Silva</span></div>
+    <button onclick="authLogout()" title="Sair" style="padding:4px 9px;border-radius:var(--r);background:var(--nav-pill-bg);border:1px solid var(--nav-br);color:rgba(255,255,255,.7);font-size:0.7857em;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:5px;transition:background .12s" onmouseover="this.style.background='rgba(255,255,255,.2)'" onmouseout="this.style.background='var(--nav-pill-bg)'">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>Sair
+    </button>
     <div class="ntab" id="tab-cfg" onclick="switchTab('cfg')" style="border-bottom:none;padding:0 10px;height:100%">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
     </div>
@@ -2226,8 +2252,8 @@ const DB = {
         console.warn("[DB.load.team] non-fatal, using hardcoded TEAM:", teamRes.error);
       } else if(teamRes.data?.length) {
         TEAM.length = 0;
-        teamRes.data.forEach(t => TEAM.push({ id: t.id, name: t.name, ini: t.initials, color: t.color, role: t.role }));
-        ME = Object.assign({}, TEAM[0]);
+        teamRes.data.forEach(t => TEAM.push({ id: t.id, auth_id: t.auth_id, name: t.name, ini: t.initials, color: t.color, role: t.role, active: t.active !== false }));
+        // ME será setado por initApp após authCheck — não sobrescrever aqui
       }
 
       // v52: Carregar ciclos do programa
@@ -2717,20 +2743,191 @@ const DB = {
 };
 
 // ──────────────────────────────────────────────────────────────────
-// 3. TEAM / AUTH
+// 3. TEAM / AUTH (v60 — Supabase Auth real)
 // ──────────────────────────────────────────────────────────────────
-// `TEAM` é populado de `team` no Supabase em `DB.load()`. Os valores
-// abaixo são fallback caso a tabela não exista ou RLS bloqueie a leitura.
-// `ME` é o usuário atual — nesta PoC ainda não há autenticação real,
-// usa-se sempre TEAM[0] (Maria Silva, gestor).
+// `TEAM` é populado de `team` no Supabase em `DB.load()`.
+// `ME` agora vem da sessão autenticada (supabase.auth.getUser()).
+// Fallback hardcoded é mantido apenas para dev sem banco.
 const TEAM = [
-  {name:"Maria Silva",   ini:"MS", color:"#1A4F3A", role:"gestor"},
-  {name:"João Costa",    ini:"JC", color:"#1B3FA0", role:"analista"},
-  {name:"Ana Lima",      ini:"AL", color:"#92510A", role:"analista"},
-  {name:"Ricardo Campos",ini:"RC", color:"#991B1B", role:"analista"},
-  {name:"Vanessa Borges",ini:"VB", color:"#5B21B6", role:"analista"},
+  {name:"Daniel B.",     ini:"DB", color:"#1A4F3A", role:"gestor"},
+  {name:"Carolina O.",   ini:"CO", color:"#1B3FA0", role:"gestor"},
+  {name:"Vitor S.",      ini:"VS", color:"#92510A", role:"gestor"},
+  {name:"Michele C.",    ini:"MC", color:"#991B1B", role:"analista"},
+  {name:"Fernanda A.",   ini:"FA", color:"#5B21B6", role:"analista"},
+  {name:"Lelis L.",      ini:"LL", color:"#0F766E", role:"analista"},
+  {name:"Visitante",     ini:"VI", color:"#6B7280", role:"analista"},
 ];
 let ME = Object.assign({}, TEAM[0]);
+
+// ── AUTH HELPERS ──────────────────────────────────────────────────
+// Verifica se o usuário está autenticado E ativo no banco.
+// Retorna { ok, user, teamMember } ou { ok: false, reason }
+async function authCheck() {
+  try {
+    const { data: { session } } = await _supa.auth.getSession();
+    if (!session) return { ok: false, reason: "no_session" };
+
+    // Verifica login no dia de hoje (dia calendário)
+    const lastLogin = new Date(session.user.last_sign_in_at);
+    const today = new Date();
+    const loginedToday = lastLogin.toDateString() === today.toDateString();
+    if (!loginedToday) {
+      await _supa.auth.signOut();
+      return { ok: false, reason: "expired_daily" };
+    }
+
+    // Verifica se usuário está ativo na tabela team
+    const { data: tm, error } = await _supa
+      .from("team")
+      .select("id, name, initials, color, role, active")
+      .eq("auth_id", session.user.id)
+      .single();
+
+    if (error || !tm) return { ok: false, reason: "not_in_team" };
+    if (!tm.active) {
+      await _supa.auth.signOut();
+      return { ok: false, reason: "revoked" };
+    }
+
+    return { ok: true, user: session.user, teamMember: tm };
+  } catch(e) {
+    return { ok: false, reason: "error", detail: e.message };
+  }
+}
+
+// Mensagens de erro por motivo
+function authErrorMsg(reason) {
+  const msgs = {
+    no_session:   "Faça login para acessar o sistema.",
+    expired_daily:"Sua sessão expirou. Faça login novamente para continuar.",
+    not_in_team:  "Seu usuário não está cadastrado no sistema. Contate o gestor.",
+    revoked:      "Seu acesso foi revogado. Contate o gestor.",
+    error:        "Erro ao verificar sessão. Tente novamente.",
+  };
+  return msgs[reason] || "Acesso negado.";
+}
+
+// Exibe a tela de login
+function showLoginScreen(reason) {
+  const msg = reason ? authErrorMsg(reason) : null;
+  // Remove tela de loading se existir
+  document.getElementById("appLoading")?.remove();
+
+  // Cria ou atualiza tela de login
+  let screen = document.getElementById("authScreen");
+  if (!screen) {
+    document.body.insertAdjacentHTML("beforeend", `
+    <div id="authScreen" class="auth-screen">
+      <div class="auth-card">
+        <div class="auth-header">
+          <div class="auth-logo">
+            <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          </div>
+          <div class="auth-title">Gestão de Licenças</div>
+          <div class="auth-sub">Programa Mais Médicos · v60</div>
+        </div>
+        <div class="auth-body">
+          <div id="authAlert" class="auth-alert"></div>
+          <div class="auth-field">
+            <label>E-mail institucional</label>
+            <input id="authEmail" type="email" placeholder="nome@saude.gov.br" autocomplete="email">
+            <span class="auth-errmsg" id="authEmailErr"></span>
+          </div>
+          <div class="auth-field">
+            <label>Senha</label>
+            <input id="authPassword" type="password" placeholder="••••••••" autocomplete="current-password"
+              onkeydown="if(event.key==='Enter') authDoLogin()">
+            <span class="auth-errmsg" id="authPasswordErr"></span>
+          </div>
+          <button class="auth-btn" id="authBtn" onclick="authDoLogin()">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="15" height="15">
+              <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/>
+            </svg>
+            Entrar
+          </button>
+        </div>
+        <div class="auth-footer">
+          Acesso restrito · Em caso de problemas, contate o administrador
+        </div>
+      </div>
+    </div>`);
+  }
+
+  if (msg) {
+    const alertEl = document.getElementById("authAlert");
+    alertEl.textContent = msg;
+    alertEl.className = "auth-alert " + (reason === "expired_daily" ? "info" : "err");
+  }
+}
+
+// Executa o login
+async function authDoLogin() {
+  const btn = document.getElementById("authBtn");
+  const email = (document.getElementById("authEmail")?.value || "").trim();
+  const pwd   = (document.getElementById("authPassword")?.value || "");
+
+  // Limpa erros
+  ["authEmailErr","authPasswordErr"].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=""; });
+  ["authEmail","authPassword"].forEach(id => { const el=document.getElementById(id); if(el) el.classList.remove("err"); });
+
+  if (!email) {
+    document.getElementById("authEmail").classList.add("err");
+    document.getElementById("authEmailErr").textContent = "Informe seu e-mail";
+    return;
+  }
+  if (!pwd) {
+    document.getElementById("authPassword").classList.add("err");
+    document.getElementById("authPasswordErr").textContent = "Informe sua senha";
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg> Autenticando…`;
+
+  try {
+    const { data, error } = await _supa.auth.signInWithPassword({ email, password: pwd });
+    if (error) {
+      btn.disabled = false;
+      btn.innerHTML = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg> Entrar`;
+      const alertEl = document.getElementById("authAlert");
+      alertEl.textContent = error.message.includes("Invalid") ? "E-mail ou senha incorretos." : error.message;
+      alertEl.className = "auth-alert err";
+      return;
+    }
+    // Login OK — verifica se está ativo e carrega app
+    document.getElementById("authScreen")?.remove();
+    await initApp();
+  } catch(e) {
+    btn.disabled = false;
+    btn.innerHTML = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg> Entrar`;
+    const alertEl = document.getElementById("authAlert");
+    alertEl.textContent = "Erro de conexão. Verifique sua internet.";
+    alertEl.className = "auth-alert err";
+  }
+}
+
+// Logout
+async function authLogout() {
+  await _supa.auth.signOut();
+  // Limpa estado
+  ME = Object.assign({}, TEAM[0]);
+  // Remove app, mostra login
+  document.getElementById("authScreen")?.remove();
+  showLoginScreen(null);
+}
+
+// Verificação periódica a cada 5 minutos
+let _authCheckInterval = null;
+function authStartPeriodicCheck() {
+  if (_authCheckInterval) clearInterval(_authCheckInterval);
+  _authCheckInterval = setInterval(async () => {
+    const result = await authCheck();
+    if (!result.ok) {
+      clearInterval(_authCheckInterval);
+      showLoginScreen(result.reason);
+    }
+  }, 5 * 60 * 1000);
+}
 
 function isGestor(){ return (ME.role||"analista")==="gestor"; }
 function canEditOcc(prof){ return true; }
@@ -4139,6 +4336,7 @@ function periodoToMesAno(p){
 function demGetFiltered(){
   const fMes=parseInt(document.getElementById("demFiltMes")?.value||"")||0;
   const fAno=parseInt(document.getElementById("demFiltAno")?.value||"")||0;
+  const anoAtual=new Date().getFullYear();
   const fr=document.getElementById("demFiltResp")?.value||"";
   const fe=document.getElementById("demFiltEtapa")?.value||"";
   const fs=document.getElementById("demFiltStatus")?.value||"";
@@ -4153,8 +4351,14 @@ function demGetFiltered(){
         if(fAno && cardAno!==fAno) return false;
       } else {
         const {mes,ano}=periodoToMesAno(d.periodo);
-        if(fMes && mes!==fMes) return false;
-        if(fAno && ano!==fAno) return false;
+        // Cartões legados sem data reconhecível: aparecem apenas no filtro do ano atual
+        if(ano===0){
+          if(fMes) return false;
+          if(fAno && fAno!==anoAtual) return false;
+        } else {
+          if(fMes && mes!==fMes) return false;
+          if(fAno && ano!==fAno) return false;
+        }
       }
     }
     if(fr && d.responsavel!==fr) return false;
@@ -4215,20 +4419,25 @@ function demQuickFilter(status){
 }
 
 function demPopulateFilters(){
-  // Anos baseados em createdAt do cartão (quando foi criado), com fallback em d.periodo
-  const anos=[...new Set(DEM_ENTRIES.map(d=>{
+  const anoAtual = new Date().getFullYear();
+  // Coleta anos dos cartões; cartões sem createdAt usam periodoToMesAno como fallback
+  const anosSet = new Set(DEM_ENTRIES.map(d=>{
     if(d.createdAt) return new Date(d.createdAt).getFullYear();
-    return periodoToMesAno(d.periodo).ano;
-  }).filter(Boolean))].sort().reverse();
+    const {ano} = periodoToMesAno(d.periodo);
+    return ano || null;
+  }).filter(Boolean));
+  // Garante que o ano atual sempre aparece na lista
+  anosSet.add(anoAtual);
+  const anos = [...anosSet].sort().reverse();
+
   const resps=[...new Set(DEM_ENTRIES.map(d=>d.responsavel).filter(Boolean))].sort();
   const fa=document.getElementById("demFiltAno");
   const fr=document.getElementById("demFiltResp");
   if(!fa||!fr) return;
-  const anoAtual=new Date().getFullYear();
-  // Manter valor atual se já selecionado, caso contrário pré-selecionar ano atual
-  const av=fa.value || (anos.includes(anoAtual)?String(anoAtual):"");
-  const rv=fr.value;
-  fa.innerHTML=`<option value="">Todos os anos</option>`+anos.map(a=>`<option${String(a)===av?" selected":""}>${a}</option>`).join("");
+  // Mantém seleção atual; se ainda não foi selecionado nada, pré-seleciona ano atual
+  const av = fa.value || String(anoAtual);
+  const rv = fr.value;
+  fa.innerHTML=`<option value="">Todos os anos</option>`+anos.map(a=>`<option value="${a}"${String(a)===av?" selected":""}>${a}</option>`).join("");
   fr.innerHTML=`<option value="">Todos os responsáveis</option>`+resps.map(r=>`<option${r===rv?" selected":""}>${r}</option>`).join("");
 }
 
@@ -8597,36 +8806,29 @@ function toggleUserRole(name, evt){
 }
 
 function renderUserOpts(){
+  // v60: com auth real, mostra apenas o usuário logado (sem switch fake)
   const el = document.getElementById("userOpts");
   if(!el) return;
-  el.innerHTML = TEAM.map(t=>`
-    <div class="user-opt${ME.name===t.name?" active":""}" onclick="switchUser('${t.name}')">
-      <div class="user-dot" style="background:${t.color}">${t.ini}</div>
+  el.innerHTML = `
+    <div class="user-opt active" style="cursor:default">
+      <div class="user-dot" style="background:${ME.color||"#1A4F3A"}">${ME.ini||"?"}</div>
       <div style="flex:1;min-width:0">
-        <div>${t.name}</div>
+        <div>${ME.name}</div>
         <div style="margin-top:2px;display:flex;align-items:center;gap:5px">
-          <span class="role-badge role-${t.role||"analista"}">${t.role||"analista"}</span>
-          <button
-            onclick="toggleUserRole('${t.name}',event)"
-            title="Alternar perfil"
-            style="padding:1px 6px;border-radius:10px;border:1px solid var(--br);background:var(--sf);color:var(--tx3);font-size:0.55em;font-weight:600;cursor:pointer;text-transform:uppercase;letter-spacing:.04em;line-height:1.6"
-            onmouseover="this.style.background='var(--sf2)'"
-            onmouseout="this.style.background='var(--sf)'"
-          >${t.role==="gestor"?"→ Analista":"→ Gestor"}</button>
+          <span class="role-badge role-${ME.role||"analista"}">${ME.role||"analista"}</span>
         </div>
       </div>
-      ${ME.name===t.name?`<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" width="13" height="13" style="color:var(--acm);flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>`:""}
-    </div>`).join("");
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" width="13" height="13" style="color:var(--acm);flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div style="border-top:1px solid var(--br);margin:8px 0"></div>
+    <button onclick="authLogout()" class="btn btn-ghost btn-sm" style="width:100%;justify-content:center">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+      Sair
+    </button>`;
 }
 
-function switchUser(name){
-  const t = teamBy(name);
-  Object.assign(ME, Object.assign({}, t));
-  document.getElementById("navUserName").textContent = ME.name;
-  renderUserOpts();
-  showToast(`Logado como ${ME.name}`, "success");
-  if(document.getElementById("view-dash").classList.contains("active")) renderDashboard();
-}
+// switchUser mantido como no-op para compatibilidade com eventos inline existentes
+function switchUser(name){ /* desabilitado em v60 — auth real via Supabase */ }
 
 
 function exportDashCSV(){
@@ -9005,8 +9207,33 @@ function calNav(dir){
 // uma tela de erro com botão de retry em vez de quebrar silenciosamente.
 // ──────────────────────────────────────────────────────────────────
 
+// ── BOOTSTRAP: verifica sessão antes de iniciar ──────────────────
+async function bootstrap() {
+  // Mostra loading enquanto verifica sessão
+  document.body.insertAdjacentHTML("beforeend",`<div id="appLoading" style="position:fixed;inset:0;background:var(--nav-bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:12px">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--nav-ac)" stroke-width="2" stroke-linecap="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg>
+    <span style="font-size:0.9em;color:rgba(255,255,255,.55)">Verificando sessão…</span>
+  </div>`);
+
+  const authResult = await authCheck();
+  if (!authResult.ok) {
+    document.getElementById("appLoading")?.remove();
+    showLoginScreen(authResult.reason === "no_session" ? null : authResult.reason);
+    return;
+  }
+
+  // Sessão válida — popula ME com dados reais do banco
+  const tm = authResult.teamMember;
+  ME = { id: tm.id, auth_id: authResult.user.id, name: tm.name, ini: tm.initials || tm.name.slice(0,2).toUpperCase(), color: tm.color || "#1A4F3A", role: tm.role || "analista" };
+
+  await initApp();
+  authStartPeriodicCheck();
+}
+
 async function initApp(){
-  document.body.insertAdjacentHTML("beforeend",`<div id="appLoading" style="position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:12px">
+  const loadingEl = document.getElementById("appLoading");
+  if (loadingEl) loadingEl.querySelector("span").textContent = "Carregando dados…";
+  else document.body.insertAdjacentHTML("beforeend",`<div id="appLoading" style="position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:12px">
     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--ac)" stroke-width="2" stroke-linecap="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></path></svg>
     <span style="font-size:0.9em;color:var(--tx3)">Carregando dados…</span>
   </div>`);
@@ -9053,7 +9280,7 @@ async function initApp(){
   switchTab(sessionStorage.getItem("activeTab")||"lic");
 }
 
-initApp();
+bootstrap();
 
 </script>
 <!-- ── MODAL: NOVO PROFISSIONAL ── -->
