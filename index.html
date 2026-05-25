@@ -2342,7 +2342,11 @@ const DB = {
       if(this._cycles.length > 0){
         const vigentes = new Set(this._cycles.filter(c => c.status === "vigente").map(c => c.id));
         const antes = this._profs.length;
-        this._profs = this._profs.filter(p => !p.cicloId || vigentes.has(p.cicloId));
+        // Só filtra se há pelo menos 1 ciclo vigente E mais da metade dos profs tem cicloId
+        const profsComCiclo = this._profs.filter(p => p.cicloId).length;
+        if(vigentes.size > 0 && profsComCiclo > 0){
+          this._profs = this._profs.filter(p => !p.cicloId || vigentes.has(p.cicloId));
+        }
         console.log(`[DB] ciclos vigentes: ${vigentes.size} | profs antes: ${antes} | depois: ${this._profs.length}`);
       } else {
         console.warn("[DB] cycles vazio — exibindo todos os profs sem filtro de ciclo");
@@ -4253,11 +4257,11 @@ function demBootstrap(){
       })();
 
       // ── SAÚDE: SÓ CRIA CARD PARA ETAPAS QUE JÁ TÊM DADOS ──
+      const _legacyDate = (()=>{ try { if(!occ.dataInicio) return undefined; const d=new Date(occ.dataInicio+"T00:00:00"); return isNaN(d.getTime())?undefined:d.toISOString(); } catch(e){ return undefined; } })();
       if(!isMP){
         // Suspensão — sempre cria (toda ocorrência de saúde tem ou terá suspensão)
         const _dcs = occ.demCardsStatus || {};
         const statusSusp = _dcs["Suspensão"] || (occ.numProcSusp ? "Concluídos" : occ.suspBolsa ? "Em Andamento" : "Novas Demandas");
-        const _legacyDate = occ.dataInicio ? new Date(occ.dataInicio+"T00:00:00").toISOString() : undefined;
         DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Suspensão",status:statusSusp,responsavel:prof.responsavel,periodo:per,seiGrupo:null,createdAt:_legacyDate,demData:demInitData("Suspensão",occ,false)});
 
         // Reativação — só cria se há dados registrados
@@ -5827,8 +5831,6 @@ function openProfFromDashOcc(profId, occId){
 function initDemandas(){
   demBootstrap();
   demPopulateFilters();
-  const mesSel = document.getElementById("demFiltMes");
-  if(mesSel && !mesSel.value) mesSel.value = String(new Date().getMonth()+1);
   renderDemKanban();
 }
 
