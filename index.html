@@ -4440,10 +4440,9 @@ function demPopulateFilters(){
   const fa=document.getElementById("demFiltAno");
   const fr=document.getElementById("demFiltResp");
   if(!fa||!fr) return;
-  // Mantém seleção atual; se é o primeiro carregamento (valor ainda não foi tocado pelo usuário),
-  // pré-seleciona ano atual. Se usuário já escolheu "", mantém "Todos os anos".
-  const av = fa.dataset.touched ? fa.value : (fa.value || String(anoAtual));
-  if(!fa.dataset.touched) fa.dataset.touched = "1";
+  // Mantém seleção atual sem forçar pré-seleção
+  const av = fa.value;
+  fa.dataset.touched = "1";
   const rv = fr.value;
   fa.innerHTML=`<option value="">Todos os anos</option>`+anos.map(a=>`<option value="${a}"${String(a)===av?" selected":""}>${a}</option>`).join("");
   fr.innerHTML=`<option value="">Todos os responsáveis</option>`+resps.map(r=>`<option${r===rv?" selected":""}>${r}</option>`).join("");
