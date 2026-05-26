@@ -5994,11 +5994,24 @@ function demConfirmRelatedCard(sourceId, novaEtapa){
   const baseData = demInitData(novaEtapa, occ, isMP);
   const srcData  = src.demData || {};
 
-  // v64 fix: srcData (card de origem) tem prioridade sobre baseData (lido da ocorrência)
-  // Herança direta — campos com mesmo nome: copia srcData → baseData se srcData tem valor
+  // v64 fix: campos mp* (Status e Período da Licença) são compartilhados por
+  // TODAS as etapas mat/pat mas não estão em demInitData — herdar explicitamente
+  const MP_SHARED = [
+    "mpStatusBolsa","mpInicioLic","mpTerminoLic","mpProrrogacao",
+    "mpInicioProrrog","mpTerminoProrrog","mpRetornoUbs","mpRetornoEfetivo"
+  ];
+  // Campos saúde compartilhados entre etapas
+  const SAUDE_SHARED = [
+    "dtEntradaNucleo","dtCienciaCoord","metodoEntrada","especEntrada",
+    "tipoDoc","dataInicio","periodo","inssAte","faltasInjust","cids",
+    "emailSusp","obsSusp"
+  ];
+
+  const sharedList = isMP ? MP_SHARED : SAUDE_SHARED;
+
+  // 1. Herança direta: campos com mesmo nome em ambas as etapas
   Object.keys(baseData).forEach(k => {
     if(srcData[k] !== undefined && srcData[k] !== "" && srcData[k] !== null){
-      // Arrays: só herda se o destino estiver vazio
       if(Array.isArray(srcData[k])){
         if(!baseData[k] || !baseData[k].length) baseData[k] = srcData[k];
       } else {
@@ -6007,16 +6020,16 @@ function demConfirmRelatedCard(sourceId, novaEtapa){
     }
   });
 
-  // Herança cruzada: campos com nomes diferentes entre etapas
-  if(!isMP){
-    if("emailSusp" in baseData && srcData.emailSusp) baseData.emailSusp = srcData.emailSusp;
-    if("obsSusp"   in baseData && srcData.obsSusp)   baseData.obsSusp   = srcData.obsSusp;
-  } else {
-    if("emailSusp" in baseData && srcData.emailSusp) baseData.emailSusp = srcData.emailSusp;
-    if("obsSusp"   in baseData && srcData.obsSusp)   baseData.obsSusp   = srcData.obsSusp;
-    if(src.etapa==="Suspensão da Bolsa" && novaEtapa==="Reativação"){
-      if(srcData.mesAnoSusp) baseData.mesAnoReat = srcData.mesAnoSusp;
+  // 2. Herança dos campos compartilhados que não estão em baseData
+  sharedList.forEach(k => {
+    if(srcData[k] !== undefined && srcData[k] !== "" && srcData[k] !== null){
+      baseData[k] = srcData[k];
     }
+  });
+
+  // 3. Herança cruzada mat/pat: mesAnoSusp → mesAnoReat
+  if(isMP && src.etapa==="Suspensão da Bolsa" && novaEtapa==="Reativação"){
+    if(srcData.mesAnoSusp) baseData.mesAnoReat = srcData.mesAnoReat || srcData.mesAnoSusp;
   }
 
   const newId = DEM_NEXT_ID++;
