@@ -1526,7 +1526,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
   <div class="settings-view-hd" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px">
     <div>
       <h1>Configurações</h1>
-      <p>Personalização, dados de teste, log de modificações e usuário simulado</p>
+      <p>Personalização, dados de teste e log de modificações</p>
     </div>
     <button class="btn btn-ghost btn-sm" onclick="goBack()" style="flex-shrink:0;margin-top:4px">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
@@ -1656,25 +1656,6 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
             <button id="slPgPrev" onclick="slPage(-1)">← Anterior</button>
             <button id="slPgNext" onclick="slPage(1)">Próxima →</button>
           </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Usuário Simulado -->
-  <div class="sv-section">
-    <div class="sv-section-hd">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      <h2>Usuário simulado</h2>
-    </div>
-    <div class="sv-section-body">
-      <div class="sv-row" style="border-bottom:none;padding-bottom:0">
-        <div class="sv-row-label">
-          Logado como
-          <div class="sv-row-desc">Simula a perspectiva de outro membro da equipe</div>
-        </div>
-        <div class="sv-row-ctrl">
-          <div class="user-grid" id="userOpts"></div>
         </div>
       </div>
     </div>
@@ -4257,10 +4238,90 @@ const DEM_ETAPAS_SAUDE  = ["Suspensão","Reativação","Restituição","Pagament
 const DEM_ETAPAS_MP     = ["Suspensão da Bolsa","Reativação","Restituição ao Erário","Carta de Concessão","Pagamento Retroativo"];
 
 // ── BOOTSTRAP FROM EXISTING OCCURRENCES ──
-function demBootstrap(){
+// ── DEM_CARDS HELPERS (v64) ──
+// Salva/atualiza um card na tabela dem_cards do Supabase (não-fatal)
+async function dbSaveDemCard(d){
+  const prof = DB.getById(d.profId); if(!prof) return;
+  const row = {
+    occ_id:      d.occId,
+    etapa:       d.etapa,
+    status:      d.status,
+    responsavel: d.responsavel||"",
+    periodo:     d.periodo||"",
+    dados:       d.demData||{},
+    created_at:  d.createdAt||new Date().toISOString(),
+    created_by:  d.createdAt ? undefined : ME.name,
+    updated_at:  new Date().toISOString(),
+    updated_by:  ME.name,
+  };
+  // Limpar undefined para não enviar ao Supabase
+  Object.keys(row).forEach(k=>row[k]===undefined&&delete row[k]);
+  try {
+    const { error } = await _supa.from("dem_cards").upsert(row, {onConflict:"occ_id,etapa"});
+    if(error) console.warn("[dbSaveDemCard] non-fatal:", error);
+  } catch(e){ console.warn("[dbSaveDemCard] non-fatal:", e); }
+}
+
+// Deleta card da tabela dem_cards
+async function dbDeleteDemCard(occId, etapa){
+  try {
+    const { error } = await _supa.from("dem_cards").delete().eq("occ_id", occId).eq("etapa", etapa);
+    if(error) console.warn("[dbDeleteDemCard] non-fatal:", error);
+  } catch(e){ console.warn("[dbDeleteDemCard] non-fatal:", e); }
+}
+
+// v64: demBootstrap tenta carregar de dem_cards; fallback para lógica legada
+async function demBootstrap(){
   if(DEM_ENTRIES.length) return;
-  // Migrar campos legados para array em todas as ocorrências existentes
   DB.getAll().forEach(p=>(p.occurrences||[]).forEach(o=>occEnsureRestituicoes(o)));
+
+  // Tentar carregar da tabela dem_cards
+  let usedTable = false;
+  try {
+    const { data: cards, error } = await _supa
+      .from("dem_cards")
+      .select("*")
+      .order("created_at", { ascending: true });
+
+    if(!error && cards?.length){
+      // Montar DEM_ENTRIES a partir da tabela
+      cards.forEach(c => {
+        const prof = DB.getAll().find(p=>(p.occurrences||[]).some(o=>o.id===c.occ_id));
+        if(!prof) return;
+        const occ = (prof.occurrences||[]).find(o=>o.id===c.occ_id);
+        if(!occ) return;
+        const isMP = occ.tipoAfasta==="Licença Maternidade"||occ.tipoAfasta==="Licença Paternidade";
+        const tipo = isMP ? (occ.tipoAfasta==="Licença Maternidade"?"maternidade":"paternidade") : "saude";
+        // demData: mesclar dados salvos com campos frescos da ocorrência (garante campos novos)
+        const base = demInitData(c.etapa, occ, isMP);
+        const saved = c.dados||{};
+        const demData = Object.assign(base, saved); // saved sobrescreve base
+        DEM_ENTRIES.push({
+          id:       c.id,
+          profId:   prof.id,
+          profNome: prof.nome,
+          occId:    c.occ_id,
+          occN:     occ.n,
+          tipo,
+          etapa:      c.etapa,
+          status:     c.status||"Novas Demandas",
+          responsavel:c.responsavel||prof.responsavel||ME.name,
+          periodo:    c.periodo||"",
+          seiGrupo:   null,
+          createdAt:  c.created_at,
+          demData,
+        });
+      });
+      // Ajusta DEM_NEXT_ID para acima do maior id numérico
+      const maxId = DEM_ENTRIES.reduce((m,d)=>Math.max(m, typeof d.id==="number"?d.id:0), 0);
+      DEM_NEXT_ID = maxId + 1;
+      usedTable = true;
+    }
+  } catch(e){ console.warn("[demBootstrap] dem_cards unavailable, using legacy:", e); }
+
+  if(usedTable) return;
+
+  // ── FALLBACK LEGADO: regenera cards a partir das ocorrências ──
   DB.getAll().forEach(prof=>{
     (prof.occurrences||[]).forEach(occ=>{
       const isMP = occ.tipoAfasta==="Licença Maternidade"||occ.tipoAfasta==="Licença Paternidade";
@@ -4271,57 +4332,37 @@ function demBootstrap(){
         const d=new Date(occ.dataInicio+"T00:00:00");
         return isNaN(d)?"":d.toLocaleString("pt-BR",{month:"long",year:"numeric"});
       })();
-
-      // ── SAÚDE: SÓ CRIA CARD PARA ETAPAS QUE JÁ TÊM DADOS ──
       const _legacyDate = (()=>{ try { if(!occ.dataInicio) return undefined; const d=new Date(occ.dataInicio+"T00:00:00"); return isNaN(d.getTime())?undefined:d.toISOString(); } catch(e){ return undefined; } })();
       if(!isMP){
-        // Suspensão — sempre cria (toda ocorrência de saúde tem ou terá suspensão)
         const _dcs = occ.demCardsStatus || {};
         const statusSusp = _dcs["Suspensão"] || (occ.numProcSusp ? "Concluídos" : occ.suspBolsa ? "Em Andamento" : "Novas Demandas");
         DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Suspensão",status:statusSusp,responsavel:prof.responsavel,periodo:per,seiGrupo:null,createdAt:_legacyDate,demData:demInitData("Suspensão",occ,false)});
-
-        // Reativação — só cria se há dados registrados
         if(occ.dataReat || occ.numProcReat){
           const statusReat = _dcs["Reativação"] || (occ.numProcReat ? "Concluídos" : "Em Andamento");
           DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Reativação",status:statusReat,responsavel:prof.responsavel,periodo:per,seiGrupo:null,createdAt:_legacyDate,demData:demInitData("Reativação",occ,false)});
         }
-
-        // Restituição — só cria se há dados registrados
         if(occ.tipoRest || occ.numProcRest){
           const statusRest = _dcs["Restituição"] || (occ.numProcRest ? "Concluídos" : "Em Andamento");
           DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Restituição",status:statusRest,responsavel:prof.responsavel,periodo:per,seiGrupo:null,createdAt:_legacyDate,demData:demInitData("Restituição",occ,false)});
         }
-
-        // Pagamento Retroativo — só cria se há dados
         if(occ.pagRetro && occ.pagRetro.length){
           DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Pagamento Retroativo",status:"Em Andamento",responsavel:prof.responsavel,periodo:per,seiGrupo:null,createdAt:_legacyDate,demData:demInitData("Pagamento Retroativo",occ,false)});
         }
       } else {
-        // ── MAT/PAT: CRIA CARD PARA ETAPAS COM DADOS; "STATUS/PERÍODO" AGORA É BLOCO FIXO EM TODAS AS ETAPAS ──
         const m = occ.matPat||{};
-
-        // Suspensão da Bolsa — sempre cria (toda ocorrência mat/pat tem ou terá suspensão)
         const _dcsMP = occ.demCardsStatus || {};
         const statusSuspMP = _dcsMP["Suspensão da Bolsa"] || (m.numProcSusp ? "Concluídos" : m.mesAnoSusp ? "Em Andamento" : "Novas Demandas");
         DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Suspensão da Bolsa",status:statusSuspMP,responsavel:prof.responsavel,periodo:per,seiGrupo:null,createdAt:_legacyDate,demData:demInitData("Suspensão da Bolsa",occ,true)});
-
-        // Reativação — só se há dados
         if(m.numProcReat || m.mesAnoReat || m.tipoReat){
           const statusReatMP = _dcsMP["Reativação"] || (m.numProcReat ? "Concluídos" : "Em Andamento");
           DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Reativação",status:statusReatMP,responsavel:prof.responsavel,periodo:per,seiGrupo:null,createdAt:_legacyDate,demData:demInitData("Reativação",occ,true)});
         }
-
-        // Restituição ao Erário — só se há dados
         if(m.procRest || m.mesAnoRest){
           DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Restituição ao Erário",status:"Em Andamento",responsavel:prof.responsavel,periodo:per,seiGrupo:null,createdAt:_legacyDate,demData:demInitData("Restituição ao Erário",occ,true)});
         }
-
-        // Carta de Concessão — só se há dados
         if(m.cartaConcessao || m.numProcConcessao){
           DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Carta de Concessão",status:"Em Andamento",responsavel:prof.responsavel,periodo:per,seiGrupo:null,createdAt:_legacyDate,demData:demInitData("Carta de Concessão",occ,true)});
         }
-
-        // Pagamento Retroativo MP — só se há dados
         if(m.pagRetro && m.pagRetro.length){
           DEM_ENTRIES.push({id:DEM_NEXT_ID++,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa:"Pagamento Retroativo",status:"Em Andamento",responsavel:prof.responsavel,periodo:per,seiGrupo:null,createdAt:_legacyDate,demData:demInitData("Pagamento Retroativo",occ,true)});
         }
@@ -4642,6 +4683,7 @@ async function demPersistCardStatus(d){
   if(!occ.demCardsStatus) occ.demCardsStatus = {};
   occ.demCardsStatus[d.etapa] = d.status;
   await DB.saveOcc(prof.id, occ, {skipLock:true});
+  dbSaveDemCard(d); // v64: persiste metadados do card na tabela dem_cards
 }
 
 // ── SEI UNLINK ──
@@ -5362,25 +5404,41 @@ function demFieldSave(){
     DB.saveOcc(d.profId, _syncOcc).then(res => {
       if(!res.ok) showToast("Erro ao salvar ocorrência", "error");
     });
+    dbSaveDemCard(d); // v64: persiste demData + responsavel na tabela dem_cards
     if(currentProf && currentProf.id === d.profId) renderOccurrences();
   }
 }
 
-// Verifica se já há dados preenchidos que seriam sobrescritos (Item 1.1)
+// v64: Conflito real = card tem valor preenchido E ocorrência já tem valor DIFERENTE
+// (campos vazios no card nunca sobrescrevem nada — não é conflito)
 function demHasConflict(d, occ){
   const dd = d.demData;
+  const diff = (cardVal, occVal) => {
+    const cv = (cardVal||"").toString().trim();
+    const ov = (occVal||"").toString().trim();
+    return cv && ov && cv !== ov;
+  };
   if(d.tipo==="saude"){
-    if(d.etapa==="Suspensão")          return !!(occ.suspBolsa || occ.numProcSusp);
-    if(d.etapa==="Reativação")         return !!(occ.dataReat || occ.numProcReat);
-    if(d.etapa==="Restituição")        return !!(occ.tipoRest || occ.numProcRest);
-    if(d.etapa==="Pagamento Retroativo") return !!(occ.pagRetro && occ.pagRetro.length);
+    if(d.etapa==="Suspensão")
+      return diff(dd.suspBolsa, occ.suspBolsa) || diff(dd.numProcSusp, occ.numProcSusp);
+    if(d.etapa==="Reativação")
+      return diff(dd.dataReatIni, occ.dataReat) || diff(dd.numProcReat, occ.numProcReat);
+    if(d.etapa==="Restituição"){
+      const r0 = (dd.restituicoes||[])[0]||{};
+      return diff(r0.tipoRest, occ.tipoRest) || diff(r0.numProcRest, occ.numProcRest);
+    }
+    if(d.etapa==="Pagamento Retroativo")
+      return !!(dd.pagamentos?.length && occ.pagRetro?.length);
   } else {
     const m = occ.matPat||{};
-    if(d.etapa==="Status / Período da Licença") return !!(m.statusBolsa || m.inicioLic);
-    if(d.etapa==="Suspensão da Bolsa")  return !!(m.numProcSusp || m.mesAnoSusp);
-    if(d.etapa==="Reativação")          return !!(m.tipoReat || m.numProcReat);
-    if(d.etapa==="Restituição ao Erário") return !!(m.procRest);
-    if(d.etapa==="Carta de Concessão")  return !!(m.cartaConcessao || m.numProcConcessao);
+    if(d.etapa==="Suspensão da Bolsa")
+      return diff(dd.numProcSusp, m.numProcSusp) || diff(dd.mesAnoSusp, m.mesAnoSusp);
+    if(d.etapa==="Reativação")
+      return diff(dd.tipoReat, m.tipoReat) || diff(dd.numProcReat, m.numProcReat);
+    if(d.etapa==="Restituição ao Erário")
+      return diff(dd.procRest, m.procRest);
+    if(d.etapa==="Carta de Concessão")
+      return diff(dd.cartaConcessao, m.cartaConcessao) || diff(dd.numProcConcessao, m.numProcConcessao);
   }
   return false;
 }
@@ -5541,52 +5599,128 @@ function demFilterProfList(q){
 }
 
 function demOpenCreateProf(nome){
-  const respOpts=TEAM.filter(u=>u.active!==false).map(u=>`<option>${u.name}</option>`).join("");
   const _ufs=["AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS","MT","PA","PB","PE","PI","PR","RJ","RN","RO","RR","RS","SC","SE","SP","TO"];
   const ufOpts=_ufs.map(u=>`<option value="${u}">${u}</option>`).join("");
+  const cicloOpts=CYCLES.map(c=>`<option value="${c.id}">${c.numero||c.label||c.id}</option>`).join("");
   document.getElementById("demDrBody").innerHTML=`
     <div class="dem-dr-section">
       <div class="dem-dr-section-hd"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Novo profissional</div>
-      <div class="dem-2col" style="margin-top:8px">
-        <div class="dem-field"><label class="dem-label">Nome completo *</label><input class="dem-input" id="cpNome" value="${nome||""}"></div>
-        <div class="dem-field"><label class="dem-label">CPF</label><input class="dem-input" id="cpCpf" placeholder="000.000.000-00" maxlength="14" oninput="this.value=this.value.replace(/\D/g,'').slice(0,11).replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/,'$1.$2.$3-$4')"></div>
+      <div id="cpDupWarn" style="display:none;padding:8px 10px;background:var(--aml);border:1px solid var(--am);border-radius:var(--r);font-size:0.8em;color:var(--tx);margin-bottom:8px;margin-top:6px;display:flex;align-items:center;gap:6px">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span id="cpDupMsg"></span>
+      </div>
+      <!-- Identificação -->
+      <div class="dem-field" style="margin-top:8px">
+        <label class="dem-label">Nome completo <span style="color:var(--er)">*</span></label>
+        <input class="dem-input" id="cpNome" value="${nome||""}" oninput="cpCheckDup()">
       </div>
       <div class="dem-2col">
-        <div class="dem-field"><label class="dem-label">SIAPE</label><input class="dem-input" id="cpSiape" maxlength="7" oninput="this.value=this.value.replace(/\D/g,'').slice(0,7)"></div>
-        <div class="dem-field"><label class="dem-label">E-mail</label><input class="dem-input" id="cpEmail" type="email"></div>
+        <div class="dem-field">
+          <label class="dem-label">CPF <span style="color:var(--er)">*</span></label>
+          <input class="dem-input" id="cpCpf" placeholder="000.000.000-00" maxlength="14" oninput="npMaskCPF(this);cpCheckDup()">
+        </div>
+        <div class="dem-field">
+          <label class="dem-label">SIAPE <span style="color:var(--er)">*</span></label>
+          <input class="dem-input" id="cpSiape" placeholder="0000000" maxlength="7" oninput="npOnlySiape(this)">
+        </div>
+      </div>
+      <!-- Vínculo -->
+      <div class="dem-2col">
+        <div class="dem-field">
+          <label class="dem-label">Programa <span style="color:var(--er)">*</span></label>
+          <select class="dem-input" id="cpPrograma" onchange="cpOnProgramaChange()">
+            <option value="">Selecione</option>
+            <option>PMMB</option>
+            <option>PMME</option>
+          </select>
+        </div>
+        <div class="dem-field">
+          <label class="dem-label">Ciclo <span style="color:var(--er)">*</span></label>
+          <select class="dem-input" id="cpCiclo"><option value="">Selecione</option>${cicloOpts}</select>
+        </div>
       </div>
       <div class="dem-2col">
-        <div class="dem-field"><label class="dem-label">UF</label><select class="dem-input" id="cpUf"><option value="">Selecione</option>${ufOpts}</select></div>
-        <div class="dem-field"><label class="dem-label">Município</label><input class="dem-input" id="cpMunicipio"></div>
+        <div class="dem-field">
+          <label class="dem-label">UF <span style="color:var(--er)">*</span></label>
+          <select class="dem-input" id="cpUf"><option value="">Selecione</option>${ufOpts}</select>
+        </div>
+        <div class="dem-field">
+          <label class="dem-label">Município <span style="color:var(--er)">*</span></label>
+          <input class="dem-input" id="cpMunicipio" placeholder="Nome do município">
+        </div>
+      </div>
+      <!-- Gestão -->
+      <div class="dem-2col">
+        <div class="dem-field">
+          <label class="dem-label">Método de entrada</label>
+          <select class="dem-input" id="cpMetodo"><option value="">—</option><option>E-MAIL</option><option>E-GESTOR</option><option>SEI</option><option>PRESENCIAL</option></select>
+        </div>
+        <div class="dem-field">
+          <label class="dem-label">E-mail institucional</label>
+          <input class="dem-input" id="cpEmail" type="email" placeholder="nome@dominio.gov.br">
+        </div>
       </div>
       <div class="dem-2col">
-        <div class="dem-field"><label class="dem-label">Método de entrada</label><select class="dem-input" id="cpMetodo"><option value="">—</option><option>E-MAIL</option><option>E-GESTOR</option><option>SEI</option><option>PRESENCIAL</option></select></div>
-        <div class="dem-field"><label class="dem-label">Início de atividade</label><input class="dem-input" id="cpInicioAtiv" placeholder="DD/MM/AAAA" maxlength="10"></div>
+        <div class="dem-field">
+          <label class="dem-label">Início de atividade</label>
+          <input class="dem-input" id="cpInicioAtiv" placeholder="DD/MM/AAAA" maxlength="10" oninput="npMaskDate(this)">
+        </div>
       </div>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button class="btn btn-ghost btn-sm" onclick="demOpenNew()">Cancelar</button>
+      <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+        <span style="font-size:0.75em;color:var(--tx3)"><span style="color:var(--er)">*</span> obrigatórios</span>
+        <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="demOpenNew()">Cancelar</button>
         <button class="btn btn-primary btn-sm" onclick="demSaveNewProf(event)">Criar Demanda</button>
       </div>
     </div>`;
 }
 
+// v64: verificar duplicata de CPF no form de nova demanda
+function cpCheckDup(){
+  const cpf=(document.getElementById("cpCpf")?.value||"").replace(/\D/g,"");
+  const nome=(document.getElementById("cpNome")?.value||"").trim().toLowerCase();
+  const warn=document.getElementById("cpDupWarn");
+  const msg=document.getElementById("cpDupMsg");
+  if(!warn||!msg) return;
+  if(cpf.length===11){
+    const found=DB.getAll().find(p=>p.cpf&&p.cpf.replace(/\D/g,"")===cpf);
+    if(found){ warn.style.display="flex"; msg.textContent=`CPF já cadastrado: ${found.nome}`; return; }
+  }
+  warn.style.display="none"; msg.textContent="";
+}
+
+// v64: filtrar ciclos por programa selecionado
+function cpOnProgramaChange(){
+  const prog=document.getElementById("cpPrograma")?.value||"";
+  const sel=document.getElementById("cpCiclo"); if(!sel) return;
+  const filtered=prog?CYCLES.filter(c=>(c.programa||"").toLowerCase()===prog.toLowerCase()):CYCLES;
+  sel.innerHTML=`<option value="">Selecione</option>`+filtered.map(c=>`<option value="${c.id}">${c.numero||c.label||c.id}</option>`).join("");
+}
+
 async function demSaveNewProf(ev){
   const nome=document.getElementById("cpNome")?.value?.trim();
   if(!nome){showToast("Nome obrigatório","warn");return;}
+  const programa=document.getElementById("cpPrograma")?.value||"";
+  const cicloId=document.getElementById("cpCiclo")?.value||"";
+  const uf=document.getElementById("cpUf")?.value?.trim().toUpperCase()||"";
+  const municipio=document.getElementById("cpMunicipio")?.value?.trim()||"";
+  if(!programa){showToast("Selecione o Programa","warn");return;}
+  if(!cicloId){showToast("Selecione o Ciclo","warn");return;}
+  if(!uf){showToast("Selecione a UF","warn");return;}
+  if(!municipio){showToast("Informe o Município","warn");return;}
   const btn = ev?.currentTarget || ev?.target?.closest("button");
   await withLoading(btn, async () => {
+    const ciclo=CYCLES.find(c=>String(c.id)===String(cicloId));
     const prof={
       id:null,
       nome,
       cpf:document.getElementById("cpCpf")?.value?.trim()||"",
       email:document.getElementById("cpEmail")?.value?.trim()||"",
       siape:document.getElementById("cpSiape")?.value?.trim()||"",
-      uf:document.getElementById("cpUf")?.value?.trim().toUpperCase()||"",
-      municipio:document.getElementById("cpMunicipio")?.value?.trim()||"",
+      uf, municipio,
       metodEntrada:document.getElementById("cpMetodo")?.value||"",
       inicioAtiv:document.getElementById("cpInicioAtiv")?.value?.trim()||"",
       responsavel:ME.name,
-      programa:"PMMB",ciclo:"—",
+      programa, cicloId, ciclo:ciclo?.numero||ciclo?.label||"—",
       status:"analisando",statusHistory:[],occurrences:[],
     };
     const saveRes = await DB.save(prof);
@@ -5794,7 +5928,9 @@ function demSave(){
   const resp=document.getElementById("demNPResp")?.value||ME.name;
   const per=(()=>{ if(!occ.dataInicio) return ""; const d=new Date(occ.dataInicio+"T00:00:00"); return isNaN(d)?"":d.toLocaleString("pt-BR",{month:"long",year:"numeric"}); })();
   const newId = DEM_NEXT_ID++;
-  DEM_ENTRIES.push({id:newId,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa,status:"Novas Demandas",responsavel:resp,periodo:per,seiGrupo:null,createdAt:new Date().toISOString(),demData:demInitData(etapa,occ,isMP)});
+  const newCard = {id:newId,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa,status:"Novas Demandas",responsavel:resp,periodo:per,seiGrupo:null,createdAt:new Date().toISOString(),demData:demInitData(etapa,occ,isMP)};
+  DEM_ENTRIES.push(newCard);
+  dbSaveDemCard(newCard); // v64: persiste card na tabela dem_cards
   demCloseDrawer();
   renderDemKanban();
   showToast("Demanda criada","success");
@@ -5815,9 +5951,7 @@ function demForceNewCard(occId, etapa){
   showToast(`Novo card de "${etapa}" criado.`,"success");
 }
 
-// ── CRIAR CARD A PARTIR DE OUTRO (v63) ──
-// Abre modal com etapas disponíveis para a mesma ocorrência;
-// ao confirmar, cria novo card pré-preenchido com dados do card de origem.
+// ── CRIAR CARD A PARTIR DE OUTRO (v63, corrigido v64) ──
 function demCreateRelatedCard(sourceId){
   const src = DEM_ENTRIES.find(x=>x.id===sourceId); if(!src) return;
   const prof = DB.getById(src.profId); if(!prof) return;
@@ -5825,21 +5959,22 @@ function demCreateRelatedCard(sourceId){
   const isMP = occ.tipoAfasta==="Licença Maternidade"||occ.tipoAfasta==="Licença Paternidade";
   const etapas = isMP ? DEM_ETAPAS_MP : DEM_ETAPAS_SAUDE;
 
-  // Etapas já existentes para essa ocorrência
+  // v64: 1 card por etapa — só mostra etapas que ainda não existem
   const existing = new Set(DEM_ENTRIES.filter(x=>x.occId===src.occId).map(x=>x.etapa));
+  const disponiveis = etapas.filter(e => !existing.has(e));
 
-  const btns = etapas.map(e=>{
-    const exists = existing.has(e);
-    return `<button type="button"
-      style="padding:8px 12px;border-radius:var(--r);border:1px solid ${exists?'var(--am)':'var(--br)'};background:${exists?'var(--aml)':'var(--sf2)'};color:var(--tx);font-size:0.8571em;cursor:pointer;text-align:left;display:flex;align-items:center;gap:6px"
-      onclick="demConfirmRelatedCard(${sourceId},'${e}')"
-      title="${exists?'Já existe um card para esta etapa — será criado mesmo assim':''}" >
-      ${exists?'<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="11" height="11"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>':'<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="11" height="11"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'}
-      ${e}
-    </button>`;
-  }).join("");
+  if(!disponiveis.length){
+    showToast("Todas as etapas já têm cards criados para esta ocorrência","warn");
+    return;
+  }
 
-  // Exibe mini-modal por cima do drawer
+  const btns = disponiveis.map(e=>`<button type="button"
+    style="padding:8px 12px;border-radius:var(--r);border:1px solid var(--br);background:var(--sf2);color:var(--tx);font-size:0.8571em;cursor:pointer;text-align:left;display:flex;align-items:center;gap:6px"
+    onclick="demConfirmRelatedCard(${sourceId},'${e}')">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="11" height="11"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    ${e}
+  </button>`).join("");
+
   const overlay = document.getElementById("demRelCardOverlay");
   document.getElementById("demRelCardSourceName").textContent = `${src.profNome} · Ocorrência ${src.occN} · ${src.etapa}`;
   document.getElementById("demRelCardEtapas").innerHTML = btns;
@@ -5852,28 +5987,46 @@ function demConfirmRelatedCard(sourceId, novaEtapa){
   const occ  = (prof.occurrences||[]).find(o=>o.id===src.occId); if(!occ) return;
   const isMP = occ.tipoAfasta==="Licença Maternidade"||occ.tipoAfasta==="Licença Paternidade";
 
-  // Pré-preencher: herdar demData do card de origem onde os campos coincidem (demanda 8)
+  // v64: pré-preencher com campos reais do card de origem
   const baseData = demInitData(novaEtapa, occ, isMP);
   const srcData  = src.demData || {};
-  // Campos compartilhados que devem ser herdados
-  const sharedFields = [
-    "dtEntradaNucleo","dtCienciaCoord","metodoEntrada","especEntrada",
-    "tipoDoc","dataInicio","periodo","cids",
-    "mpInicioLic","mpTerminoLic","mpStatusLic","mpPeriodoLic",
-    "statusBolsa","pendDoc","pendProc"
-  ];
-  sharedFields.forEach(k=>{ if(srcData[k] !== undefined && baseData[k] !== undefined) baseData[k] = srcData[k]; });
+
+  // Herança direta (mesmo nome de campo entre etapas)
+  Object.keys(baseData).forEach(k => {
+    if(srcData[k] !== undefined && srcData[k] !== "" && baseData[k] === ""){
+      baseData[k] = srcData[k];
+    }
+  });
+
+  // Herança cruzada: campos com nomes diferentes entre etapas saúde
+  if(!isMP){
+    // Suspensão → Reativação: não há campos diretos compartilhados por nome
+    // Reativação → Suspensão: idem
+    // Todos compartilham emailSusp e obsSusp se existirem
+    if("emailSusp" in baseData && srcData.emailSusp) baseData.emailSusp = srcData.emailSusp;
+    if("obsSusp" in baseData && srcData.obsSusp)     baseData.obsSusp   = srcData.obsSusp;
+  } else {
+    // Mat/Pat: todas as etapas compartilham emailSusp/obsSusp
+    if("emailSusp" in baseData && srcData.emailSusp) baseData.emailSusp = srcData.emailSusp;
+    if("obsSusp" in baseData && srcData.obsSusp)     baseData.obsSusp   = srcData.obsSusp;
+    // Suspensão da Bolsa → Reativação: mesAnoSusp indica período
+    if(src.etapa==="Suspensão da Bolsa" && novaEtapa==="Reativação"){
+      if(!baseData.mesAnoReat && srcData.mesAnoSusp) baseData.mesAnoReat = srcData.mesAnoSusp;
+    }
+  }
 
   const newId = DEM_NEXT_ID++;
-  DEM_ENTRIES.push({
+  const newCard = {
     id:newId, profId:src.profId, profNome:src.profNome,
     occId:src.occId, occN:src.occN, tipo:src.tipo,
     etapa:novaEtapa, status:"Novas Demandas",
     responsavel:src.responsavel, periodo:src.periodo,
     seiGrupo:null, createdAt:new Date().toISOString(),
     demData:baseData,
-    _fromCard:sourceId  // referência ao card de origem
-  });
+    _fromCard:sourceId
+  };
+  DEM_ENTRIES.push(newCard);
+  dbSaveDemCard(newCard); // v64: persiste card na tabela dem_cards
 
   demCloseRelCardModal();
   demCloseDrawer();
@@ -5917,19 +6070,32 @@ function openProfFromDash(profId){
 
 function openProfFromDashOcc(profId, occId){
   demCloseDrawer();
+  calcCloseFloatModal();
   switchTab("lic");
+  // Aguarda tab transition + render antes de abrir prof e scrollar
   setTimeout(()=>{
     openProf(profId);
-    // scroll para a ocorrência específica após render
-    if(occId) setTimeout(()=>{
-      const el=document.getElementById(`occ-${occId}`);
-      if(el){ el.scrollIntoView({behavior:"smooth",block:"start"}); el.classList.add("open"); }
-    }, 200);
-  }, 80);
+    if(occId){
+      // Tenta scroll com retry — renderOccurrences é síncrono mas o DOM
+      // pode ainda estar pintando; 3 tentativas com intervalos crescentes
+      let attempts = 0;
+      const scrollToOcc = () => {
+        const el = document.getElementById(`occ-${occId}`);
+        if(el){
+          el.classList.add("open");
+          el.scrollIntoView({behavior:"smooth", block:"start"});
+        } else if(attempts < 5){
+          attempts++;
+          setTimeout(scrollToOcc, 150);
+        }
+      };
+      setTimeout(scrollToOcc, 80);
+    }
+  }, 120);
 }
 
-function initDemandas(){
-  demBootstrap();
+async function initDemandas(){
+  await demBootstrap();
   demPopulateFilters();
   renderDemKanban();
 }
