@@ -1436,14 +1436,14 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
     <div class="dem-filter-row">
       <span class="dem-filter-lbl">Filtrar:</span>
       <input type="text" id="demFiltProf" class="dem-filter-search" placeholder="Nome, CPF ou e-mail..." oninput="renderDemKanban()" style="padding:5px 9px;border:1px solid var(--br);border-radius:var(--r);background:var(--sf2);color:var(--tx);font-size:0.8571em;outline:none;font-family:inherit;min-width:180px">
-      <select id="demFiltMes" onchange="renderDemKanban()">
+      <select id="demFiltMes" onchange="this.dataset.touched='1';renderDemKanban()">
         <option value="">Todos os meses</option>
         <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
         <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
         <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
         <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
       </select>
-      <select id="demFiltAno" onchange="renderDemKanban()"><option value="">Todos os anos</option></select>
+      <select id="demFiltAno" onchange="this.dataset.touched='1';renderDemKanban()"><option value="">Todos os anos</option></select>
       <select id="demFiltResp" onchange="renderDemKanban()"><option value="">Todos os responsáveis</option></select>
       <select id="demFiltEtapa" onchange="renderDemKanban()">
         <option value="">Todas as etapas</option>
@@ -4527,8 +4527,8 @@ function demRenderChips(){
   const mesNome=fMes?MES_NOMES[parseInt(fMes)-1]:"";
   const chips=[];
   if(fq) chips.push({lbl:"Prof.: "+fq,       fn:`document.getElementById('demFiltProf').value='';renderDemKanban()`});
-  if(mesNome) chips.push({lbl:"Mês: "+mesNome, fn:`document.getElementById('demFiltMes').value='';renderDemKanban()`});
-  if(fAno) chips.push({lbl:"Ano: "+fAno,       fn:`document.getElementById('demFiltAno').value='';renderDemKanban()`});
+  if(mesNome) chips.push({lbl:"Mês: "+mesNome, fn:`var e=document.getElementById('demFiltMes');e.value='';e.dataset.touched='cleared';renderDemKanban()`});
+  if(fAno) chips.push({lbl:"Ano: "+fAno,       fn:`var e=document.getElementById('demFiltAno');e.value='';e.dataset.touched='cleared';renderDemKanban()`});
   if(fr) chips.push({lbl:"Resp.: "+fr,          fn:`document.getElementById('demFiltResp').value='';renderDemKanban()`});
   if(fe) chips.push({lbl:"Etapa: "+fe,          fn:`document.getElementById('demFiltEtapa').value='';renderDemKanban()`});
   if(fs) chips.push({lbl:"Status: "+fs,         fn:`document.getElementById('demFiltStatus').value='';renderDemKanban()`});
