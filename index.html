@@ -4967,6 +4967,10 @@ const DEM_ETAPAS_MP     = ["Suspensão da Bolsa","Reativação","Restituição a
 // Salva/atualiza um card na tabela dem_cards do Supabase (não-fatal)
 async function dbSaveDemCard(d){
   const prof = DB.getById(d.profId); if(!prof) return;
+
+  // Se o card ainda tem id numérico local (< 1000000), é novo — vai ser criado no banco
+  const isNewCard = typeof d.id === "number" && d.id < 1000000;
+
   const row = {
     occ_id:      d.occId,
     etapa:       d.etapa,
@@ -4974,17 +4978,49 @@ async function dbSaveDemCard(d){
     responsavel: d.responsavel||"",
     periodo:     d.periodo||"",
     dados:       d.demData||{},
-    created_at:  d.createdAt||new Date().toISOString(),
-    created_by:  d.createdAt ? undefined : ME.name,
     updated_at:  new Date().toISOString(),
     updated_by:  ME.name,
   };
-  // Limpar undefined para não enviar ao Supabase
-  Object.keys(row).forEach(k=>row[k]===undefined&&delete row[k]);
+
+  // Se é card novo, deixa o banco gerar o id (sequence)
+  // Se é existente, inclui o id para upsert por PK
+  if(!isNewCard) row.id = d.id;
+
+  // Created_at/created_by: só na primeira vez
+  if(isNewCard){
+    row.created_at = new Date().toISOString();
+    row.created_by = ME.name;
+  } else {
+    row.created_at = d.createdAt || new Date().toISOString();
+  }
+
   try {
-    const { error } = await _supa.from("dem_cards").upsert(row, {onConflict:"occ_id,etapa"});
-    if(error) console.warn("[dbSaveDemCard] non-fatal:", error);
-  } catch(e){ console.warn("[dbSaveDemCard] non-fatal:", e); }
+    let savedRow;
+    if(isNewCard){
+      // INSERT novo card — Supabase gera o id via sequence
+      const { data, error } = await _supa.from("dem_cards").insert([row]).select().single();
+      if(error){
+        console.error("[dbSaveDemCard] insert error:", error);
+        showToast("Erro ao salvar demanda: " + (error.message||error.code||""), "error");
+        return;
+      }
+      savedRow = data;
+      // Atualiza o id em memória com o valor real gerado pelo banco
+      if(savedRow?.id) d.id = savedRow.id;
+    } else {
+      // UPSERT card existente por PK (id)
+      const { data, error } = await _supa.from("dem_cards").upsert([row], {onConflict:"id"}).select().single();
+      if(error){
+        console.error("[dbSaveDemCard] upsert error:", error);
+        showToast("Erro ao salvar demanda: " + (error.message||error.code||""), "error");
+        return;
+      }
+      savedRow = data;
+    }
+  } catch(e){
+    console.error("[dbSaveDemCard] exception:", e);
+    showToast("Erro ao salvar demanda", "error");
+  }
 }
 
 // Deleta card da tabela dem_cards
