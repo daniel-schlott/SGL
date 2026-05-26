@@ -4504,11 +4504,14 @@ function demPopulateFilters(){
   const fm=document.getElementById("demFiltMes");
   const fr=document.getElementById("demFiltResp");
   if(!fa||!fr) return;
-  // v63: pré-selecionar mês e ano vigente na primeira carga (sem forçar se já foi alterado)
-  const av = fa.dataset.touched ? fa.value : String(anoAtual);
-  const mv = fm && fm.dataset.touched ? fm.value : String(mesAtual);
-  fa.dataset.touched = "1";
-  if(fm && !fm.dataset.touched) { fm.value = String(mesAtual); fm.dataset.touched = "1"; }
+  // v63: pré-selecionar mês e ano vigente na primeira carga
+  // v64: "cleared" = usuário clicou "Limpar filtros" → não re-pré-selecionar
+  const isCleared = fa.dataset.touched === "cleared";
+  const av = (fa.dataset.touched && !isCleared) ? fa.value : (isCleared ? "" : String(anoAtual));
+  const mv = fm ? ((fm.dataset.touched && fm.dataset.touched !== "cleared") ? fm.value : (fm.dataset.touched === "cleared" ? "" : String(mesAtual))) : "";
+  fa.dataset.touched = fa.dataset.touched || "1";
+  if(fm && !fm.dataset.touched){ fm.value = String(mesAtual); fm.dataset.touched = "1"; }
+  else if(fm && fm.dataset.touched === "cleared"){ fm.value = ""; }
   const rv = fr.value;
   fa.innerHTML=`<option value="">Todos os anos</option>`+anos.map(a=>`<option value="${a}"${String(a)===av?" selected":""}>${a}</option>`).join("");
   fr.innerHTML=`<option value="">Todos os responsáveis</option>`+resps.map(r=>`<option${r===rv?" selected":""}>${r}</option>`).join("");
@@ -4540,7 +4543,7 @@ function demRenderChips(){
 function demClearFilters(){
   ["demFiltMes","demFiltAno","demFiltResp","demFiltEtapa","demFiltStatus","demFiltProf"].forEach(id=>{
     const el=document.getElementById(id);
-    if(el){ el.value=""; delete el.dataset.touched; }
+    if(el){ el.value=""; el.dataset.touched="cleared"; } // "cleared" impede re-pré-seleção
   });
   renderDemKanban();
 }
@@ -5601,7 +5604,7 @@ function demFilterProfList(q){
 function demOpenCreateProf(nome){
   const _ufs=["AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS","MT","PA","PB","PE","PI","PR","RJ","RN","RO","RR","RS","SC","SE","SP","TO"];
   const ufOpts=_ufs.map(u=>`<option value="${u}">${u}</option>`).join("");
-  const cicloOpts=CYCLES.map(c=>`<option value="${c.id}">${c.numero||c.label||c.id}</option>`).join("");
+  const cicloOpts=DB.getCycles().map(c=>`<option value="${c.id}">${c.numero||c.label||c.id}</option>`).join("");
   document.getElementById("demDrBody").innerHTML=`
     <div class="dem-dr-section">
       <div class="dem-dr-section-hd"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Novo profissional</div>
@@ -5692,7 +5695,7 @@ function cpCheckDup(){
 function cpOnProgramaChange(){
   const prog=document.getElementById("cpPrograma")?.value||"";
   const sel=document.getElementById("cpCiclo"); if(!sel) return;
-  const filtered=prog?CYCLES.filter(c=>(c.programa||"").toLowerCase()===prog.toLowerCase()):CYCLES;
+  const filtered=prog?DB.getCycles().filter(c=>(c.programa||"").toLowerCase()===prog.toLowerCase()):DB.getCycles();
   sel.innerHTML=`<option value="">Selecione</option>`+filtered.map(c=>`<option value="${c.id}">${c.numero||c.label||c.id}</option>`).join("");
 }
 
@@ -5709,7 +5712,7 @@ async function demSaveNewProf(ev){
   if(!municipio){showToast("Informe o Município","warn");return;}
   const btn = ev?.currentTarget || ev?.target?.closest("button");
   await withLoading(btn, async () => {
-    const ciclo=CYCLES.find(c=>String(c.id)===String(cicloId));
+    const ciclo=DB.getCycles().find(c=>String(c.id)===String(cicloId));
     const prof={
       id:null,
       nome,
@@ -5991,27 +5994,28 @@ function demConfirmRelatedCard(sourceId, novaEtapa){
   const baseData = demInitData(novaEtapa, occ, isMP);
   const srcData  = src.demData || {};
 
-  // Herança direta (mesmo nome de campo entre etapas)
+  // v64 fix: srcData (card de origem) tem prioridade sobre baseData (lido da ocorrência)
+  // Herança direta — campos com mesmo nome: copia srcData → baseData se srcData tem valor
   Object.keys(baseData).forEach(k => {
-    if(srcData[k] !== undefined && srcData[k] !== "" && baseData[k] === ""){
-      baseData[k] = srcData[k];
+    if(srcData[k] !== undefined && srcData[k] !== "" && srcData[k] !== null){
+      // Arrays: só herda se o destino estiver vazio
+      if(Array.isArray(srcData[k])){
+        if(!baseData[k] || !baseData[k].length) baseData[k] = srcData[k];
+      } else {
+        baseData[k] = srcData[k];
+      }
     }
   });
 
-  // Herança cruzada: campos com nomes diferentes entre etapas saúde
+  // Herança cruzada: campos com nomes diferentes entre etapas
   if(!isMP){
-    // Suspensão → Reativação: não há campos diretos compartilhados por nome
-    // Reativação → Suspensão: idem
-    // Todos compartilham emailSusp e obsSusp se existirem
     if("emailSusp" in baseData && srcData.emailSusp) baseData.emailSusp = srcData.emailSusp;
-    if("obsSusp" in baseData && srcData.obsSusp)     baseData.obsSusp   = srcData.obsSusp;
+    if("obsSusp"   in baseData && srcData.obsSusp)   baseData.obsSusp   = srcData.obsSusp;
   } else {
-    // Mat/Pat: todas as etapas compartilham emailSusp/obsSusp
     if("emailSusp" in baseData && srcData.emailSusp) baseData.emailSusp = srcData.emailSusp;
-    if("obsSusp" in baseData && srcData.obsSusp)     baseData.obsSusp   = srcData.obsSusp;
-    // Suspensão da Bolsa → Reativação: mesAnoSusp indica período
+    if("obsSusp"   in baseData && srcData.obsSusp)   baseData.obsSusp   = srcData.obsSusp;
     if(src.etapa==="Suspensão da Bolsa" && novaEtapa==="Reativação"){
-      if(!baseData.mesAnoReat && srcData.mesAnoSusp) baseData.mesAnoReat = srcData.mesAnoSusp;
+      if(srcData.mesAnoSusp) baseData.mesAnoReat = srcData.mesAnoSusp;
     }
   }
 
@@ -6072,12 +6076,12 @@ function openProfFromDashOcc(profId, occId){
   demCloseDrawer();
   calcCloseFloatModal();
   switchTab("lic");
-  // Aguarda tab transition + render antes de abrir prof e scrollar
   setTimeout(()=>{
     openProf(profId);
+    // relScreen2 é ocultado por switchTab('lic') — precisamos mostrá-lo
+    document.getElementById("relScreen1").style.display = "none";
+    document.getElementById("relScreen2").style.display = "flex";
     if(occId){
-      // Tenta scroll com retry — renderOccurrences é síncrono mas o DOM
-      // pode ainda estar pintando; 3 tentativas com intervalos crescentes
       let attempts = 0;
       const scrollToOcc = () => {
         const el = document.getElementById(`occ-${occId}`);
