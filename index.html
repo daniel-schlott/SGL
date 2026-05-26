@@ -10299,6 +10299,14 @@ async function initApp(){
   applyTheme("govbr");
   applySize("16px");
 
+  // Inicializa demandas antecipadamente para que DEM_ENTRIES esteja populado
+  // quando o dashboard for a primeira aba aberta
+  await demBootstrap();
+
+  // Inicializa escopo do dashboard para evitar erro na primeira renderização
+  window.dashScope = isGestor() ? "equipe" : "mine";
+  window.dashRespFilter = "";
+
   document.getElementById("appLoading")?.remove();
   switchTab(sessionStorage.getItem("activeTab")||"lic");
 }
