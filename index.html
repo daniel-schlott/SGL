@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v62</title>
+<title>Mais Médicos — Gestão de Licenças v0.65.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -144,6 +144,150 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 .dash-card{background:var(--sf);border:1px solid var(--br);border-radius:var(--rl);padding:14px;display:flex;flex-direction:column}
 .dash-card h3{font-size:0.7143em;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
 .dash-card h3 span{font-weight:400;letter-spacing:0;text-transform:none;color:var(--tx3)}
+
+/* ── DASHBOARD v65 — novo layout ── */
+.dash-hd-v2{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.dash-hd-left{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.dash-hd-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dash-scope{display:inline-flex;align-items:center;gap:4px;background:var(--sf2);padding:3px;border-radius:24px;border:1px solid var(--br)}
+.scope-btn{padding:4px 12px;border-radius:20px;font-size:0.7857em;font-weight:500;border:none;background:transparent;color:var(--tx2);cursor:pointer;transition:all .12s;white-space:nowrap;font-family:inherit}
+.scope-btn:hover{color:var(--tx)}
+.scope-btn.on{background:var(--sf);color:var(--ac);box-shadow:0 1px 3px rgba(0,0,0,.06);font-weight:600}
+#dashScopeResp{margin-left:6px;padding:5px 10px;border:1px solid var(--br);border-radius:var(--r);background:var(--sf);color:var(--tx);font-size:0.7857em;outline:none;font-family:inherit;cursor:pointer;max-width:180px}
+#dashScopeResp:hover{border-color:var(--br2)}
+#dashScopeResp:focus{border-color:var(--acm);box-shadow:0 0 0 2px var(--acl)}
+
+/* busca rápida */
+.dash-quick-search{position:relative;display:flex;align-items:center;gap:6px;background:var(--sf);border:1px solid var(--br);border-radius:var(--r);padding:5px 10px;min-width:260px;transition:border-color .15s}
+.dash-quick-search:focus-within{border-color:var(--acm);box-shadow:0 0 0 2px var(--acl)}
+.dash-quick-search svg{width:13px;height:13px;color:var(--tx3);flex-shrink:0}
+.dash-quick-search input{border:none;outline:none;background:transparent;color:var(--tx);font-size:0.8571em;flex:1;min-width:0;font-family:inherit}
+.dash-qs-results{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--sf);border:1px solid var(--br);border-radius:var(--rl);box-shadow:var(--sh);max-height:300px;overflow-y:auto;z-index:50;display:none}
+.dash-qs-results.open{display:block}
+.dash-qs-row{padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--sf3);font-size:0.8571em;display:flex;align-items:center;gap:8px}
+.dash-qs-row:last-child{border-bottom:none}
+.dash-qs-row:hover{background:var(--sf2)}
+.dash-qs-row .qs-name{flex:1;font-weight:500}
+.dash-qs-row .qs-meta{font-size:0.7857em;color:var(--tx3)}
+.dash-qs-empty{padding:14px;text-align:center;font-size:0.8571em;color:var(--tx3)}
+
+/* faixa de prioridade — alto destaque */
+.prio-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;background:linear-gradient(135deg,var(--rdl) 0%,var(--aml) 100%);border:1px solid #FECACA;border-radius:var(--rl);padding:14px}
+.prio-strip.empty{background:linear-gradient(135deg,#ECFDF5 0%,#D1FAE5 100%);border-color:#A7F3D0}
+.prio-strip-title{grid-column:1/-1;display:flex;align-items:center;gap:8px;font-size:0.7857em;font-weight:700;color:var(--tx);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.prio-strip-title svg{width:14px;height:14px;color:var(--rd)}
+.prio-strip.empty .prio-strip-title svg{color:#059669}
+.prio-item{background:var(--sf);border:1px solid var(--br);border-radius:var(--rl);padding:11px 13px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:3px}
+.prio-item:hover{border-color:var(--rd);transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,.06)}
+.prio-item.zero{opacity:.55;cursor:default}
+.prio-item.zero:hover{border-color:var(--br);transform:none;box-shadow:none}
+.prio-item-lbl{font-size:0.7143em;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em}
+.prio-item-num{font-size:1.5714em;font-weight:600;letter-spacing:-.04em;line-height:1;color:var(--rd)}
+.prio-item.zero .prio-item-num{color:#059669}
+.prio-item-detail{font-size:0.7143em;color:var(--tx3);margin-top:2px}
+.prio-strip-empty-msg{grid-column:1/-1;font-size:0.8571em;color:#065F46;text-align:center;padding:8px 0;display:flex;align-items:center;justify-content:center;gap:8px}
+
+/* KPI grid */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.kpi-card{background:var(--sf);border:1px solid var(--br);border-radius:var(--rl);padding:12px 14px;cursor:default}
+.kpi-card.clickable{cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.kpi-card.clickable:hover{border-color:var(--br2);box-shadow:var(--sh)}
+.kpi-lbl{font-size:0.7143em;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+.kpi-num{font-size:1.7143em;font-weight:600;letter-spacing:-.04em;line-height:1}
+.kpi-trend{font-size:0.7143em;margin-top:4px;display:flex;align-items:center;gap:3px}
+.kpi-trend.up{color:#059669}
+.kpi-trend.down{color:var(--rd)}
+.kpi-trend.flat{color:var(--tx3)}
+.kpi-detail{font-size:0.7143em;color:var(--tx3);margin-top:2px}
+
+/* entradas recentes */
+.entry-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--sf3);font-size:0.8571em;cursor:pointer}
+.entry-row:last-child{border-bottom:none}
+.entry-row:hover .entry-name{color:var(--ac)}
+.entry-origem{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:10px;font-size:0.7143em;font-weight:500;white-space:nowrap;flex-shrink:0}
+.entry-origem.manual{background:var(--sf3);color:var(--tx2)}
+.entry-origem.email{background:var(--bll);color:var(--bl)}
+.entry-origem.carga{background:#F3E8FF;color:#7C3AED}
+.entry-name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.entry-meta{font-size:0.7143em;color:var(--tx3);flex-shrink:0}
+.entry-no-resp{font-size:0.7143em;color:var(--rd);font-weight:600}
+.entry-summary{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.entry-pill{padding:3px 10px;border-radius:14px;font-size:0.7143em;background:var(--sf2);color:var(--tx2);border:1px solid var(--br)}
+.entry-pill b{color:var(--tx);font-weight:600}
+.entry-pill.warn{background:var(--rdl);color:var(--rd);border-color:#FECACA}
+
+/* atividade recente */
+.act-row{display:flex;gap:9px;padding:7px 0;border-bottom:1px solid var(--sf3);font-size:0.8571em;cursor:pointer;align-items:center}
+.act-row:last-child{border-bottom:none}
+.act-row:hover .act-text{color:var(--ac)}
+.act-ini{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:0.7143em;font-weight:600;flex-shrink:0}
+.act-text{flex:1;min-width:0}
+.act-text b{font-weight:600}
+.act-time{font-size:0.7143em;color:var(--tx3);flex-shrink:0}
+
+/* tabela equipe */
+.team-table{width:100%;border-collapse:collapse;font-size:0.8571em}
+.team-table th{text-align:left;padding:8px 10px;font-size:0.7143em;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--br);background:var(--sf2)}
+.team-table th.num{text-align:right}
+.team-table td{padding:9px 10px;border-bottom:1px solid var(--sf3)}
+.team-table td.num{text-align:right;font-variant-numeric:tabular-nums}
+.team-table tr{cursor:pointer;transition:background .12s}
+.team-table tr:hover{background:var(--sf2)}
+.team-table tr.on{background:var(--acl)}
+.team-table tr:last-child td{border-bottom:none}
+.team-name{display:flex;align-items:center;gap:8px;font-weight:500}
+.team-ini{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:0.7143em;font-weight:600;flex-shrink:0}
+.team-stack{display:inline-flex;align-items:center;gap:3px;font-size:0.7857em}
+.team-stack .seg{padding:1px 6px;border-radius:8px;font-weight:600}
+.team-stack .seg.nov{background:#FEF3C7;color:#92400E}
+.team-stack .seg.and{background:var(--bll);color:var(--bl)}
+.team-stack .seg.pen{background:var(--rdl);color:var(--rd)}
+.team-load-bar{display:inline-block;width:60px;height:6px;background:var(--sf3);border-radius:3px;overflow:hidden;vertical-align:middle;margin-right:6px}
+.team-load-fill{height:100%;border-radius:3px;background:var(--ac)}
+.team-load-fill.high{background:var(--rd)}
+.team-load-fill.med{background:var(--am)}
+.team-now{font-size:0.7857em;color:var(--tx2);max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.team-now.empty{color:var(--tx3);font-style:italic}
+.team-stale{font-weight:600}
+.team-stale.warn{color:var(--am)}
+.team-stale.crit{color:var(--rd)}
+
+/* movimentação semana */
+.mov-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--sf3);font-size:0.8571em;cursor:pointer}
+.mov-row:last-child{border-bottom:none}
+.mov-row:hover .mov-name{color:var(--ac)}
+.mov-tag{padding:1px 7px;border-radius:10px;font-size:0.7143em;font-weight:600;flex-shrink:0}
+.mov-tag.ret{background:var(--tll);color:#0F766E}
+.mov-tag.inss{background:var(--aml);color:var(--am)}
+.mov-tag.prazo{background:var(--rdl);color:var(--rd)}
+.mov-name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.mov-date{font-size:0.7143em;color:var(--tx3);flex-shrink:0}
+
+/* funil */
+.funil-row{display:flex;align-items:center;gap:10px;padding:6px 0}
+.funil-lbl{font-size:0.8571em;width:140px;flex-shrink:0;color:var(--tx2)}
+.funil-track{flex:1;height:18px;background:var(--sf3);border-radius:3px;overflow:hidden;position:relative}
+.funil-fill{height:100%;border-radius:3px;display:flex;align-items:center;padding:0 8px;color:#fff;font-size:0.7143em;font-weight:600;transition:width .4s}
+.funil-val{font-size:0.8571em;color:var(--tx2);width:40px;text-align:right;font-variant-numeric:tabular-nums}
+
+/* rodapé */
+.dash-footer{display:flex;justify-content:space-between;align-items:center;font-size:0.7143em;color:var(--tx3);padding-top:6px;border-top:1px solid var(--br)}
+.dash-footer b{color:var(--tx2);font-weight:600}
+
+/* tipo bars (mantém compat) */
+.tipo-row{display:flex;align-items:center;gap:7px;margin-bottom:6px}
+.tipo-label{font-size:0.7857em;width:160px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--tx2)}
+.tipo-track{flex:1;height:8px;background:var(--sf3);border-radius:4px;overflow:hidden}
+.tipo-fill{height:100%;border-radius:4px;transition:width .4s}
+.tipo-val{font-size:0.7857em;color:var(--tx2);width:28px;text-align:right;font-variant-numeric:tabular-nums}
+
+/* responsivo */
+@media(max-width:900px){
+  .dash-hd-v2{flex-direction:column;align-items:stretch}
+  .dash-hd-right{justify-content:flex-start}
+  .dash-quick-search{min-width:0;flex:1}
+  .dash-grid-2{grid-template-columns:1fr}
+}
 
 /* dist bars */
 .dist-row{display:flex;align-items:center;gap:7px;margin-bottom:6px}
@@ -1691,70 +1835,96 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 <div class="view" id="view-dash">
 <div class="dash-wrap">
 
-  <!-- header -->
-  <div class="dash-hd">
-    <div>
-      <div class="dash-title">Visão geral</div>
-      <div class="dash-sub" id="dashDate"></div>
+  <!-- header com toggle de escopo + busca rápida + atalho -->
+  <div class="dash-hd-v2">
+    <div class="dash-hd-left">
+      <div>
+        <div class="dash-title" id="dashTitle">Visão geral</div>
+        <div class="dash-sub" id="dashDate"></div>
+      </div>
+      <div class="dash-scope" id="dashScope">
+        <button class="scope-btn" data-scope="equipe" onclick="setDashScope('equipe')">Equipe</button>
+        <button class="scope-btn" data-scope="mine" onclick="setDashScope('mine')">Meus casos</button>
+        <select id="dashScopeResp" onchange="setDashRespFilter(this.value)" title="Filtrar por responsável">
+          <option value="">Todos os responsáveis</option>
+        </select>
+      </div>
     </div>
-    <button class="btn btn-ghost btn-sm" onclick="exportDashCSV()">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Exportar
-    </button>
+    <div class="dash-hd-right">
+      <div class="dash-quick-search">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="dashQuickSearch" type="text" placeholder="Buscar CPF, nome ou SEI…" oninput="dashRenderQuickSearch(this.value)" onfocus="dashRenderQuickSearch(this.value)" onblur="setTimeout(()=>dashHideQuickSearch(),200)">
+        <div id="dashQuickResults" class="dash-qs-results"></div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="dashNewDemanda()">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Nova demanda
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="exportDashCSV()" title="Exportar visão atual">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </button>
+    </div>
   </div>
 
-  <!-- linha 1: 5 stat cards -->
-  <div class="stats-grid" id="statsGrid"></div>
+  <!-- FAIXA DE PRIORIDADE: o que precisa resolver até fechar a folha -->
+  <div class="prio-strip" id="prioStrip"></div>
 
-  <!-- linha 2: alertas + lembretes -->
+  <!-- KPIs do mês -->
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <!-- Entradas recentes + Atividade recente (novo) -->
   <div class="dash-grid-2">
-    <div class="dash-card" style="flex:1.6">
-      <h3>Alertas e pendências <span id="alertCount"></span></h3>
-      <div class="alert-tabs" id="alertTabs"></div>
-      <div class="alert-list" id="alertList"></div>
+    <div class="dash-card">
+      <h3>Entradas recentes <span id="entriesLbl"></span></h3>
+      <div id="entriesList"></div>
     </div>
     <div class="dash-card">
-      <h3>Lembretes <span id="reminderPeriodLbl"></span></h3>
+      <h3>Atividade recente da equipe <span id="activityLbl"></span></h3>
+      <div id="activityList" style="max-height:280px;overflow-y:auto"></div>
+    </div>
+  </div>
+
+  <!-- Equipe — visão por responsável (só visível em modo equipe) -->
+  <div class="dash-card" id="teamCard">
+    <h3>Equipe <span id="teamLbl"></span></h3>
+    <div id="teamTableWrap"></div>
+  </div>
+
+  <!-- Esta semana: lembretes + movimentação prevista -->
+  <div class="dash-grid-2">
+    <div class="dash-card">
+      <h3>Esta semana — lembretes <span id="reminderPeriodLbl"></span></h3>
       <div id="reminderList" style="max-height:280px;overflow-y:auto"></div>
     </div>
-  </div>
-
-  <!-- linha 3: meus casos + inativos -->
-  <div class="dash-grid-2">
     <div class="dash-card">
-      <h3>Meus casos <span id="myCasesLbl"></span></h3>
-      <div id="myCasesList" style="max-height:280px;overflow-y:auto"></div>
-    </div>
-    <div class="dash-card">
-      <h3>Inativos sem edição <span id="inactiveLbl"></span></h3>
-      <div id="inactiveList"></div>
+      <h3>Esta semana — movimentação prevista <span id="weekMovLbl"></span></h3>
+      <div id="weekMovList" style="max-height:280px;overflow-y:auto"></div>
     </div>
   </div>
 
-  <!-- linha 4: tempo médio resolução + vigentes por tipo -->
+  <!-- Distribuição operacional -->
   <div class="dash-grid-2">
     <div class="dash-card">
-      <h3>Tempo médio de resolução</h3>
-      <div id="avgResolution"></div>
+      <h3>Funil por etapa <span id="funilLbl"></span></h3>
+      <div id="funilList"></div>
     </div>
     <div class="dash-card">
-      <h3>Vigentes por tipo de afastamento</h3>
+      <h3>Por tipo de afastamento</h3>
       <div id="vigByTipo"></div>
     </div>
   </div>
 
-  <!-- linha 5: carga por responsável + INSS vencendo -->
-  <div class="dash-grid-2">
-    <div class="dash-card">
-      <h3>Carga por responsável</h3>
-      <div id="distResp"></div>
-    </div>
-    <div class="dash-card">
-      <h3>INSS vencendo <span id="inssPeriodLbl"></span></h3>
-      <div id="inssVencendo"></div>
-    </div>
+  <!-- Alertas e pendências (movido para o final, como exploração) -->
+  <div class="dash-card">
+    <h3>Todas as pendências <span id="alertCount"></span></h3>
+    <div class="alert-tabs" id="alertTabs"></div>
+    <div class="alert-list" id="alertList"></div>
   </div>
 
-  <div class="dash-updated" id="dashUpdated"></div>
+  <!-- rodapé: ciclo vigente + última atualização -->
+  <div class="dash-footer">
+    <span id="dashCycleLbl"></span>
+    <span id="dashUpdated"></span>
+  </div>
 </div>
 </div>
 <!-- ── RELATÓRIO VIEW ── -->
@@ -2816,7 +2986,7 @@ function showLoginScreen(reason) {
             <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           </div>
           <div class="auth-title">Gestão de Licenças</div>
-          <div class="auth-sub">Programa Mais Médicos · v60</div>
+          <div class="auth-sub">Programa Mais Médicos · v0.65.0</div>
         </div>
         <div class="auth-body">
           <div id="authAlert" class="auth-alert"></div>
@@ -3932,51 +4102,89 @@ function renderDashboard(){
   dashLastRender = new Date();
   const allProfs = DB.getAll();
   const today    = tsNow();
+  const now      = new Date();
 
+  // ── HEADER ──
   document.getElementById("dashDate").textContent =
     new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
   document.getElementById("dashUpdated").textContent =
     `Atualizado às ${dashLastRender.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}`;
 
-  // ── 1. STAT CARDS ──
-  // Cards: Analisando / Reativada / Vaga Disp. / Suspensa / Alertas críticos
-  const counts = {analisando:0,reativada:0,vaga:0,suspensa:0};
-  allProfs.forEach(p=>{ if(counts[p.status]!==undefined) counts[p.status]++; });
-  const total = allProfs.length;
-
-  // critical alerts count for 5th card
-  const critAlerts = buildAlerts().filter(a=>a.type==="crit");
-  const critCount  = critAlerts.length;
-
-  const defs=[
-    {k:"analisando", lbl:"Analisando",   cls:"c-an", detail:`${Math.round(counts.analisando/Math.max(1,total)*100)}% do total`},
-    {k:"reativada",  lbl:"Reativada",    cls:"c-re", detail:`${Math.round(counts.reativada/Math.max(1,total)*100)}% do total`},
-    {k:"vaga",       lbl:"Vaga Disp.",   cls:"c-va", detail:`${Math.round(counts.vaga/Math.max(1,total)*100)}% do total`},
-    {k:"suspensa",   lbl:"Suspensa",     cls:"c-su", detail:`${Math.round(counts.suspensa/Math.max(1,total)*100)}% do total`},
-    {k:"crit",       lbl:"Alertas críticos", cls:"c-all", detail:"requerem ação imediata"},
-  ];
-
-  const statsEl = document.getElementById("statsGrid");
-  statsEl.innerHTML = "";
-  defs.forEach(d=>{
-    const n   = d.k==="crit" ? critCount : counts[d.k];
-    const avg = d.k!=="crit" ? avgDaysInStatus(d.k) : null;
-    const card = document.createElement("div");
-    card.className=`stat-card ${d.cls}${d.k==="crit"&&critCount>0?" has-warning":""}`;
-    card.innerHTML=`
-      <div class="stat-lbl">${d.lbl}</div>
-      <div class="stat-num">${n}</div>
-      <div class="stat-detail">${d.detail}</div>
-      ${avg!==null?`<div class="stat-time">Média ${avg} dia${avg!==1?"s":""} neste status</div>`:""}`;
-    if(d.k==="crit")
-      card.onclick=()=>{ setAlertFilter("crit"); document.getElementById("view-dash").scrollTop=200; };
-    else
-      card.onclick=()=>{ switchTab("lic"); setFilter(d.k); };
-    statsEl.appendChild(card);
+  // ── ESCOPO (Equipe / Meus / por responsável) ──
+  // Inicializa escopo se ainda não definido — analista começa em "mine"
+  if(!window.dashScope){
+    window.dashScope = isGestor() ? "equipe" : "mine";
+    window.dashRespFilter = "";
+  }
+  // Marca botões ativos
+  document.querySelectorAll(".scope-btn").forEach(b=>{
+    b.classList.toggle("on", b.dataset.scope===dashScope);
   });
+  document.getElementById("teamCard").style.display = (dashScope==="equipe" && !dashRespFilter) ? "" : "none";
 
-  // ── 2. ALERTS ──
-  const allAlerts = buildAlerts();
+  // Popula dropdown de responsáveis (só usuários ativos com casos)
+  const respSelect = document.getElementById("dashScopeResp");
+  if(respSelect && !respSelect._populated){
+    const respList = [...new Set(allProfs.map(p=>p.responsavel).filter(Boolean))].sort();
+    respList.forEach(r=>{
+      const o = document.createElement("option");
+      o.value = r; o.textContent = r;
+      respSelect.appendChild(o);
+    });
+    respSelect._populated = true;
+    respSelect.value = dashRespFilter || "";
+  }
+
+  // Filtro de escopo aplicado: define quem é "responsável visível"
+  // - mine: só ME.name
+  // - equipe + respFilter: o responsável escolhido
+  // - equipe sem filter: todos
+  const inScope = (resp) => {
+    if(dashRespFilter) return resp === dashRespFilter;
+    if(dashScope==="mine") return resp === ME.name;
+    return true;
+  };
+
+  const scopeProfs = allProfs.filter(p=>inScope(p.responsavel));
+  const scopeDemEntries = (typeof DEM_ENTRIES !== "undefined" ? DEM_ENTRIES : []).filter(d=>inScope(d.responsavel));
+
+  // Título dinâmico
+  const titleEl = document.getElementById("dashTitle");
+  if(dashRespFilter) titleEl.textContent = `Visão de ${dashRespFilter}`;
+  else if(dashScope==="mine") titleEl.textContent = `Meus casos · ${ME.name}`;
+  else titleEl.textContent = "Visão geral da equipe";
+
+  // ── 1. FAIXA DE PRIORIDADE ──
+  renderPrioStrip(scopeProfs, scopeDemEntries, today);
+
+  // ── 2. KPIs DO MÊS ──
+  renderKPIs(scopeProfs, scopeDemEntries, now);
+
+  // ── 3. ENTRADAS RECENTES ──
+  renderEntries(scopeDemEntries, now);
+
+  // ── 4. ATIVIDADE RECENTE DA EQUIPE ──
+  renderActivity(scopeProfs);
+
+  // ── 5. EQUIPE (só em modo equipe sem filtro de resp) ──
+  if(dashScope==="equipe" && !dashRespFilter){
+    renderTeamTable(allProfs, (typeof DEM_ENTRIES !== "undefined" ? DEM_ENTRIES : []));
+  }
+
+  // ── 6. LEMBRETES DA SEMANA ──
+  renderReminders(scopeProfs, today);
+
+  // ── 7. MOVIMENTAÇÃO PREVISTA ──
+  renderWeekMov(scopeProfs, today);
+
+  // ── 8. FUNIL POR ETAPA ──
+  renderFunil(scopeDemEntries);
+
+  // ── 9. POR TIPO DE AFASTAMENTO ──
+  renderVigByTipo(scopeProfs);
+
+  // ── 10. TODAS AS PENDÊNCIAS (alertas — bloco exploratório no final) ──
+  const allAlerts = buildAlerts().filter(a => inScope(a.prof?.responsavel || ""));
   const critCt=allAlerts.filter(a=>a.type==="crit").length;
   const warnCt=allAlerts.filter(a=>a.type==="warn").length;
   const infoCt=allAlerts.filter(a=>a.type==="info").length;
@@ -3989,11 +4197,474 @@ function renderDashboard(){
   ].map(t=>`<button class="alert-tab ${t.cls}${alertFilter===t.f?" on":""}" onclick="setAlertFilter('${t.f}')">${t.lbl}</button>`).join("");
   renderAlertList(allAlerts);
 
-  // ── 3. LEMBRETES ──
+  // ── RODAPÉ: ciclo vigente ──
+  renderDashFooter();
+}
+
+// ── HELPERS DO DASHBOARD v65 ──
+
+// Detecta origem da demanda (campo futuro; fallback "manual")
+function demOrigem(d){
+  return (d && d.origem) || "manual";
+}
+
+// Detecta se card foi criado nos últimos N dias
+function isRecentEntry(d, days){
+  if(!d.createdAt) return false;
+  const created = new Date(d.createdAt);
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-days);
+  return created >= cutoff;
+}
+
+// Faixa de prioridade
+function renderPrioStrip(scopeProfs, scopeDemEntries, today){
+  const strip = document.getElementById("prioStrip");
+
+  // Fechamento da folha: assumimos último dia útil ~ dia 20 do mês.
+  // Calculamos dias até o "fim do mês" como aproximação operacional.
+  const todayD = new Date();
+  const lastDayMonth = new Date(todayD.getFullYear(), todayD.getMonth()+1, 0);
+  const daysToClose = Math.ceil((lastDayMonth - todayD)/86400000);
+
+  // 1. Cards do mês com prazo crítico (≤7 dias para fim do mês, não concluídos)
+  const folhaCrit = scopeDemEntries.filter(d=>{
+    if(d.status==="Concluídos") return false;
+    if(!d.createdAt) return false;
+    const c = new Date(d.createdAt);
+    return c.getMonth()===todayD.getMonth() && c.getFullYear()===todayD.getFullYear() && daysToClose<=10;
+  }).length;
+
+  // 2. Profissionais com afastamento de saúde ≥16 dias sem suspensão registrada
+  const sem16d = scopeProfs.filter(p=>{
+    return p.occurrences.some(o=>{
+      if(o.tipoAfasta && /Saúde/i.test(o.tipoAfasta) && o.dataInicio && !o.suspBolsa){
+        const dias = Math.floor((Date.now()-new Date(o.dataInicio+"T00:00:00"))/86400000);
+        return dias >= 16;
+      }
+      return false;
+    });
+  }).length;
+
+  // 3. Cards em "Pendências" há mais de 7 dias
+  const pendStale = scopeDemEntries.filter(d=>{
+    if(d.status!=="Pendências") return false;
+    if(!d.createdAt) return true;
+    const dias = Math.floor((Date.now()-new Date(d.createdAt))/86400000);
+    return dias >= 7;
+  }).length;
+
+  // 4. Demandas paradas (não concluídas) sem edição há mais de 15 dias
+  // Aproximação: cards criados há mais de 15 dias e ainda ativos
+  const paradas = scopeDemEntries.filter(d=>{
+    if(d.status==="Concluídos") return false;
+    if(!d.createdAt) return false;
+    const dias = Math.floor((Date.now()-new Date(d.createdAt))/86400000);
+    return dias >= 15;
+  }).length;
+
+  // 5. Entradas sem responsável (auto-carga futura ou e-mail não triado)
+  const semResp = scopeDemEntries.filter(d=>{
+    return d.status!=="Concluídos" && (!d.responsavel || d.responsavel==="");
+  }).length;
+
+  const items = [
+    {lbl:"Vencendo a folha", num:folhaCrit, detail:`${daysToClose}d p/ fim do mês`, action:()=>goToDemandasFolha()},
+    {lbl:"≥16 dias sem suspensão", num:sem16d, detail:"saúde sem registro", action:()=>goToLicSem16()},
+    {lbl:"Pendências antigas", num:pendStale, detail:"≥7d em 'Pendências'", action:()=>goToDemandasPendStale()},
+    {lbl:"Demandas paradas", num:paradas, detail:"≥15d sem mexer", action:()=>goToDemandasParadas()},
+    {lbl:"Sem responsável", num:semResp, detail:"aguardando triagem", action:()=>goToDemandasSemResp()},
+  ];
+
+  const totalCrit = items.reduce((s,i)=>s+i.num,0);
+  strip.className = "prio-strip" + (totalCrit===0 ? " empty" : "");
+
+  if(totalCrit===0){
+    strip.innerHTML = `
+      <div class="prio-strip-title">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        Prioridades do mês — tudo em dia
+      </div>
+      <div class="prio-strip-empty-msg">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Nenhum item crítico no momento. ${daysToClose} dia(s) para o fechamento da folha.
+      </div>`;
+    return;
+  }
+
+  strip.innerHTML = `
+    <div class="prio-strip-title">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+      Prioridades — precisa de ação · ${daysToClose}d p/ fim do mês
+    </div>
+    ${items.map((it,i)=>`
+      <div class="prio-item${it.num===0?" zero":""}" ${it.num>0?`onclick="dashPrioAction(${i})"`:''}>
+        <div class="prio-item-lbl">${it.lbl}</div>
+        <div class="prio-item-num">${it.num}</div>
+        <div class="prio-item-detail">${it.detail}</div>
+      </div>`).join("")}
+  `;
+
+  // Salva ações em variável global para serem chamadas pelo onclick
+  window._prioActions = items.map(it=>it.action);
+}
+
+function dashPrioAction(i){
+  if(window._prioActions && window._prioActions[i]) window._prioActions[i]();
+}
+
+function goToDemandasFolha(){
+  switchTab("dem");
+  // ao chegar em demandas, mês corrente já está pré-selecionado
+}
+function goToLicSem16(){
+  switchTab("lic");
+  showToast("Filtre por 'Analisando' ou 'Em análise' para ver casos pendentes","info");
+}
+function goToDemandasPendStale(){
+  switchTab("dem");
+  const sel = document.getElementById("demFiltStatus");
+  if(sel){ sel.value="Pendências"; if(typeof renderDemKanban==="function") renderDemKanban(); }
+}
+function goToDemandasParadas(){
+  switchTab("dem");
+  showToast("Cards com >15 dias estão destacados visualmente","info");
+}
+function goToDemandasSemResp(){
+  switchTab("dem");
+  const sel = document.getElementById("demFiltResp");
+  if(sel){ sel.value=""; if(typeof renderDemKanban==="function") renderDemKanban(); }
+  showToast("Filtre 'Responsável' para identificar não atribuídos","info");
+}
+
+// KPIs do mês
+function renderKPIs(scopeProfs, scopeDemEntries, now){
+  const mes = now.getMonth(), ano = now.getFullYear();
+  const mesAnt = mes===0 ? 11 : mes-1;
+  const anoAnt = mes===0 ? ano-1 : ano;
+
+  // Concluídos este mês vs. mês anterior (aproximação por createdAt + status atual)
+  const concluidosMes = scopeDemEntries.filter(d=>{
+    if(d.status!=="Concluídos" || !d.createdAt) return false;
+    const c = new Date(d.createdAt);
+    return c.getMonth()===mes && c.getFullYear()===ano;
+  }).length;
+  const concluidosMesAnt = scopeDemEntries.filter(d=>{
+    if(d.status!=="Concluídos" || !d.createdAt) return false;
+    const c = new Date(d.createdAt);
+    return c.getMonth()===mesAnt && c.getFullYear()===anoAnt;
+  }).length;
+  const trendConcl = concluidosMes - concluidosMesAnt;
+
+  // Em andamento agora
+  const emAnd = scopeDemEntries.filter(d=>d.status==="Em Andamento" || d.status==="Novas Demandas" || d.status==="Pendências").length;
+
+  // Novas demandas no mês
+  const novasMes = scopeDemEntries.filter(d=>{
+    if(!d.createdAt) return false;
+    const c = new Date(d.createdAt);
+    return c.getMonth()===mes && c.getFullYear()===ano;
+  }).length;
+  const novasMesAnt = scopeDemEntries.filter(d=>{
+    if(!d.createdAt) return false;
+    const c = new Date(d.createdAt);
+    return c.getMonth()===mesAnt && c.getFullYear()===anoAnt;
+  }).length;
+  const trendNovas = novasMes - novasMesAnt;
+
+  // Vencendo até fechamento (10 dias)
+  const venc10 = scopeDemEntries.filter(d=>{
+    if(d.status==="Concluídos") return false;
+    if(!d.createdAt) return false;
+    const c = new Date(d.createdAt);
+    return c.getMonth()===mes && c.getFullYear()===ano;
+  }).length;
+
+  // Fora do cronograma esperado: cards "Novas Demandas" criados há mais de 5 dias
+  const foraCron = scopeDemEntries.filter(d=>{
+    if(d.status!=="Novas Demandas" || !d.createdAt) return false;
+    const dias = Math.floor((Date.now()-new Date(d.createdAt))/86400000);
+    return dias >= 5;
+  }).length;
+
+  const arrow = (n)=>{
+    if(n>0) return `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="11" height="11"><polyline points="18 15 12 9 6 15"/></svg>`;
+    if(n<0) return `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="11" height="11"><polyline points="6 9 12 15 18 9"/></svg>`;
+    return `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="11" height="11"><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+  };
+  const trendCls = (n, goodIfUp=true)=>{
+    if(n===0) return "flat";
+    const isUp = n>0;
+    return (isUp===goodIfUp) ? "up" : "down";
+  };
+  const trendLbl = (n)=>{
+    if(n===0) return "estável vs mês anterior";
+    return `${n>0?"+":""}${n} vs mês anterior`;
+  };
+
+  document.getElementById("kpiGrid").innerHTML = `
+    <div class="kpi-card">
+      <div class="kpi-lbl">Concluídos no mês</div>
+      <div class="kpi-num">${concluidosMes}</div>
+      <div class="kpi-trend ${trendCls(trendConcl, true)}">${arrow(trendConcl)}${trendLbl(trendConcl)}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-lbl">Em andamento</div>
+      <div class="kpi-num">${emAnd}</div>
+      <div class="kpi-detail">cards ativos no momento</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-lbl">Novas no mês</div>
+      <div class="kpi-num">${novasMes}</div>
+      <div class="kpi-trend ${trendCls(trendNovas, false)}">${arrow(trendNovas)}${trendLbl(trendNovas)}</div>
+    </div>
+    <div class="kpi-card clickable" onclick="goToDemandasFolha()">
+      <div class="kpi-lbl">Vencendo a folha</div>
+      <div class="kpi-num" style="color:${venc10>0?'var(--am)':'var(--tx)'}">${venc10}</div>
+      <div class="kpi-detail">cards a fechar este mês</div>
+    </div>
+    <div class="kpi-card clickable" onclick="dashPrioAction(3)">
+      <div class="kpi-lbl">Fora do esperado</div>
+      <div class="kpi-num" style="color:${foraCron>0?'var(--rd)':'var(--tx)'}">${foraCron}</div>
+      <div class="kpi-detail">≥5d em "Novas Demandas"</div>
+    </div>
+  `;
+}
+
+// Entradas recentes
+function renderEntries(scopeDemEntries, now){
+  // Últimas 24h e últimos 7 dias
+  const cutoff24 = new Date(); cutoff24.setHours(cutoff24.getHours()-24);
+  const cutoff7  = new Date(); cutoff7.setDate(cutoff7.getDate()-7);
+
+  const recentes = scopeDemEntries.filter(d=>{
+    if(!d.createdAt) return false;
+    return new Date(d.createdAt) >= cutoff7;
+  }).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+
+  const last24 = recentes.filter(d=>new Date(d.createdAt) >= cutoff24);
+  const semResp = recentes.filter(d=>!d.responsavel);
+
+  // Quebra por origem
+  const porOrigem = {manual:0, email:0, carga:0};
+  recentes.forEach(d=>{
+    const o = demOrigem(d);
+    if(porOrigem[o]!==undefined) porOrigem[o]++;
+    else porOrigem.manual++;
+  });
+
+  document.getElementById("entriesLbl").textContent =
+    `(${last24.length} em 24h · ${recentes.length} em 7d)`;
+
+  const summaryHtml = `
+    <div class="entry-summary">
+      <span class="entry-pill"><b>${porOrigem.manual}</b> manual</span>
+      <span class="entry-pill"><b>${porOrigem.email}</b> e-mail</span>
+      <span class="entry-pill"><b>${porOrigem.carga}</b> carga</span>
+      ${semResp.length ? `<span class="entry-pill warn"><b>${semResp.length}</b> sem responsável</span>`:''}
+    </div>`;
+
+  const list = recentes.slice(0,7);
+  const rowsHtml = list.length ? list.map(d=>{
+    const origem = demOrigem(d);
+    const origemLbl = origem==="email"?"E-mail":origem==="carga"?"Carga":"Manual";
+    const created = new Date(d.createdAt);
+    const horasAtras = Math.floor((Date.now()-created)/3600000);
+    const tempo = horasAtras<1 ? "agora" : horasAtras<24 ? `${horasAtras}h` : `${Math.floor(horasAtras/24)}d`;
+    return `<div class="entry-row" onclick="openProfFromDash(${d.profId})">
+      <span class="entry-origem ${origem}">${origemLbl}</span>
+      <span class="entry-name">${d.profNome} — ${d.etapa}</span>
+      ${!d.responsavel ? '<span class="entry-no-resp">sem resp.</span>':''}
+      <span class="entry-meta">${tempo}</span>
+    </div>`;
+  }).join("") : `<div style="font-size:0.7857em;color:var(--tx3);padding:10px 0">Nenhuma entrada nos últimos 7 dias</div>`;
+
+  document.getElementById("entriesList").innerHTML = summaryHtml + rowsHtml;
+}
+
+// Atividade recente da equipe
+function renderActivity(scopeProfs){
+  // Usa o log de auditoria se disponível, caso contrário usa "editadoEm" das ocorrências
+  const events = [];
+  scopeProfs.forEach(p=>{
+    p.occurrences.forEach(o=>{
+      if(o.editadoEm){
+        // parsing dd/mm/yyyy hh:mm
+        try{
+          const [datePart, timePart] = o.editadoEm.split(" ");
+          if(datePart){
+            const [d,m,y] = datePart.split("/");
+            const ts = new Date(`${y}-${m}-${d}T${(timePart||"00:00")}:00`);
+            if(!isNaN(ts)){
+              events.push({
+                profId: p.id,
+                prof: p.nome,
+                resp: p.responsavel,
+                etapa: o.tipoAfasta || `Ocorrência #${o.n}`,
+                ts: ts
+              });
+            }
+          }
+        }catch(e){}
+      }
+    });
+  });
+
+  events.sort((a,b)=>b.ts-a.ts);
+  const list = events.slice(0,8);
+
+  document.getElementById("activityLbl").textContent =
+    list.length ? `(últimas ${list.length})` : "";
+
+  const fmtTime = (ts)=>{
+    const diff = (Date.now()-ts)/1000;
+    if(diff<60) return "agora";
+    if(diff<3600) return Math.floor(diff/60)+"min";
+    if(diff<86400) return Math.floor(diff/3600)+"h";
+    if(diff<604800) return Math.floor(diff/86400)+"d";
+    return ts.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"});
+  };
+
+  document.getElementById("activityList").innerHTML = list.length
+    ? list.map(e=>{
+        const tm = teamBy(e.resp);
+        return `<div class="act-row" onclick="openProfFromDash(${e.profId})">
+          <div class="act-ini" style="background:${tm.color}">${tm.ini}</div>
+          <div class="act-text"><b>${e.resp||"—"}</b> editou <b>${e.prof}</b> · ${e.etapa}</div>
+          <div class="act-time">${fmtTime(e.ts)}</div>
+        </div>`;
+      }).join("")
+    : `<div style="font-size:0.7857em;color:var(--tx3);padding:10px 0">Sem atividade recente registrada</div>`;
+}
+
+// Tabela equipe
+function renderTeamTable(allProfs, allDem){
+  // Apenas membros do TEAM ativos com casos
+  const stats = {};
+  TEAM.forEach(t=>{
+    stats[t.name] = { ini: t.ini, color: t.color, role: t.role,
+      ativosProfs: 0, novas:0, andamento:0, pendencias:0,
+      concluidosMes:0, ultEdit: null, maisAntigo: 0 };
+  });
+
+  const mes = new Date().getMonth(), ano = new Date().getFullYear();
+
+  allProfs.forEach(p=>{
+    if(!stats[p.responsavel]) return;
+    if(["analisando","suspensa","vaga"].includes(p.status)) stats[p.responsavel].ativosProfs++;
+    // última edição
+    p.occurrences.forEach(o=>{
+      if(o.editadoEm){
+        try{
+          const [datePart, timePart] = o.editadoEm.split(" ");
+          const [d,m,y] = datePart.split("/");
+          const ts = new Date(`${y}-${m}-${d}T${(timePart||"00:00")}:00`);
+          if(!isNaN(ts)){
+            const cur = stats[p.responsavel].ultEdit;
+            if(!cur || ts > cur.ts){
+              stats[p.responsavel].ultEdit = { ts, profNome: p.nome, profId: p.id };
+            }
+          }
+        }catch(e){}
+      }
+    });
+  });
+
+  allDem.forEach(d=>{
+    if(!stats[d.responsavel]) return;
+    const s = stats[d.responsavel];
+    if(d.status==="Novas Demandas") s.novas++;
+    else if(d.status==="Em Andamento") s.andamento++;
+    else if(d.status==="Pendências") s.pendencias++;
+    else if(d.status==="Concluídos"){
+      // concluído no mês
+      if(d.createdAt){
+        const c = new Date(d.createdAt);
+        if(c.getMonth()===mes && c.getFullYear()===ano) s.concluidosMes++;
+      }
+    }
+    // card mais antigo aberto
+    if(d.status!=="Concluídos" && d.createdAt){
+      const dias = Math.floor((Date.now()-new Date(d.createdAt))/86400000);
+      if(dias > s.maisAntigo) s.maisAntigo = dias;
+    }
+  });
+
+  // Lista ordenada por carga (total aberto desc)
+  const rows = Object.entries(stats)
+    .map(([name,s])=>({name, ...s, totalAberto: s.novas+s.andamento+s.pendencias}))
+    .filter(r=>r.totalAberto>0 || r.concluidosMes>0)
+    .sort((a,b)=>b.totalAberto-a.totalAberto);
+
+  document.getElementById("teamLbl").textContent =
+    rows.length ? `(${rows.length} pessoa${rows.length!==1?"s":""})` : "";
+
+  if(!rows.length){
+    document.getElementById("teamTableWrap").innerHTML =
+      `<div style="font-size:0.8571em;color:var(--tx3);padding:14px;text-align:center">Sem demandas atribuídas no momento</div>`;
+    return;
+  }
+
+  const maxLoad = Math.max(...rows.map(r=>r.totalAberto), 1);
+
+  document.getElementById("teamTableWrap").innerHTML = `
+    <div style="overflow-x:auto">
+      <table class="team-table">
+        <thead>
+          <tr>
+            <th>Responsável</th>
+            <th>Carga atual</th>
+            <th>Por status</th>
+            <th class="num">Concl. no mês</th>
+            <th>Trabalhando agora</th>
+            <th class="num">+ antigo</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r=>{
+            const pct = Math.round(r.totalAberto/maxLoad*100);
+            const loadCls = r.totalAberto >= maxLoad*0.85 ? "high" : r.totalAberto >= maxLoad*0.6 ? "med" : "";
+            const now = r.ultEdit;
+            const nowAgo = now ? Math.floor((Date.now()-now.ts)/3600000) : null;
+            const isNow = nowAgo!==null && nowAgo<24;
+            const staleCls = r.maisAntigo>=30 ? "crit" : r.maisAntigo>=15 ? "warn" : "";
+            return `<tr onclick="setDashRespFilter('${r.name}')">
+              <td>
+                <div class="team-name">
+                  <div class="team-ini" style="background:${r.color}">${r.ini}</div>
+                  <span>${r.name}${r.role==="gestor"?' <span style="font-size:0.7857em;color:var(--tx3);font-weight:400">(gestor)</span>':''}</span>
+                </div>
+              </td>
+              <td>
+                <span class="team-load-bar"><span class="team-load-fill ${loadCls}" style="width:${pct}%"></span></span>
+                <b>${r.totalAberto}</b>
+              </td>
+              <td>
+                <div class="team-stack">
+                  ${r.novas?`<span class="seg nov" title="Novas">${r.novas}</span>`:''}
+                  ${r.andamento?`<span class="seg and" title="Em Andamento">${r.andamento}</span>`:''}
+                  ${r.pendencias?`<span class="seg pen" title="Pendências">${r.pendencias}</span>`:''}
+                  ${!r.totalAberto?`<span style="color:var(--tx3);font-size:0.7857em">—</span>`:''}
+                </div>
+              </td>
+              <td class="num"><b>${r.concluidosMes}</b></td>
+              <td>
+                <div class="team-now ${isNow?'':'empty'}">${isNow ? now.profNome : "—"}</div>
+              </td>
+              <td class="num"><span class="team-stale ${staleCls}">${r.maisAntigo}d</span></td>
+            </tr>`;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// Lembretes da semana
+function renderReminders(scopeProfs, today){
   const next7=new Date(); next7.setDate(next7.getDate()+7);
   const next7str=next7.toISOString().slice(0,10);
   const reminders=[];
-  allProfs.forEach(p=>p.occurrences.forEach(o=>{
+  scopeProfs.forEach(p=>p.occurrences.forEach(o=>{
     if(o.lembrete?.data && o.lembrete.data>=today && o.lembrete.data<=next7str)
       reminders.push({prof:p,occ:o,data:o.lembrete.data,nota:o.lembrete.nota});
   }));
@@ -4001,90 +4672,100 @@ function renderDashboard(){
   document.getElementById("reminderPeriodLbl").textContent=`(próximos 7 dias · ${reminders.length})`;
   const remEl=document.getElementById("reminderList");
   remEl.innerHTML=reminders.length
-    ? reminders.slice(0,8).map(r=>`
-        <div class="reminder-row" onclick="openProfFromDash(${r.prof.id})">
-          <div class="reminder-dot"></div>
-          <div class="reminder-body">
-            <div class="reminder-name">${r.prof.nome}</div>
-            <div class="reminder-nota">${r.nota||"Verificar ocorrência"} · ${fmtI(r.data)}</div>
-          </div>
-        </div>`).join("")
-    : `<div style="font-size:0.7857em;color:var(--tx3);padding:8px 0">Nenhum lembrete nos próximos 7 dias</div>`;
-
-  // ── 4. MEUS CASOS ──
-  const myActive=allProfs.filter(p=>p.responsavel===ME.name && ["analisando","suspensa","vaga"].includes(p.status));
-  const myAll=allProfs.filter(p=>p.responsavel===ME.name);
-  document.getElementById("myCasesLbl").textContent=`(${myActive.length} ativo${myActive.length!==1?"s":""} / ${myAll.length} total)`;
-  const myEl=document.getElementById("myCasesList");
-  myEl.innerHTML=myActive.length
-    ? myActive.slice(0,8).map(p=>{
-        const pend=p.occurrences.reduce((s,o)=>s+occPendencies(o).length,0);
-        return `<div class="mycase-row" onclick="openProfFromDash(${p.id})">
-          <div class="mycase-name">${p.nome}</div>
-          <span class="badge-status ${statusCls(p.status)}" style="font-size:0.7143em;padding:1px 7px">${statusLbl(p.status)}</span>
-          ${pend?`<span style="font-size:0.7143em;color:var(--rd);font-weight:600">⚠ ${pend}</span>`:""}
+    ? reminders.slice(0,8).map(r=>{
+        const isToday = r.data === today;
+        return `<div class="mov-row" onclick="openProfFromDash(${r.prof.id})">
+          <span class="mov-tag ${isToday?'prazo':'ret'}">${isToday?'Hoje':fmtI(r.data).slice(0,5)}</span>
+          <span class="mov-name">${r.prof.nome}</span>
+          <span class="mov-date">${r.nota||"Verificar"}</span>
         </div>`;
-      }).join("")+(myActive.length>8?`<div style="font-size:0.7857em;color:var(--tx3);padding:6px 0">+${myActive.length-8} mais…</div>`:"")
-    : `<div style="font-size:0.7857em;color:var(--tx3);padding:8px 0">Nenhum caso ativo atribuído a você</div>`;
+      }).join("")
+    : `<div style="font-size:0.7857em;color:var(--tx3);padding:10px 0">Nenhum lembrete esta semana</div>`;
+}
 
-  // ── 5. INATIVOS ──
-  const INACTIVE_DAYS=15;
-  const activeProfs=allProfs.filter(p=>["analisando","suspensa","vaga"].includes(p.status));
-  const inactive=activeProfs.map(p=>({p,days:daysSinceEdit(p)}))
-    .filter(x=>x.days>=INACTIVE_DAYS).sort((a,b)=>b.days-a.days);
-  document.getElementById("inactiveLbl").textContent=`(≥${INACTIVE_DAYS} dias · ${inactive.length})`;
-  const inEl=document.getElementById("inactiveList");
-  inEl.innerHTML=inactive.length
-    ? inactive.slice(0,8).map(({p,days})=>`
-        <div class="inactive-row" onclick="openProfFromDash(${p.id})">
-          <div class="inactive-name">${p.nome}</div>
-          <span class="badge-status ${statusCls(p.status)}" style="font-size:0.7143em;padding:1px 7px">${statusLbl(p.status)}</span>
-          <span class="inactive-days${days>=30?" stale":""}">${days}d</span>
-        </div>`).join("")+(inactive.length>8?`<div style="font-size:0.7857em;color:var(--tx3);padding:6px 0">+${inactive.length-8} mais…</div>`:"")
-    : `<div style="font-size:0.7857em;color:var(--tx3);padding:8px 0">✓ Todos os casos ativos foram editados recentemente</div>`;
+// Movimentação prevista da semana
+function renderWeekMov(scopeProfs, today){
+  const next7=new Date(); next7.setDate(next7.getDate()+7);
+  const next7str=next7.toISOString().slice(0,10);
 
-  // ── 6. TEMPO MÉDIO DE RESOLUÇÃO ──
-  // Measure two stages: início→suspensão and suspensão→reativação
-  const stageSusp=[], stageReat=[];
-  allProfs.forEach(p=>p.occurrences.forEach(o=>{
-    if(o.dataInicio && o.suspBolsa){
-      const d=Math.round((new Date(o.suspBolsa+"T00:00:00")-new Date(o.dataInicio+"T00:00:00"))/86400000);
-      if(d>=0) stageSusp.push(d);
+  const movs = [];
+  scopeProfs.forEach(p=>p.occurrences.forEach(o=>{
+    // Retornos previstos
+    if(o.retornoPrevisto && o.retornoPrevisto>=today && o.retornoPrevisto<=next7str){
+      movs.push({prof:p, tag:"ret", lbl:"Retorno", date:o.retornoPrevisto});
     }
-    if(o.suspBolsa && o.dataReat){
-      const d=Math.round((new Date(o.dataReat+"T00:00:00")-new Date(o.suspBolsa+"T00:00:00"))/86400000);
-      if(d>=0) stageReat.push(d);
+    // INSS vencendo
+    if(o.beneficioInssAte && o.beneficioInssAte>=today && o.beneficioInssAte<=next7str){
+      movs.push({prof:p, tag:"inss", lbl:"INSS venc.", date:o.beneficioInssAte});
+    }
+    // Término de licença
+    if(o.dataInicio && o.periodo){
+      const fim = new Date(o.dataInicio+"T00:00:00");
+      fim.setDate(fim.getDate()+parseInt(o.periodo)-1);
+      const fimStr = fim.toISOString().slice(0,10);
+      if(fimStr>=today && fimStr<=next7str){
+        movs.push({prof:p, tag:"prazo", lbl:"Fim afast.", date:fimStr});
+      }
     }
   }));
-  const avgS=stageSusp.length?Math.round(stageSusp.reduce((a,b)=>a+b,0)/stageSusp.length):null;
-  const avgR=stageReat.length?Math.round(stageReat.reduce((a,b)=>a+b,0)/stageReat.length):null;
-  const avgEl=document.getElementById("avgResolution");
-  if(!avgS && !avgR){
-    avgEl.innerHTML=`<div style="font-size:0.7857em;color:var(--tx3);padding:8px 0">Sem dados suficientes</div>`;
-  } else {
-    avgEl.innerHTML=`
-      <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
-        ${avgS!==null?`<div>
-          <div style="font-size:0.7143em;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Início → Suspensão</div>
-          <div style="display:flex;align-items:baseline;gap:6px">
-            <span style="font-size:1.5714em;font-weight:600;color:var(--am)">${avgS}</span>
-            <span style="font-size:0.7857em;color:var(--tx3)">dias em média (${stageSusp.length} casos)</span>
-          </div>
-        </div>`:""}
-        ${avgR!==null?`<div>
-          <div style="font-size:0.7143em;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Suspensão → Reativação</div>
-          <div style="display:flex;align-items:baseline;gap:6px">
-            <span style="font-size:1.5714em;font-weight:600;color:var(--tl)">${avgR}</span>
-            <span style="font-size:0.7857em;color:var(--tx3)">dias em média (${stageReat.length} casos)</span>
-          </div>
-        </div>`:""}
-      </div>`;
-  }
+  movs.sort((a,b)=>a.date.localeCompare(b.date));
 
-  // ── 7. VIGENTES POR TIPO ──
+  document.getElementById("weekMovLbl").textContent = `(${movs.length} eventos)`;
+  document.getElementById("weekMovList").innerHTML = movs.length
+    ? movs.slice(0,8).map(m=>`<div class="mov-row" onclick="openProfFromDash(${m.prof.id})">
+        <span class="mov-tag ${m.tag}">${m.lbl}</span>
+        <span class="mov-name">${m.prof.nome}</span>
+        <span class="mov-date">${fmtI(m.date)}</span>
+      </div>`).join("")
+    : `<div style="font-size:0.7857em;color:var(--tx3);padding:10px 0">Nenhuma movimentação prevista</div>`;
+}
+
+// Funil por etapa
+function renderFunil(scopeDemEntries){
+  // Conta por etapa (ativas) — unifica Saúde e Mat/Pat por similaridade
+  const etapaMap = {};
+  scopeDemEntries.forEach(d=>{
+    if(d.status==="Concluídos") return;
+    // Normalizar nomes
+    let key = d.etapa;
+    if(key==="Suspensão da Bolsa") key = "Suspensão";
+    if(key==="Restituição ao Erário") key = "Restituição";
+    etapaMap[key] = (etapaMap[key]||0)+1;
+  });
+  const order = ["Suspensão","Reativação","Restituição","Carta de Concessão","Pagamento Retroativo"];
+  const entries = order.filter(e=>etapaMap[e]).map(e=>[e, etapaMap[e]]);
+  // Adicionar outros (não previstos)
+  Object.keys(etapaMap).forEach(k=>{ if(!order.includes(k)) entries.push([k, etapaMap[k]]); });
+
+  const max = Math.max(...entries.map(([,v])=>v), 1);
+  const total = entries.reduce((s,[,v])=>s+v, 0);
+  document.getElementById("funilLbl").textContent = `(${total} ativos)`;
+
+  const colors = {
+    "Suspensão":"var(--am)",
+    "Reativação":"var(--tl)",
+    "Restituição":"var(--bl)",
+    "Carta de Concessão":"var(--pu)",
+    "Pagamento Retroativo":"var(--ac)"
+  };
+
+  document.getElementById("funilList").innerHTML = entries.length
+    ? entries.map(([k,v])=>{
+        const pct = Math.round(v/max*100);
+        return `<div class="funil-row">
+          <div class="funil-lbl">${k}</div>
+          <div class="funil-track"><div class="funil-fill" style="width:${pct}%;background:${colors[k]||'var(--tx3)'}">${pct>=20?v:''}</div></div>
+          <div class="funil-val">${pct<20?v:''}</div>
+        </div>`;
+      }).join("")
+    : `<div style="font-size:0.7857em;color:var(--tx3);padding:10px 0">Sem cards ativos</div>`;
+}
+
+// Vigentes por tipo (mantido do v64)
+function renderVigByTipo(scopeProfs){
   const vigByTipo={};
-  allProfs.forEach(p=>p.occurrences.forEach(o=>{
-    if(occStatus(o)==="vigente"){
+  scopeProfs.forEach(p=>p.occurrences.forEach(o=>{
+    if(typeof occStatus==="function" && occStatus(o)==="vigente"){
       const t=o.tipoAfasta||"Outros";
       vigByTipo[t]=(vigByTipo[t]||0)+1;
     }
@@ -4101,61 +4782,105 @@ function renderDashboard(){
           <div class="tipo-track"><div class="tipo-fill" style="width:${Math.round(v/maxVig*100)}%;background:${vigColors[t]||"var(--ac)"}"></div></div>
           <div class="tipo-val">${v}</div>
         </div>`).join("")
-    : `<div style="font-size:0.7857em;color:var(--tx3);padding:8px 0">Nenhuma ocorrência vigente</div>`;
-
-  // ── 8. CARGA POR RESPONSÁVEL ──
-  const respData={};
-  allProfs.forEach(p=>{
-    if(!respData[p.responsavel]) respData[p.responsavel]={ativo:0,reativado:0};
-    if(["analisando","suspensa","vaga"].includes(p.status)) respData[p.responsavel].ativo++;
-    else respData[p.responsavel].reativado++;
-  });
-  const sorted=Object.entries(respData).sort((a,b)=>(b[1].ativo+b[1].reativado)-(a[1].ativo+a[1].reativado)).slice(0,5);
-  const maxResp=sorted.length?Math.max(...sorted.map(([,v])=>v.ativo+v.reativado)):1;
-  document.getElementById("distResp").innerHTML=sorted.length
-    ? sorted.map(([k,v])=>{
-        const tm=teamBy(k);
-        const aPct=Math.round(v.ativo/maxResp*100);
-        const rPct=Math.round(v.reativado/maxResp*100);
-        return `<div class="stack-row">
-          <div class="stack-lbl" title="${k}">
-            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${tm.color};margin-right:4px;vertical-align:middle"></span>${tm.ini}
-          </div>
-          <div class="stack-bar">
-            <div class="stack-seg" style="width:${aPct}%;background:var(--rd)" title="Ativo: ${v.ativo}"></div>
-            <div class="stack-seg" style="width:${rPct}%;background:var(--tl)" title="Reativado: ${v.reativado}"></div>
-          </div>
-          <div class="dist-val">${v.ativo+v.reativado}</div>
-        </div>`;
-      }).join("")+`<div class="stack-legend" style="margin-top:8px">
-        <div class="stack-leg-item"><div class="stack-leg-dot" style="background:var(--rd)"></div>Ativo</div>
-        <div class="stack-leg-item"><div class="stack-leg-dot" style="background:var(--tl)"></div>Reativado</div>
-      </div>`
-    : `<div style="font-size:0.7857em;color:var(--tx3);padding:8px 0">Sem dados</div>`;
-
-  // ── 9. INSS VENCENDO (60 DIAS) ──
-  const inss60=new Date(); inss60.setDate(inss60.getDate()+60);
-  const inss60str=inss60.toISOString().slice(0,10);
-  const inssRows=[];
-  allProfs.forEach(p=>p.occurrences.forEach(o=>{
-    if(o.inss && o.beneficioInssAte && o.beneficioInssAte>=today)
-      inssRows.push({prof:p,data:o.beneficioInssAte});
-  }));
-  inssRows.sort((a,b)=>a.data.localeCompare(b.data));
-  document.getElementById("inssPeriodLbl").textContent=`(${inssRows.length} ativo${inssRows.length!==1?"s":""})`;
-  document.getElementById("inssVencendo").innerHTML=inssRows.length
-    ? inssRows.slice(0,8).map(({prof,data})=>{
-        const dl=Math.floor((new Date(data+"T00:00:00")-Date.now())/86400000);
-        const cls=dl<=7?"urgent":dl<=30?"soon":"ok";
-        const lbl=dl===0?"Hoje":dl===1?"Amanhã":`${dl}d`;
-        return `<div class="inss-row" onclick="openProfFromDash(${prof.id})">
-          <div class="inss-name">${prof.nome}</div>
-          <div class="inss-date">${fmtI(data)}</div>
-          <div class="inss-pill ${cls}">${lbl}</div>
-        </div>`;
-      }).join("")+(inssRows.length>8?`<div style="font-size:0.7857em;color:var(--tx3);padding:6px 0">+${inssRows.length-8} mais…</div>`:"")
-    : `<div style="font-size:0.7857em;color:var(--tx3);padding:8px 0">Nenhum benefício INSS ativo</div>`;
+    : `<div style="font-size:0.7857em;color:var(--tx3);padding:10px 0">Nenhuma ocorrência vigente</div>`;
 }
+
+// Rodapé com ciclo vigente
+function renderDashFooter(){
+  let cycleTxt = "";
+  try{
+    if(typeof CYCLES !== "undefined" && Array.isArray(CYCLES)){
+      const vig = CYCLES.find(c=>!c.archived);
+      if(vig){
+        cycleTxt = `Ciclo vigente: <b>${vig.nome||vig.id}</b>`;
+        if(vig.dataFim){
+          const fim = new Date(vig.dataFim+"T00:00:00");
+          const dias = Math.ceil((fim-Date.now())/86400000);
+          if(dias>0) cycleTxt += ` · <b>${dias}d</b> restantes`;
+        }
+      }
+    }
+  }catch(e){}
+  document.getElementById("dashCycleLbl").innerHTML = cycleTxt;
+}
+
+// Controles de escopo
+function setDashScope(s){
+  window.dashScope = s;
+  // Limpa filtro por responsável ao trocar entre escopos
+  window.dashRespFilter = "";
+  const sel = document.getElementById("dashScopeResp");
+  if(sel) sel.value = "";
+  renderDashboard();
+}
+
+function setDashRespFilter(name){
+  window.dashRespFilter = name || "";
+  // Se selecionou um responsável, escopo passa a ser "equipe" (para garantir visibilidade)
+  if(name) window.dashScope = "equipe";
+  const sel = document.getElementById("dashScopeResp");
+  if(sel) sel.value = name || "";
+  renderDashboard();
+}
+
+// Busca rápida
+function dashRenderQuickSearch(q){
+  const results = document.getElementById("dashQuickResults");
+  const query = (q||"").trim().toLowerCase();
+  if(query.length < 2){
+    results.classList.remove("open");
+    results.innerHTML = "";
+    return;
+  }
+  const allProfs = DB.getAll();
+  // Busca por nome, CPF (sem máscara), SIAPE, ou SEI das ocorrências
+  const qDigits = query.replace(/\D/g,"");
+  const matches = allProfs.filter(p=>{
+    if(p.nome && p.nome.toLowerCase().includes(query)) return true;
+    if(p.cpf && qDigits && p.cpf.replace(/\D/g,"").includes(qDigits)) return true;
+    if(p.siape && p.siape.includes(qDigits)) return true;
+    // SEI
+    if(qDigits.length >= 5){
+      return p.occurrences.some(o=>{
+        const seis = [o.numProcSusp, o.numProcReat, o.matPat?.numProcSusp, o.matPat?.numProcReat]
+          .filter(Boolean).join(" ").replace(/\D/g,"");
+        return seis.includes(qDigits);
+      });
+    }
+    return false;
+  }).slice(0,8);
+
+  if(!matches.length){
+    results.innerHTML = `<div class="dash-qs-empty">Nenhum resultado para "${query}"</div>`;
+  } else {
+    results.innerHTML = matches.map(p=>`
+      <div class="dash-qs-row" onmousedown="openProfFromDash(${p.id});dashHideQuickSearch()">
+        <span class="qs-name">${p.nome}</span>
+        <span class="qs-meta">CPF ${p.cpf||"—"} · ${p.uf||"—"}</span>
+      </div>`).join("");
+  }
+  results.classList.add("open");
+}
+
+function dashHideQuickSearch(){
+  const r = document.getElementById("dashQuickResults");
+  if(r){ r.classList.remove("open"); }
+  const i = document.getElementById("dashQuickSearch");
+  if(i) i.value = "";
+}
+
+// Atalho nova demanda
+function dashNewDemanda(){
+  switchTab("dem");
+  // Tenta clicar no botão "Nova Demanda" da aba se existir
+  setTimeout(()=>{
+    const btn = document.querySelector('[onclick*="demOpenNewProf"]') ||
+                document.querySelector('[onclick*="openNewProf"]') ||
+                document.querySelector('button[onclick*="Nova"]');
+    if(btn) btn.click();
+  }, 100);
+}
+
 // ── ALERT FILTER ──
 function setAlertFilter(f){
   alertFilter = f;
