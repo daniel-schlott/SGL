@@ -5356,6 +5356,8 @@ async function demBootstrap(){
   if(usedTable) return;
 
   // ── FALLBACK LEGADO: regenera cards a partir das ocorrências ──
+  // e persiste automaticamente no banco (migração única)
+  const legacyCards = [];
   DB.getAll().forEach(prof=>{
     (prof.occurrences||[]).forEach(occ=>{
       const isMP = occ.tipoAfasta==="Licença Maternidade"||occ.tipoAfasta==="Licença Paternidade";
@@ -5403,6 +5405,29 @@ async function demBootstrap(){
       }
     });
   });
+
+  // Persistir cards legados no banco (migração silenciosa, roda só uma vez)
+  // ignoreDuplicates: true = ON CONFLICT DO NOTHING
+  console.log(`[demBootstrap] migrando ${DEM_ENTRIES.length} cards legados para o banco…`);
+  try {
+    const rows = DEM_ENTRIES.map(d=>({
+      occ_id:      d.occId,
+      etapa:       d.etapa,
+      status:      d.status,
+      responsavel: d.responsavel||"",
+      periodo:     d.periodo||"",
+      dados:       d.demData||{},
+      updated_at:  new Date().toISOString(),
+      updated_by:  "migration",
+    }));
+    const { error } = await _supa
+      .from("dem_cards")
+      .upsert(rows, { onConflict: "occ_id,etapa", ignoreDuplicates: true });
+    if(error) console.warn("[demBootstrap] migração parcial:", error.message);
+    else console.log("[demBootstrap] migração concluída.");
+  } catch(e){
+    console.warn("[demBootstrap] migração falhou silenciosamente:", e);
+  }
 }
 
 function demInitData(etapa,occ,isMP){
@@ -6996,9 +7021,6 @@ async function demSave(){
   const tipo=occ.tipoAfasta==="Licença Maternidade"?"maternidade":occ.tipoAfasta==="Licença Paternidade"?"paternidade":"saude";
   const resp=document.getElementById("demNPResp")?.value||ME.name;
   const per=(()=>{ if(!occ.dataInicio) return ""; const d=new Date(occ.dataInicio+"T00:00:00"); return isNaN(d)?"":d.toLocaleString("pt-BR",{month:"long",year:"numeric"}); })();
-  const newId = DEM_NEXT_ID++;
-  const newCard = {id:newId,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa,status:"Novas Demandas",responsavel:resp,periodo:per,seiGrupo:null,createdAt:new Date().toISOString(),demData:demInitData(etapa,occ,isMP)};
-  DEM_ENTRIES.push(newCard);
 
   // Botão "Salvando…"
   const saveBtn = document.getElementById("demSaveBtn");
@@ -7007,6 +7029,23 @@ async function demSave(){
     saveBtn.disabled = true;
     saveBtn.innerHTML = `<span class="dsb-spinner" style="border-color:#fff;border-top-color:transparent;width:12px;height:12px"></span> Salvando…`;
   }
+
+  // Se a ocorrência é nova (id local temporário), salvar no banco PRIMEIRO
+  // para obter o id real antes de criar o card (FK dem_cards → occurrences)
+  if(occ._isNew || typeof occ.id !== "number" || !occ.id || occ.id > 900000){
+    const occRes = await DB.saveOcc(prof.id, occ);
+    if(!occRes.ok){
+      if(saveBtn){ saveBtn.disabled = false; saveBtn.innerHTML = originalHtml; }
+      showToast("Erro ao salvar ocorrência vinculada", "error");
+      return;
+    }
+    // occ.id agora tem o id real do banco (DB.saveOcc atualiza occ.id = data.id)
+    demNewOccId = occ.id;
+  }
+
+  const newId = DEM_NEXT_ID++;
+  const newCard = {id:newId,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa,status:"Novas Demandas",responsavel:resp,periodo:per,seiGrupo:null,createdAt:new Date().toISOString(),demData:demInitData(etapa,occ,isMP)};
+  DEM_ENTRIES.push(newCard);
 
   const ok = await dbSaveDemCard(newCard);
 
