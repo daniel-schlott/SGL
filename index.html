@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v0.65.0</title>
+<title>Mais Médicos — Gestão de Licenças v0.67.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1823,6 +1823,67 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
     </div>
   </div>
 
+  <!-- SharePoint -->
+  <div class="sv-section">
+    <div class="sv-section-hd">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+      <h2>SharePoint — Pasta de documentos</h2>
+    </div>
+    <div class="sv-section-body">
+      <div class="sv-row" style="border-bottom:none;padding-bottom:0">
+        <div class="sv-row-label">
+          URL base
+          <div class="sv-row-desc">Caminho até a pasta raiz dos profissionais. O sistema adiciona automaticamente <code style="font-size:0.85em;background:var(--sf2);padding:1px 4px;border-radius:3px">/ANO/INICIAL/NOME</code> ao abrir cada profissional.</div>
+        </div>
+        <div class="sv-row-ctrl" style="width:100%">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="text" id="spBaseInput" placeholder="https://seuorgao.sharepoint.com/..." 
+              style="flex:1;min-width:300px;font-size:0.875em;padding:6px 10px;border:1px solid var(--br);border-radius:var(--r);background:var(--sf);font-family:'DM Mono',monospace"
+              oninput="spBaseSave()">
+            <button class="btn btn-ghost btn-sm" onclick="spBaseTest()" title="Testar link">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              Testar
+            </button>
+          </div>
+          <div style="font-size:0.75em;color:var(--tx3);margin-top:6px" id="spBasePreview"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fechamento de Folha -->
+  <div class="sv-section">
+    <div class="sv-section-hd">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>
+      <h2>Fechamento de folha</h2>
+    </div>
+    <div class="sv-section-body">
+      <div class="sv-row">
+        <div class="sv-row-label">
+          Datas-limite mensais
+          <div class="sv-row-desc">Define até quando os cards devem ser concluídos para entrar na folha do mês. O dashboard usará essas datas no contador "Vencendo a folha".</div>
+        </div>
+        <div class="sv-row-ctrl" style="width:100%">
+          <div id="folhaDeadlinesList" style="margin-bottom:10px"></div>
+          <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+            <div>
+              <label style="font-size:0.7857em;color:var(--tx2);font-weight:500;display:block;margin-bottom:3px">Mês/Ano</label>
+              <input type="month" id="fdMesAno" style="font-size:0.875em;padding:5px 8px;border:1px solid var(--br);border-radius:var(--r);background:var(--sf)">
+            </div>
+            <div>
+              <label style="font-size:0.7857em;color:var(--tx2);font-weight:500;display:block;margin-bottom:3px">Data-limite</label>
+              <input type="date" id="fdData" style="font-size:0.875em;padding:5px 8px;border:1px solid var(--br);border-radius:var(--r);background:var(--sf)">
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="folhaDeadlineSave()">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Adicionar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Tags & Alertas -->
   <div class="sv-section">
     <div class="sv-section-hd">
@@ -2240,6 +2301,8 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
             <div class="tb-sub" id="topSub">—</div>
             <!-- v52: Seletor de ciclo (aparece se mesmo CPF em múltiplos ciclos) -->
             <div id="cycleSelector" style="display:none;align-items:center;gap:8px;margin-top:4px"></div>
+            <!-- v67: Links SharePoint por ano de ocorrência -->
+            <div id="spLinks" style="margin-top:5px"></div>
           </div>
           <div class="collab" id="collabDots"></div>
           <div class="tb-actions">
@@ -3004,7 +3067,7 @@ function showLoginScreen(reason) {
             <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           </div>
           <div class="auth-title">Gestão de Licenças</div>
-          <div class="auth-sub">Programa Mais Médicos · v0.65.0</div>
+          <div class="auth-sub">Programa Mais Médicos · v0.67.0</div>
         </div>
         <div class="auth-body">
           <div id="authAlert" class="auth-alert"></div>
@@ -3173,6 +3236,54 @@ function fmt(d){ return d.toLocaleDateString("pt-BR"); }
 function fmtI(s){ if(!s) return ""; const d = new Date(s+"T00:00:00"); return isNaN(d) ? s : fmt(d); }
 function nowStr(){ const n=new Date(); return n.toLocaleDateString("pt-BR")+" "+n.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); }
 function tsNow(){ return new Date().toISOString().slice(0,10); }
+// v66: normaliza string removendo acentos para buscas
+function normStr(s){ return (s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase(); }
+
+// v67: URL da pasta SharePoint — gerada automaticamente por ano de ocorrência
+const SP_BASE = "https://saudegov.sharepoint.com/:f:/r/sites/LICENAS609/Shared%20Documents/General/DOCUMENTOS%20DOS%20PROFISSIONAIS";
+
+function spNome(nome){
+  // Remove acentos, converte para maiúsculas, mantém espaços (serão %20 via encodeURIComponent)
+  return (nome||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().trim();
+}
+
+function spInicial(nome){
+  return spNome(nome).charAt(0);
+}
+
+function spUrl(nome, ano){
+  const n = spNome(nome);
+  const i = spInicial(nome);
+  if(!n||!i||!ano) return null;
+  return `${SP_BASE}/${ano}/${i}/${encodeURIComponent(n)}`;
+}
+
+// Retorna lista de {ano, url} únicos das ocorrências do profissional
+function spLinks(prof){
+  if(!prof || !prof.occurrences || !prof.occurrences.length) return [];
+  const anos = [...new Set(
+    prof.occurrences
+      .map(o => o.dataInicio ? o.dataInicio.slice(0,4) : null)
+      .filter(Boolean)
+  )].sort();
+  return anos.map(ano => ({ ano, url: spUrl(prof.nome, ano) }));
+}
+
+// Renderiza os botões de pasta para um profissional
+function spBtnsHTML(prof){
+  const links = spLinks(prof);
+  if(!links.length) return "";
+  const btns = links.map(l =>
+    `<a href="${l.url}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="font-size:0.75em;padding:3px 9px;text-decoration:none" title="Abrir pasta ${l.ano} no SharePoint">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="11" height="11"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+      ${l.ano}
+    </a>`
+  ).join("");
+  return `<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+    <span style="font-size:0.75em;color:var(--tx3);font-weight:500;white-space:nowrap">📁 SharePoint:</span>
+    ${btns}
+  </div>`;
+}
 
 // ── Toast e dialog ──
 function showToast(msg, type="", duration=3000){
@@ -3398,14 +3509,14 @@ function npValidateField(id){
 // Verificar duplicata por CPF ou SIAPE
 function npCheckDup(){
   const cpf   = document.getElementById("np-cpf")?.value.replace(/\D/g,"");
-  const nome  = document.getElementById("np-nome")?.value.trim().toLowerCase();
+  const nome  = normStr(document.getElementById("np-nome")?.value.trim());
   const warn  = document.getElementById("npDupWarn");
   const msg   = document.getElementById("npDupMsg");
   if(!warn||!msg) return;
   if(!cpf && !nome){ warn.style.display="none"; return; }
   const dup = DB.getAll().find(p=>{
     const pCpf = p.cpf.replace(/\D/g,"");
-    return (cpf.length===11 && pCpf===cpf) || (nome.length>4 && p.nome.toLowerCase()===nome);
+    return (cpf.length===11 && pCpf===cpf) || (nome.length>4 && normStr(p.nome)===normStr(nome));
   });
   if(dup){
     warn.style.display="flex";
@@ -4336,7 +4447,7 @@ function renderPrioStrip(scopeProfs, scopeDemEntries, today){
   // Fechamento da folha: assumimos último dia útil ~ dia 20 do mês.
   // Calculamos dias até o "fim do mês" como aproximação operacional.
   const todayD = new Date();
-  const lastDayMonth = new Date(todayD.getFullYear(), todayD.getMonth()+1, 0);
+  const lastDayMonth = getFolhaDeadline(todayD); // v66: usa data cadastrada ou último dia do mês
   const daysToClose = Math.ceil((lastDayMonth - todayD)/86400000);
 
   // 1. Cards do mês com prazo crítico (≤7 dias para fim do mês, não concluídos)
@@ -4347,15 +4458,31 @@ function renderPrioStrip(scopeProfs, scopeDemEntries, today){
     return c.getMonth()===todayD.getMonth() && c.getFullYear()===todayD.getFullYear() && daysToClose<=10;
   }).length;
 
-  // 2. Profissionais com afastamento de saúde ≥16 dias sem suspensão registrada
+  // 2. v66: Suspensões Pendentes — profissionais com suspensão não registrada:
+  //    a) ocorrência de saúde >= 16 dias sem suspBolsa, OU
+  //    b) soma de dias de saúde (sem suspBolsa) nos últimos 60 dias >= 16
+  const _hoje60 = new Date(); _hoje60.setDate(_hoje60.getDate()-60);
   const sem16d = scopeProfs.filter(p=>{
-    return p.occurrences.some(o=>{
-      if(o.tipoAfasta && /Saúde/i.test(o.tipoAfasta) && o.dataInicio && !o.suspBolsa){
-        const dias = Math.floor((Date.now()-new Date(o.dataInicio+"T00:00:00"))/86400000);
-        return dias >= 16;
-      }
-      return false;
+    const occsaude = p.occurrences.filter(o=>
+      o.tipoAfasta && /Saúde/i.test(o.tipoAfasta) && o.dataInicio && !o.suspBolsa
+    );
+    // a) ocorrência única >= 16 dias
+    const temUnica = occsaude.some(o=>{
+      const dias = Math.floor((Date.now()-new Date(o.dataInicio+"T00:00:00"))/86400000);
+      return dias >= 16;
     });
+    if(temUnica) return true;
+    // b) soma dos dias nos últimos 60 dias >= 16
+    const somaUlt60 = occsaude.reduce((acc,o)=>{
+      const ini = new Date(o.dataInicio+"T00:00:00");
+      if(ini < _hoje60) return acc; // fora da janela de 60d
+      const dias = Math.min(
+        Math.floor((Date.now()-ini)/86400000),
+        o.periodo || Math.floor((Date.now()-ini)/86400000)
+      );
+      return acc + Math.max(0, dias);
+    }, 0);
+    return somaUlt60 >= 16;
   }).length;
 
   // 3. Cards em "Pendências" há mais de 7 dias
@@ -4382,7 +4509,7 @@ function renderPrioStrip(scopeProfs, scopeDemEntries, today){
 
   const items = [
     {lbl:"Vencendo a folha", num:folhaCrit, detail:`${daysToClose}d p/ fim do mês`, action:()=>goToDemandasFolha()},
-    {lbl:"≥16 dias sem suspensão", num:sem16d, detail:"saúde sem registro", action:()=>goToLicSem16()},
+    {lbl:"Suspensões Pendentes", num:sem16d, detail:"≥16d ou soma 60d", action:()=>goToLicSem16()},
     {lbl:"Pendências antigas", num:pendStale, detail:"≥7d em 'Pendências'", action:()=>goToDemandasPendStale()},
     {lbl:"Demandas paradas", num:paradas, detail:"≥15d sem mexer", action:()=>goToDemandasParadas()},
     {lbl:"Sem responsável", num:semResp, detail:"aguardando triagem", action:()=>goToDemandasSemResp()},
@@ -4939,7 +5066,7 @@ function setDashRespFilter(name){
 // Busca rápida
 function dashRenderQuickSearch(q){
   const results = document.getElementById("dashQuickResults");
-  const query = (q||"").trim().toLowerCase();
+  const query = normStr((q||"").trim());
   if(query.length < 2){
     results.classList.remove("open");
     results.innerHTML = "";
@@ -4949,7 +5076,7 @@ function dashRenderQuickSearch(q){
   // Busca por nome, CPF (sem máscara), SIAPE, ou SEI das ocorrências
   const qDigits = query.replace(/\D/g,"");
   const matches = allProfs.filter(p=>{
-    if(p.nome && p.nome.toLowerCase().includes(query)) return true;
+    if(p.nome && normStr(p.nome).includes(query)) return true;
     if(p.cpf && qDigits && p.cpf.replace(/\D/g,"").includes(qDigits)) return true;
     if(p.siape && p.siape.includes(qDigits)) return true;
     // SEI
@@ -5685,7 +5812,10 @@ function demCardHTML(d){
         <span class="dem-id-badge">#${d.id}</span>
         <div class="dem-resp"><div class="dem-dot" style="background:${resp.color}">${resp.ini}</div>${d.responsavel}</div>
       </div>
-      ${d.status==="Concluídos"?`<span style="font-size:0.7143em;color:var(--tl);font-weight:500;display:flex;align-items:center;gap:3px"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="10" height="10"><polyline points="20 6 9 17 4 12"/></svg>Concluído</span>`:""}
+      <div style="display:flex;align-items:center;gap:5px">
+        ${d.status==="Concluídos"?`<span style="font-size:0.7143em;color:var(--tl);font-weight:500;display:flex;align-items:center;gap:3px"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="10" height="10"><polyline points="20 6 9 17 4 12"/></svg>Concluído</span>`:""}
+        <button onclick="event.stopPropagation();demDeleteCard(${d.id})" title="Excluir card" style="background:none;border:none;cursor:pointer;padding:2px 4px;color:var(--tx3);line-height:1;border-radius:4px;display:flex;align-items:center" onmouseover="this.style.color='var(--rd)';this.style.background='var(--rdl)'" onmouseout="this.style.color='var(--tx3)';this.style.background='none'"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>
+      </div>
     </div>
   </div>`;
 }
@@ -5699,6 +5829,29 @@ function demGetSei(d){
     }
   }
   return d.demData?.numProcSusp||d.demData?.numProcReat||d.demData?.numProcRest||d.demData?.procRest||"";
+}
+
+// ── DELETE CARD ──
+async function demDeleteCard(id){
+  const d = DEM_ENTRIES.find(x=>x.id===id);
+  if(!d) return;
+  const nome = d.profNome || "?";
+  const etapa = d.etapa || "?";
+  if(!confirm(`Excluir o card "${etapa}" de ${nome} (#${id})?
+
+Esta ação é irreversível.`)) return;
+  try{
+    const {error} = await _supa.from("dem_cards").delete().eq("id", id);
+    if(error) throw error;
+    const idx = DEM_ENTRIES.findIndex(x=>x.id===id);
+    if(idx>=0) DEM_ENTRIES.splice(idx,1);
+    renderDemKanban();
+    showToast("Card excluído","success");
+    await addLog("Exclusão", d.profId, d.profNome, `Card #${id} (${etapa}) excluído`, d.periodo||"", "—");
+  } catch(e){
+    console.error("[demDeleteCard]",e);
+    showToast("Erro ao excluir card","error");
+  }
 }
 
 // ── SEI MODE ──
@@ -6675,7 +6828,7 @@ function demFilterProfList(q){
   const qLow=(q||"").toLowerCase().trim();
   const filtered=qLow
     ?profs.filter(function(p){
-        var nome=(p.nome||"").toLowerCase();
+        var nome=normStr(p.nome||"");
         var cpf=(p.cpf||"").replace(/\D/g,"");
         var email=(p.email||"").toLowerCase();
         var siape=(p.siape||"").toLowerCase();
@@ -6782,7 +6935,7 @@ function demOpenCreateProf(nome){
 // v64: verificar duplicata de CPF no form de nova demanda
 function cpCheckDup(){
   const cpf=(document.getElementById("cpCpf")?.value||"").replace(/\D/g,"");
-  const nome=(document.getElementById("cpNome")?.value||"").trim().toLowerCase();
+  const nome=normStr((document.getElementById("cpNome")?.value||"").trim());
   const warn=document.getElementById("cpDupWarn");
   const msg=document.getElementById("cpDupMsg");
   if(!warn||!msg) return;
@@ -7302,7 +7455,7 @@ function switchTab(t){
   document.getElementById("tab-"+t)?.classList.add("active");
   document.getElementById("view-"+t)?.classList.add("active");
   if(t==="dash") renderDashboard();
-  if(t==="cfg"){ renderSettingsLog(); renderThemeSwatches(); renderUserOpts(); renderTagCatalog(); }
+  if(t==="cfg"){ renderSettingsLog(); renderThemeSwatches(); renderUserOpts(); renderTagCatalog(); spBaseInit(); renderFolhaDeadlines(); }
   if(t==="dem"){
     initDemandas();
     // v65: reconcilia com banco para pegar mudanças de outros usuários
@@ -7501,6 +7654,7 @@ function openProf(id){
     TEAM.slice(0,n).map(t=>`<div class="collab-dot" style="background:${t.color}" title="${t.name}">${t.ini}</div>`).join("") +
     `</div>`;
   renderCycleSelector();  // v52
+  renderSpLinks();        // v67
   renderProfCard();
   renderOccurrences();
 }
@@ -7542,6 +7696,31 @@ function renderCycleSelector(){
   `;
 }
 
+// v67: renderiza botões SharePoint no topbar
+function renderSpLinks(){
+  const el = document.getElementById("spLinks");
+  if(!el) return;
+  // Usa URL base configurável (salva em localStorage) ou o padrão
+  const base = localStorage.getItem("spBase") || SP_BASE;
+  const prof = currentProf;
+  if(!prof){ el.innerHTML=""; return; }
+  const links = spLinks(prof);
+  if(!links.length){ el.innerHTML=""; return; }
+  const btns = links.map(l=>{
+    const n = spNome(prof.nome);
+    const i = spInicial(prof.nome);
+    const url = `${base}/${l.ano}/${i}/${encodeURIComponent(n)}`;
+    return `<a href="${url}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="font-size:0.75em;padding:3px 9px;text-decoration:none" title="Abrir pasta ${l.ano} no SharePoint">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="11" height="11"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+      ${l.ano}
+    </a>`;
+  }).join("");
+  el.innerHTML = `<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+    <span style="font-size:0.75em;color:var(--tx3);font-weight:500;white-space:nowrap">📁 SharePoint:</span>
+    ${btns}
+  </div>`;
+}
+
 function switchCycle(profId){
   const id = parseInt(profId);
   const fromActive = DB.getById(id);
@@ -7553,6 +7732,7 @@ function switchCycle(profId){
     document.getElementById("topName").textContent = fromArchive.nome + " 📦";
     document.getElementById("topSub").textContent  = `${fromArchive.cpf} · ${fromArchive.programa} ${fromArchive.ciclo} · ${fromArchive.municipio}/${fromArchive.uf} · ARQUIVADO`;
     renderCycleSelector();
+    renderSpLinks();        // v67
     renderProfCard();
     renderOccurrences();
     showToast("Visualizando registro arquivado (somente leitura)", "info");
@@ -9010,7 +9190,17 @@ const TIPOS_AFASTAMENTO = [
 
 // column definitions — no checkbox col; expand + open-case handled separately
 const REL_COLS = [
-  {key:"nome",      label:"Nome",             vis:true,  sortable:true,  fn:p=>p.archived?`${p.nome} <span style="display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:10px;background:#f3f4f6;color:#6b7280;font-size:0.75em;font-weight:500;margin-left:4px">📦 Arquivado</span>`:p.nome},
+  {key:"nome",      label:"Nome",             vis:true,  sortable:true,  fn:p=>{
+    if(p.archived){
+      return `${p.nome} <span style="display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:10px;background:#f3f4f6;color:#6b7280;font-size:0.75em;font-weight:500;margin-left:4px">📦 Arquivado</span>`;
+    }
+    const vigentes = new Set(DB.getCycles().filter(c=>c.status==="vigente").map(c=>c.id));
+    const isAtivo = p.cicloId && vigentes.has(p.cicloId);
+    const badge = isAtivo
+      ? `<span style="display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:10px;background:var(--tll);color:var(--tl);font-size:0.72em;font-weight:600;margin-left:5px">● Ciclo ativo</span>`
+      : "";
+    return `${p.nome}${badge}`;
+  }},
   {key:"cpf",       label:"CPF",              vis:true,  sortable:true,  fn:p=>p.cpf},
   {key:"uf",        label:"UF",               vis:true,  sortable:true,  fn:p=>p.uf},
   {key:"municipio", label:"Município",        vis:true,  sortable:true,  fn:p=>p.municipio},
@@ -9185,7 +9375,7 @@ async function runSearch(){
     ? [...DB.getAll(), ...DB.getArchived()]
     : DB.getAll();
 
-  const nome   = grf("rf-nome").toLowerCase();
+  const nome   = normStr(grf("rf-nome"));
   const prog   = grf("rf-programa");
   const ciclo  = grf("rf-ciclo").toLowerCase();
   const uf     = grf("rf-uf");
@@ -9204,14 +9394,14 @@ async function runSearch(){
 
   relResults = baseProfs.filter(p=>{
     if(nome){
-      const nomeMatch  = p.nome.toLowerCase().includes(nome);
-      const emailMatch = p.email && p.email.toLowerCase().includes(nome);
+      const nomeMatch  = normStr(p.nome).includes(normStr(nome));
+      const emailMatch = p.email && p.email.toLowerCase().includes(nome); // email keeps toLowerCase (no accents)
       const cpfDigits  = nome.replace(/\D/g,"");
       const cpfMatch   = cpfDigits.length > 0 && p.cpf.replace(/\D/g,"").includes(cpfDigits);
       if(!nomeMatch && !emailMatch && !cpfMatch) return false;
     }
     if(prog   && p.programa!==prog) return false;
-    if(ciclo  && !p.ciclo.toLowerCase().includes(ciclo)) return false;
+    if(ciclo  && !normStr(p.ciclo).includes(normStr(ciclo))) return false;
     if(uf     && p.uf!==uf) return false;
     if(resp   && p.responsavel!==resp) return false;
     if(status && p.status!==status) return false;
@@ -9609,7 +9799,7 @@ function renderRelSidebar(){
   const q=(document.getElementById("relSbSearch")?.value||"").toLowerCase();
   // reset limit only when search query changes, not on "Ver mais" re-render
   if(q !== _sbLastQ){ window._sbLimit = 50; _sbLastQ = q; }
-  relSbFiltered = relResults.filter(p=> !q || p.nome.toLowerCase().includes(q) || p.uf.toLowerCase().includes(q));
+  relSbFiltered = relResults.filter(p=> !q || normStr(p.nome).includes(normStr(q)) || p.uf.toLowerCase().includes(q));
 
   // populate active filters — reuse getActiveFilters() which already handles all fields
   const bar  = document.getElementById("relSbFiltersBar");
@@ -10220,7 +10410,7 @@ function exportLog(){
   let rows = DB.logGet().filter(r=>{
     if(fa && r.acao!==fa) return false;
     if(fr && r.usuario!==fr) return false;
-    if(fp && !r.profNome.toLowerCase().includes(fp)) return false;
+    if(fp && !normStr(r.profNome).includes(normStr(fp))) return false;
     if(ld||lt){
       const parts=r.ts.split(" ")[0].split("/");
       const d=parts.length===3?`${parts[2]}-${parts[1]}-${parts[0]}`:"";
@@ -10236,6 +10426,112 @@ function exportLog(){
   showToast(`${rows.length} registros exportados`,"success");
 }
 
+// ── SHAREPOINT CONFIG (v67) ──
+function spBaseInit(){
+  const saved = localStorage.getItem("spBase") || "";
+  const inp = document.getElementById("spBaseInput");
+  if(inp) inp.value = saved;
+  spBasePreview();
+}
+
+function spBaseSave(){
+  const val = (document.getElementById("spBaseInput")?.value||"").trim();
+  if(val) localStorage.setItem("spBase", val);
+  else localStorage.removeItem("spBase");
+  spBasePreview();
+}
+
+function spBasePreview(){
+  const el = document.getElementById("spBasePreview");
+  if(!el) return;
+  const base = localStorage.getItem("spBase") || SP_BASE;
+  el.textContent = `Exemplo: ${base}/2026/M/MARIA%20SILVA`;
+}
+
+function spBaseTest(){
+  const base = localStorage.getItem("spBase") || SP_BASE;
+  window.open(`${base}/2026/M/MARIA%20SILVA`, "_blank");
+}
+
+// ── FOLHA DEADLINES (v66) ──
+let _folhaDeadlines = []; // [{mes:"2026-06", data:"2026-06-20"}]
+
+async function folhaDeadlineLoad(){
+  try{
+    const {data,error} = await _supa.from("folha_deadlines").select("*").order("mes", {ascending:true});
+    if(error) throw error;
+    _folhaDeadlines = (data||[]).map(r=>({id:r.id, mes:r.mes, data:r.data_limite}));
+  } catch(e){ console.warn("[folhaDeadlineLoad]",e); _folhaDeadlines=[]; }
+  renderFolhaDeadlines();
+}
+
+async function folhaDeadlineSave(){
+  const mes  = document.getElementById("fdMesAno")?.value;
+  const data = document.getElementById("fdData")?.value;
+  if(!mes||!data){ showToast("Preencha mês/ano e a data-limite","error"); return; }
+  try{
+    const {data:row,error} = await _supa.from("folha_deadlines")
+      .upsert({mes, data_limite:data},{onConflict:"mes"})
+      .select().single();
+    if(error) throw error;
+    const idx = _folhaDeadlines.findIndex(x=>x.mes===mes);
+    if(idx>=0) _folhaDeadlines[idx]={id:row.id,mes,data:data};
+    else _folhaDeadlines.push({id:row.id,mes,data:data});
+    _folhaDeadlines.sort((a,b)=>a.mes.localeCompare(b.mes));
+    renderFolhaDeadlines();
+    showToast("Data-limite salva","success");
+  } catch(e){ console.error("[folhaDeadlineSave]",e); showToast("Erro ao salvar","error"); }
+}
+
+async function folhaDeadlineDelete(mes){
+  if(!confirm(`Remover data-limite de ${mes}?`)) return;
+  try{
+    const {error} = await _supa.from("folha_deadlines").delete().eq("mes",mes);
+    if(error) throw error;
+    _folhaDeadlines = _folhaDeadlines.filter(x=>x.mes!==mes);
+    renderFolhaDeadlines();
+    showToast("Removida","success");
+  } catch(e){ showToast("Erro ao remover","error"); }
+}
+
+function renderFolhaDeadlines(){
+  const el = document.getElementById("folhaDeadlinesList");
+  if(!el) return;
+  if(!_folhaDeadlines.length){
+    el.innerHTML = `<div style="font-size:0.8571em;color:var(--tx3);padding:6px 0">Nenhuma data cadastrada. O dashboard usará o último dia do mês como padrão.</div>`;
+    return;
+  }
+  const today = tsNow();
+  el.innerHTML = `<table style="border-collapse:collapse;font-size:0.8571em;width:100%;max-width:480px">
+    <thead><tr style="background:var(--sf2)">
+      <th style="padding:5px 10px;text-align:left;color:var(--tx2);font-weight:500">Mês</th>
+      <th style="padding:5px 10px;text-align:left;color:var(--tx2);font-weight:500">Data-limite</th>
+      <th style="padding:5px 10px;text-align:left;color:var(--tx2);font-weight:500">Dias restantes</th>
+      <th style="padding:5px 10px"></th>
+    </tr></thead>
+    <tbody>${_folhaDeadlines.map(r=>{
+      const diff = Math.ceil((new Date(r.data+"T00:00:00")-new Date(today+"T00:00:00"))/86400000);
+      const cor = diff<0?"var(--tx3)":diff<=3?"var(--rd)":diff<=7?"var(--am)":"var(--tl)";
+      const label = diff<0?`<span style="color:var(--tx3)">Encerrado</span>`:diff===0?"<strong>Hoje!</strong>":`<span style="color:${cor};font-weight:600">${diff}d</span>`;
+      return `<tr style="border-top:1px solid var(--br)">
+        <td style="padding:5px 10px">${r.mes}</td>
+        <td style="padding:5px 10px">${fmtI(r.data)}</td>
+        <td style="padding:5px 10px">${label}</td>
+        <td style="padding:5px 10px"><button onclick="folhaDeadlineDelete('${r.mes}')" style="background:none;border:none;cursor:pointer;color:var(--tx3);font-size:0.8571em" title="Remover">✕</button></td>
+      </tr>`;
+    }).join("")}</tbody>
+  </table>`;
+}
+
+// v66: retorna a data-limite do mês vigente (folha_deadlines ou último dia do mês)
+function getFolhaDeadline(refDate){
+  const d = refDate || new Date();
+  const mes = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+  const entry = _folhaDeadlines.find(x=>x.mes===mes);
+  if(entry) return new Date(entry.data+"T00:00:00");
+  return new Date(d.getFullYear(), d.getMonth()+1, 0);
+}
+
 function renderSettingsLog(){
   const fa  = (document.getElementById("slAcao")?.value)||"";
   const fr  = (document.getElementById("slResp")?.value)||"";
@@ -10246,7 +10542,7 @@ function renderSettingsLog(){
   let rows = DB.logGet().filter(r=>{
     if(fa && r.acao!==fa) return false;
     if(fr && r.usuario!==fr) return false;
-    if(fp && !r.profNome.toLowerCase().includes(fp)) return false;
+    if(fp && !normStr(r.profNome).includes(normStr(fp))) return false;
     if(ld || lt){
       // ts format: "DD/MM/YYYY HH:MM" — convert to YYYY-MM-DD for comparison
       const parts = r.ts.split(" ")[0].split("/");
@@ -10788,6 +11084,7 @@ async function initApp(){
   // Inicializa demandas antecipadamente para que DEM_ENTRIES esteja populado
   // quando o dashboard for a primeira aba aberta
   await demBootstrap();
+  await folhaDeadlineLoad(); // v66
 
   // Inicializa escopo do dashboard para evitar erro na primeira renderização
   window.dashScope = isGestor() ? "equipe" : "mine";
