@@ -5265,7 +5265,8 @@ async function demReconcile(){
         }
       } else {
         // Card existe no banco mas não em memória — adiciona
-        const prof = DB.getAll().find(p=>(p.occurrences||[]).some(o=>o.id===c.occ_id));
+        // v65.8: busca em ativos + arquivados (profs fora de ciclo vigente ficam em _archivedProfs)
+        const prof = [...DB.getAll(), ...DB.getArchived()].find(p=>(p.occurrences||[]).some(o=>o.id===c.occ_id));
         if(!prof) return;
         const occ = (prof.occurrences||[]).find(o=>o.id===c.occ_id);
         if(!occ) return;
@@ -5320,7 +5321,8 @@ async function demBootstrap(){
     if(!error && cards?.length){
       // Montar DEM_ENTRIES a partir da tabela
       cards.forEach(c => {
-        const prof = DB.getAll().find(p=>(p.occurrences||[]).some(o=>o.id===c.occ_id));
+        // v65.8: busca em ativos + arquivados (profs fora de ciclo vigente ficam em _archivedProfs)
+        const prof = [...DB.getAll(), ...DB.getArchived()].find(p=>(p.occurrences||[]).some(o=>o.id===c.occ_id));
         if(!prof) return;
         const occ = (prof.occurrences||[]).find(o=>o.id===c.occ_id);
         if(!occ) return;
