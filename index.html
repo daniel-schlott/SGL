@@ -5086,7 +5086,12 @@ async function dbSaveDemCard(d){
   d._saveError = null;
   if(typeof updateCardSaveBadge === "function") updateCardSaveBadge(d.id);
 
-  // Payload dos campos que podem mudar
+  // LOG DE DIAGNÓSTICO — remover após confirmar funcionamento
+  console.log("[dbSaveDemCard] iniciando save:", {
+    profId: d.profId, occId: d.occId, etapa: d.etapa,
+    status: d.status, cardId: d.id
+  });
+
   const payload = {
     status:      d.status,
     responsavel: d.responsavel||"",
@@ -5097,13 +5102,16 @@ async function dbSaveDemCard(d){
   };
 
   try {
-    // 1. Verifica se já existe um registro com essa combinação (occ_id, etapa)
+    // 1. Verifica se já existe registro com (occ_id, etapa)
+    console.log("[dbSaveDemCard] SELECT occ_id=", d.occId, "etapa=", d.etapa);
     const { data: existing, error: selErr } = await _supa
       .from("dem_cards")
       .select("id, created_at")
       .eq("occ_id", d.occId)
       .eq("etapa", d.etapa)
       .maybeSingle();
+
+    console.log("[dbSaveDemCard] SELECT result:", { existing, selErr });
 
     if(selErr){
       console.error("[dbSaveDemCard] select error:", selErr);
@@ -5116,15 +5124,15 @@ async function dbSaveDemCard(d){
 
     let savedRow;
     if(existing){
-      // 2a. JÁ EXISTE — UPDATE por id (sem tocar occ_id/etapa/created_at)
+      console.log("[dbSaveDemCard] UPDATE id=", existing.id);
       const { data, error } = await _supa
         .from("dem_cards")
         .update(payload)
         .eq("id", existing.id)
         .select()
         .single();
+      console.log("[dbSaveDemCard] UPDATE result:", { data, error });
       if(error){
-        console.error("[dbSaveDemCard] update error:", error);
         d._saving = false;
         d._saveError = error.message || error.code || "erro ao atualizar";
         if(typeof updateCardSaveBadge === "function") updateCardSaveBadge(d.id);
@@ -5133,19 +5141,19 @@ async function dbSaveDemCard(d){
       }
       savedRow = data;
     } else {
-      // 2b. NÃO EXISTE — INSERT (banco gera id via sequence e created_at via default)
       const insertRow = {
         occ_id: d.occId,
         etapa:  d.etapa,
         ...payload,
       };
+      console.log("[dbSaveDemCard] INSERT row:", insertRow);
       const { data, error } = await _supa
         .from("dem_cards")
         .insert([insertRow])
         .select()
         .single();
+      console.log("[dbSaveDemCard] INSERT result:", { data, error });
       if(error){
-        console.error("[dbSaveDemCard] insert error:", error);
         d._saving = false;
         d._saveError = error.message || error.code || "erro ao inserir";
         if(typeof updateCardSaveBadge === "function") updateCardSaveBadge(d.id);
@@ -5155,9 +5163,10 @@ async function dbSaveDemCard(d){
       savedRow = data;
     }
 
-    // Atualiza o card em memória com o id real e created_at do banco
     if(savedRow?.id) d.id = savedRow.id;
     if(savedRow?.created_at) d.createdAt = savedRow.created_at;
+
+    console.log("[dbSaveDemCard] sucesso, id final:", d.id);
 
     d._saving = false;
     d._saveError = null;
