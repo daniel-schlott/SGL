@@ -5222,14 +5222,35 @@ function updateCardSaveBadge(cardId){
 // - Adiciona cards criados por outros usuários
 // - Não remove cards locais que estão com _saving=true (em trânsito)
 let _demReconcileInProgress = false;
+
+// v65.8: PostgREST limita default em 1000 linhas. Pagina explicitamente.
+async function _demFetchAllCards(){
+  const PAGE = 1000;
+  let all = [];
+  let from = 0;
+  while(true){
+    const { data, error } = await _supa
+      .from("dem_cards")
+      .select("*")
+      .order("created_at", { ascending: true })
+      .range(from, from + PAGE - 1);
+    if(error){ console.warn("[_demFetchAllCards] erro:", error); break; }
+    if(!data || !data.length) break;
+    all = all.concat(data);
+    if(data.length < PAGE) break;
+    from += PAGE;
+    if(from > 50000){ console.warn("[_demFetchAllCards] limite de segurança 50k atingido"); break; }
+  }
+  return all;
+}
+
 async function demReconcile(){
   if(_demReconcileInProgress) return;
   _demReconcileInProgress = true;
   try {
-    const { data: cards, error } = await _supa
-      .from("dem_cards")
-      .select("*")
-      .order("created_at", { ascending: true });
+    // v65.8: pagina explicitamente — PostgREST limita default em 1000 linhas
+    const cards = await _demFetchAllCards();
+    const error = null;
     if(error){
       console.warn("[demReconcile] non-fatal:", error);
       return;
@@ -5313,10 +5334,9 @@ async function demBootstrap(){
   // Tentar carregar da tabela dem_cards
   let usedTable = false;
   try {
-    const { data: cards, error } = await _supa
-      .from("dem_cards")
-      .select("*")
-      .order("created_at", { ascending: true });
+    // v65.8: pagina explicitamente — PostgREST limita default em 1000 linhas
+    const cards = await _demFetchAllCards();
+    const error = null;
 
     if(!error && cards?.length){
       // Montar DEM_ENTRIES a partir da tabela
