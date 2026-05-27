@@ -7030,9 +7030,30 @@ async function demSave(){
     saveBtn.innerHTML = `<span class="dsb-spinner" style="border-color:#fff;border-top-color:transparent;width:12px;height:12px"></span> Salvando…`;
   }
 
-  // Se a ocorrência é nova (id local temporário), salvar no banco PRIMEIRO
-  // para obter o id real antes de criar o card (FK dem_cards → occurrences)
-  if(occ._isNew || typeof occ.id !== "number" || !occ.id || occ.id > 900000){
+  // Garante que a ocorrência existe no banco ANTES de criar o card (FK dem_cards → occurrences).
+  // v65.8: não confia em heurísticas de id (ranges) — checa diretamente no banco.
+  // Causa: ocorrências do fallback legado podem ter ids "real-parecidos" (ex.: 1851)
+  // que nunca foram persistidos, e o check antigo (occ.id > 900000) não pegava esse caso.
+  let occExistsInDb = false;
+  if(occ._isNew !== true && typeof occ.id === "number" && occ.id > 0){
+    try {
+      const { data: occRow, error: occSelErr } = await _supa
+        .from("occurrences")
+        .select("id")
+        .eq("id", occ.id)
+        .maybeSingle();
+      if(occSelErr){
+        console.warn("[demSave] erro ao verificar ocorrência:", occSelErr);
+      }
+      occExistsInDb = !!occRow;
+    } catch(e){
+      console.warn("[demSave] exceção ao verificar ocorrência:", e);
+    }
+  }
+
+  if(!occExistsInDb){
+    console.log("[demSave] ocorrência não persistida (id atual:", occ.id, ") — salvando antes do card");
+    occ._isNew = true; // força INSERT em saveOcc, mesmo se o id local for "real-parecido"
     const occRes = await DB.saveOcc(prof.id, occ);
     if(!occRes.ok){
       if(saveBtn){ saveBtn.disabled = false; saveBtn.innerHTML = originalHtml; }
