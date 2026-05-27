@@ -282,6 +282,15 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 .tipo-val{font-size:0.7857em;color:var(--tx2);width:28px;text-align:right;font-variant-numeric:tabular-nums}
 
 /* responsivo */
+/* ── DASHBOARD v65: badge de save em cards ── */
+.dem-card{position:relative}
+.dem-card.saving{box-shadow:0 0 0 1px var(--ac) inset}
+.dem-card.save-error{box-shadow:0 0 0 1.5px var(--rd) inset}
+.dem-save-badge{position:absolute;top:6px;right:6px;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;z-index:2;pointer-events:auto}
+.dem-save-badge.saving{background:var(--acl);color:var(--ac)}
+.dem-save-badge.error{background:var(--rdl);color:var(--rd)}
+.dsb-spinner{display:inline-block;width:10px;height:10px;border:1.5px solid var(--ac);border-top-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite}
+
 @media(max-width:900px){
   .dash-hd-v2{flex-direction:column;align-items:stretch}
   .dash-hd-right{justify-content:flex-start}
@@ -428,6 +437,15 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 .occ-incomplete-bar.show{display:flex;margin-bottom:8px}
 .occ-alert{margin:0 16px;padding:6px 10px;border-radius:var(--r);background:var(--aml);border:1px solid #FDE68A;font-size:0.7857em;font-weight:500;color:var(--am);display:none;align-items:center;gap:6px}
 .occ-alert.show{display:flex;margin-bottom:8px}
+
+/* Art. 5º banner — 3 níveis */
+.occ-art5{margin:0 16px 8px;padding:8px 12px;border-radius:var(--r);font-size:0.7857em;display:flex;align-items:flex-start;gap:8px;line-height:1.4}
+.occ-art5 svg{flex-shrink:0;margin-top:2px}
+.occ-art5.crit{background:var(--rdl);border:1px solid #FECACA;color:var(--rd);font-weight:500}
+.occ-art5.warn{background:var(--aml);border:1px solid #FDE68A;color:var(--am);font-weight:500}
+.occ-art5.info{background:var(--bll);border:1px solid #BFDBFE;color:var(--bl);font-weight:500}
+.occ-art5 b{font-weight:600}
+.art5-detail{font-size:0.85em;opacity:.8;font-weight:400;margin-top:2px}
 
 .occ-body{padding:0 16px 16px;display:none}
 .occ-card.open .occ-body{display:block}
@@ -3533,8 +3551,8 @@ let FIXED_TAGS = [
    rule:"Bolsa suspensa é igual a sim",
    sev:"warn",  iconIdx:1, colorId:"amber",  fixed:true},
   {id:"ft-suspbolsa",   name:"Suspensão de bolsa pendente",
-   desc:"Ocorrência ≥ 16 dias sem suspensão de bolsa registrada (exceto INSS) · Some ao preencher 'Suspensão da bolsa' na ocorrência",
-   rule:"Período (dias) maior ou igual a 16  E  Bolsa suspensa é igual a não",
+   desc:"Soma de afastamentos de saúde ≥ 16 dias em janela de 60d (Art. 5º) — bolsa deveria estar suspensa",
+   rule:"Soma de dias de Afastamento por Saúde em 60d ≥ 16  E  Bolsa suspensa é igual a não",
    sev:"crit",  iconIdx:1, colorId:"red",    fixed:true},
   {id:"ft-sobrep",      name:"Sobreposição",
    desc:"Dois ou mais períodos de afastamento se cruzam · Some ao corrigir as datas para não sobrepor",
@@ -3573,6 +3591,87 @@ let FIXED_TAGS = [
 // ── CUSTOM TAGS STORE ──
 let CUSTOM_TAGS = [];
 
+// ── ART. 5º: SOMATÓRIO DE DIAS DE AFASTAMENTO DE SAÚDE EM JANELA DE 60 DIAS ──
+// Regra: a manutenção do pagamento da bolsa-formação é limitada a 15 dias
+// (contínuos ou intercalados) dentro de uma janela rolante de 60 dias.
+// A partir do 16º dia somado na janela, a suspensão da bolsa é obrigatória.
+//
+// A janela é de 60 dias terminando no ÚLTIMO DIA da ocorrência analisada
+// (porque é nesse ponto que o profissional efetivamente atinge o teto).
+//
+// Conta apenas dias de "Afastamento por Saúde" SEM benefício INSS ativo,
+// e apenas a interseção do período de cada ocorrência com a janela.
+function computaArt5(prof, occ){
+  if(!occ.dataInicio) return null;
+  if(occ.tipoAfasta !== "Afastamento por Saúde") return null;
+  const periodoOcc = parseInt(occ.periodo) || 0;
+  if(periodoOcc < 1) return null;
+
+  const ini = new Date(occ.dataInicio + "T00:00:00");
+  if(isNaN(ini)) return null;
+
+  // Último dia da ocorrência (data início + periodo - 1)
+  const fimOcc = new Date(ini);
+  fimOcc.setDate(fimOcc.getDate() + periodoOcc - 1);
+
+  // Janela: 60 dias terminando no último dia da ocorrência
+  const janelaFim = new Date(fimOcc);
+  const janelaIni = new Date(fimOcc);
+  janelaIni.setDate(janelaIni.getDate() - 59);
+
+  // Helper: intersecção de intervalos em DIAS (inclusivo)
+  function intersectDias(aIni, aFim, bIni, bFim){
+    const ms = Math.min(aFim, bFim) - Math.max(aIni, bIni);
+    if(ms < 0) return 0;
+    return Math.floor(ms / 86400000) + 1;
+  }
+
+  let total = 0;
+  const ocorrenciasNaJanela = [];
+
+  (prof.occurrences||[]).forEach(o=>{
+    if(o.tipoAfasta !== "Afastamento por Saúde") return;
+    if(o.inss) return;
+    if(!o.dataInicio || !o.periodo) return;
+
+    const oIni = new Date(o.dataInicio + "T00:00:00");
+    if(isNaN(oIni)) return;
+    const oFim = new Date(oIni);
+    oFim.setDate(oFim.getDate() + parseInt(o.periodo) - 1);
+
+    const dias = intersectDias(oIni, oFim, janelaIni, janelaFim);
+    if(dias > 0){
+      total += dias;
+      ocorrenciasNaJanela.push({occN: o.n, dias, ini: o.dataInicio, periodoOrig: o.periodo});
+    }
+  });
+
+  return {
+    totalDias: total,
+    ocorrenciasNaJanela,
+    janelaInicio: janelaIni.toISOString().slice(0,10),
+    janelaFim:    janelaFim.toISOString().slice(0,10),
+    excedeu: total >= 16,
+    dentroLimite: total <= 15,
+    proximoLimite: total >= 13 && total <= 15,
+  };
+}
+
+// Retorna a "pior" janela do profissional — a ocorrência cuja janela tem maior somatório.
+// Usado para o alerta no card (mostrar o caso mais crítico).
+function piorJanelaArt5(prof){
+  let pior = null;
+  (prof.occurrences||[]).forEach(o=>{
+    if(o.tipoAfasta !== "Afastamento por Saúde") return;
+    const r = computaArt5(prof, o);
+    if(!r) return;
+    if(!pior || r.totalDias > pior.totalDias){
+      pior = {...r, occRef: o};
+    }
+  });
+  return pior;
+}
+
 // ── EVALUATE A SINGLE TAG AGAINST A PROF ──
 function evalTag(tag, p){
   if(tag.fixed){
@@ -3591,10 +3690,16 @@ function evalTag(tag, p){
         return te.toISOString().slice(0,10)<today;
       });
       case "ft-vagapend":   return p.occurrences.some(o=>(o.periodo||0)>=15) && p.status!=="vaga";
-      case "ft-suspbolsa":  return p.occurrences.some(o=>{
-        const isMp=o.tipoAfasta==="Licença Maternidade"||o.tipoAfasta==="Licença Paternidade";
-        return !o.inss && !isMp && (o.periodo||0)>=16 && !o.suspBolsa;
-      });
+      case "ft-suspbolsa":  {
+        // Regra Art. 5º: soma de dias de Afastamento por Saúde em janela de 60d ≥ 16
+        // E a ocorrência crítica (a que causou o estouro) ainda não tem suspensão registrada
+        return p.occurrences.some(o=>{
+          if(o.tipoAfasta !== "Afastamento por Saúde") return false;
+          if(o.suspBolsa) return false; // já tem suspensão registrada
+          const r = computaArt5(p, o);
+          return r && r.excedeu;
+        });
+      }
       case "ft-procfazer":  return p.occurrences.some(o=>[o.numProcSusp,o.numProcReat,o.numProcRest].some(v=>(v||"").toLowerCase().includes("fazer")));
       case "ft-pendencias": return p.occurrences.some(o=>occPendencies(o).length>0);
       case "ft-retornoubs": return p.occurrences.some(o=>{
@@ -3731,10 +3836,18 @@ function buildTagAlerts(){
       let sub = t.desc || "";
       if(t.id==="ft-suspbolsa"){
         const o = p.occurrences.find(o=>{
-          const isMp=o.tipoAfasta==="Licença Maternidade"||o.tipoAfasta==="Licença Paternidade";
-          return !o.inss && !isMp && (o.periodo||0)>=16 && !o.suspBolsa;
+          if(o.tipoAfasta !== "Afastamento por Saúde") return false;
+          if(o.suspBolsa) return false;
+          const r = computaArt5(p, o);
+          return r && r.excedeu;
         });
-        if(o) sub = `Oc.${o.n} · ${o.periodo}d · ${fmtI(o.dataInicio)||"—"}`;
+        if(o){
+          const r = computaArt5(p, o);
+          const detalheOccs = r.ocorrenciasNaJanela.length > 1
+            ? ` (${r.ocorrenciasNaJanela.length} afastamentos)`
+            : "";
+          sub = `${r.totalDias}d em 60d na Oc.${o.n}${detalheOccs} — limite 15d`;
+        }
       } else if(t.id==="ft-reatpend"){
         const o = p.occurrences.find(o=>{ if(!o.suspBolsa||o.dataReat||!o.dataInicio||!o.periodo) return false; const te=new Date(o.dataInicio+"T00:00:00"); te.setDate(te.getDate()+o.periodo-1); return te.toISOString().slice(0,10)<today; });
         if(o) sub = `Oc.${o.n} encerrada com bolsa suspensa`;
@@ -4966,11 +5079,16 @@ const DEM_ETAPAS_MP     = ["Suspensão da Bolsa","Reativação","Restituição a
 // ── DEM_CARDS HELPERS (v64) ──
 // Salva/atualiza um card na tabela dem_cards do Supabase (não-fatal)
 async function dbSaveDemCard(d){
-  const prof = DB.getById(d.profId); if(!prof) return;
+  const prof = DB.getById(d.profId); if(!prof) return false;
 
-  // Se o card ainda tem id numérico local (< 1000000), é novo — vai ser criado no banco
-  const isNewCard = typeof d.id === "number" && d.id < 1000000;
+  // Marca card como "salvando" para badge visual
+  d._saving = true;
+  d._saveError = null;
+  // Atualiza o badge se a função visual estiver disponível
+  if(typeof updateCardSaveBadge === "function") updateCardSaveBadge(d.id);
 
+  // Payload mínimo: só os campos que mudam
+  // created_at e created_by ficam por conta do banco (default 'now()' / '')
   const row = {
     occ_id:      d.occId,
     etapa:       d.etapa,
@@ -4982,44 +5100,36 @@ async function dbSaveDemCard(d){
     updated_by:  ME.name,
   };
 
-  // Se é card novo, deixa o banco gerar o id (sequence)
-  // Se é existente, inclui o id para upsert por PK
-  if(!isNewCard) row.id = d.id;
-
-  // Created_at/created_by: só na primeira vez
-  if(isNewCard){
-    row.created_at = new Date().toISOString();
-    row.created_by = ME.name;
-  } else {
-    row.created_at = d.createdAt || new Date().toISOString();
-  }
-
   try {
-    let savedRow;
-    if(isNewCard){
-      // INSERT novo card — Supabase gera o id via sequence
-      const { data, error } = await _supa.from("dem_cards").insert([row]).select().single();
-      if(error){
-        console.error("[dbSaveDemCard] insert error:", error);
-        showToast("Erro ao salvar demanda: " + (error.message||error.code||""), "error");
-        return;
-      }
-      savedRow = data;
-      // Atualiza o id em memória com o valor real gerado pelo banco
-      if(savedRow?.id) d.id = savedRow.id;
-    } else {
-      // UPSERT card existente por PK (id)
-      const { data, error } = await _supa.from("dem_cards").upsert([row], {onConflict:"id"}).select().single();
-      if(error){
-        console.error("[dbSaveDemCard] upsert error:", error);
-        showToast("Erro ao salvar demanda: " + (error.message||error.code||""), "error");
-        return;
-      }
-      savedRow = data;
+    const { data, error } = await _supa
+      .from("dem_cards")
+      .upsert([row], {onConflict: "occ_id,etapa"})
+      .select()
+      .single();
+
+    if(error){
+      console.error("[dbSaveDemCard] error:", error);
+      d._saving = false;
+      d._saveError = error.message || error.code || "erro desconhecido";
+      if(typeof updateCardSaveBadge === "function") updateCardSaveBadge(d.id);
+      showToast("Erro ao salvar demanda: " + d._saveError, "error");
+      return false;
     }
+
+    if(data?.id) d.id = data.id;
+    if(data?.created_at) d.createdAt = data.created_at;
+
+    d._saving = false;
+    d._saveError = null;
+    if(typeof updateCardSaveBadge === "function") updateCardSaveBadge(d.id);
+    return true;
   } catch(e){
     console.error("[dbSaveDemCard] exception:", e);
-    showToast("Erro ao salvar demanda", "error");
+    d._saving = false;
+    d._saveError = e.message || "erro de conexão";
+    if(typeof updateCardSaveBadge === "function") updateCardSaveBadge(d.id);
+    showToast("Erro ao salvar demanda: " + d._saveError, "error");
+    return false;
   }
 }
 
@@ -5029,6 +5139,120 @@ async function dbDeleteDemCard(occId, etapa){
     const { error } = await _supa.from("dem_cards").delete().eq("occ_id", occId).eq("etapa", etapa);
     if(error) console.warn("[dbDeleteDemCard] non-fatal:", error);
   } catch(e){ console.warn("[dbDeleteDemCard] non-fatal:", e); }
+}
+
+// v65: Atualiza apenas o badge de save de um card específico, sem re-render do kanban inteiro
+function updateCardSaveBadge(cardId){
+  const el = document.querySelector(`[data-dem="${cardId}"]`);
+  if(!el) return;
+  // Remove badge antigo
+  el.querySelectorAll(".dem-save-badge").forEach(b=>b.remove());
+  el.classList.remove("saving","save-error");
+  const d = DEM_ENTRIES.find(x=>x.id===cardId);
+  if(!d) return;
+  if(d._saving){
+    el.classList.add("saving");
+    const b = document.createElement("span");
+    b.className = "dem-save-badge saving";
+    b.title = "Salvando…";
+    b.innerHTML = `<span class="dsb-spinner"></span>`;
+    el.appendChild(b);
+  } else if(d._saveError){
+    el.classList.add("save-error");
+    const b = document.createElement("span");
+    b.className = "dem-save-badge error";
+    b.title = "Erro ao salvar: " + d._saveError + " · clique no card para tentar novamente";
+    b.innerHTML = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" width="10" height="10"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+    el.appendChild(b);
+  }
+}
+
+// v65: Reconciliação ao voltar para a aba Demandas
+// Re-busca da tabela dem_cards e mescla com DEM_ENTRIES em memória.
+// - Atualiza status/dados de cards existentes
+// - Adiciona cards criados por outros usuários
+// - Não remove cards locais que estão com _saving=true (em trânsito)
+let _demReconcileInProgress = false;
+async function demReconcile(){
+  if(_demReconcileInProgress) return;
+  _demReconcileInProgress = true;
+  try {
+    const { data: cards, error } = await _supa
+      .from("dem_cards")
+      .select("*")
+      .order("created_at", { ascending: true });
+    if(error){
+      console.warn("[demReconcile] non-fatal:", error);
+      return;
+    }
+    if(!cards?.length) return;
+
+    const seenKeys = new Set();
+    let changes = 0;
+
+    cards.forEach(c => {
+      const key = `${c.occ_id}__${c.etapa}`;
+      seenKeys.add(key);
+
+      // Acha card local correspondente (pela combinação única)
+      const local = DEM_ENTRIES.find(x => x.occId === c.occ_id && x.etapa === c.etapa);
+
+      if(local){
+        // Se está em meio a um save local, preserva o estado local
+        if(local._saving) return;
+        // Compara updated_at: só sobrescreve se o do banco for mais recente
+        const localUpd = local._lastSync || 0;
+        const remoteUpd = new Date(c.updated_at).getTime();
+        if(remoteUpd > localUpd){
+          local.status      = c.status || local.status;
+          local.responsavel = c.responsavel || local.responsavel;
+          local.periodo     = c.periodo || local.periodo;
+          local.id          = c.id;
+          local.createdAt   = c.created_at;
+          // Mescla dados: c.dados sobrescreve local.demData (banco é fonte da verdade)
+          if(c.dados) local.demData = Object.assign({}, local.demData, c.dados);
+          local._lastSync   = remoteUpd;
+          changes++;
+        }
+      } else {
+        // Card existe no banco mas não em memória — adiciona
+        const prof = DB.getAll().find(p=>(p.occurrences||[]).some(o=>o.id===c.occ_id));
+        if(!prof) return;
+        const occ = (prof.occurrences||[]).find(o=>o.id===c.occ_id);
+        if(!occ) return;
+        const isMP = occ.tipoAfasta==="Licença Maternidade"||occ.tipoAfasta==="Licença Paternidade";
+        const tipo = isMP ? (occ.tipoAfasta==="Licença Maternidade"?"maternidade":"paternidade") : "saude";
+        const base = demInitData(c.etapa, occ, isMP);
+        const demData = Object.assign(base, c.dados||{});
+        DEM_ENTRIES.push({
+          id:          c.id,
+          profId:      prof.id,
+          profNome:    prof.nome,
+          occId:       c.occ_id,
+          occN:        occ.n,
+          tipo,
+          etapa:       c.etapa,
+          status:      c.status||"Novas Demandas",
+          responsavel: c.responsavel||prof.responsavel||ME.name,
+          periodo:     c.periodo||"",
+          seiGrupo:    null,
+          createdAt:   c.created_at,
+          demData,
+          _lastSync:   new Date(c.updated_at).getTime(),
+        });
+        changes++;
+      }
+    });
+
+    // Re-renderiza apenas se houve mudanças e estamos na aba demandas
+    if(changes > 0 && currentTab === "dem"){
+      renderDemKanban();
+    }
+  } catch(e){
+    console.warn("[demReconcile] exception:", e);
+  } finally {
+    _demReconcileInProgress = false;
+  }
 }
 
 // v64: demBootstrap tenta carregar de dem_cards; fallback para lógica legada
@@ -5446,8 +5670,22 @@ async function demPersistCardStatus(d){
   if(!occ) return;
   if(!occ.demCardsStatus) occ.demCardsStatus = {};
   occ.demCardsStatus[d.etapa] = d.status;
-  await DB.saveOcc(prof.id, occ, {skipLock:true});
-  dbSaveDemCard(d); // v64: persiste metadados do card na tabela dem_cards
+  // Marca como salvando (badge no card)
+  d._saving = true; d._saveError = null;
+  updateCardSaveBadge(d.id);
+
+  const [occRes, cardOk] = await Promise.all([
+    DB.saveOcc(prof.id, occ, {skipLock:true}),
+    dbSaveDemCard(d)
+  ]);
+
+  if(occRes && !occRes.ok){
+    d._saving = false;
+    d._saveError = "erro ao salvar ocorrência";
+    updateCardSaveBadge(d.id);
+    showToast("Erro ao salvar status no banco","error");
+  }
+  // dbSaveDemCard já cuida do próprio estado de _saving/_saveError
 }
 
 // ── SEI UNLINK ──
@@ -6091,8 +6329,8 @@ function demFieldChange(id,field,val){
   d[field]=val; renderDemKanban();
 }
 
-function demFieldSave(){
-  const d=DEM_ENTRIES.find(x=>x.id===demEditId); if(!d) return;
+async function demFieldSave(){
+  const d=DEM_ENTRIES.find(x=>x.id===demEditId); if(!d) return false;
   const dd=d.demData;
   const g=id=>{ const el=document.getElementById(id); return el?el.value:""; };
   // Always collect fixed top sections
@@ -6156,21 +6394,28 @@ function demFieldSave(){
       renderDemKanban();
       showToast("Cartão removido", "warn");
     }
-    return;
+    return false;
   }
   // Item 1.1: Verificar se há campos já preenchidos que serão sobrescritos
   if(_syncOcc && demHasConflict(d, _syncOcc)){
-    if(!confirm("Atenção: esta ocorrência já possui dados preenchidos que serão sobrescritos. Deseja continuar?")) return;
+    if(!confirm("Atenção: esta ocorrência já possui dados preenchidos que serão sobrescritos. Deseja continuar?")) return false;
   }
   demSyncToOcc(d);
   // Persistir ocorrência no banco e re-renderizar tela do profissional se estiver aberta
   if(_syncOcc){
-    DB.saveOcc(d.profId, _syncOcc).then(res => {
-      if(!res.ok) showToast("Erro ao salvar ocorrência", "error");
-    });
-    dbSaveDemCard(d); // v64: persiste demData + responsavel na tabela dem_cards
+    // Aguarda os 2 saves em paralelo para dar feedback real ao usuário
+    const [occRes, cardOk] = await Promise.all([
+      DB.saveOcc(d.profId, _syncOcc),
+      dbSaveDemCard(d)
+    ]);
+    if(occRes && !occRes.ok){
+      showToast("Erro ao salvar ocorrência", "error");
+      return false;
+    }
+    if(!cardOk) return false; // toast de erro já foi mostrado em dbSaveDemCard
     if(currentProf && currentProf.id === d.profId) renderOccurrences();
   }
+  return true;
 }
 
 // v64: Conflito real = card tem valor preenchido E ocorrência já tem valor DIFERENTE
@@ -6663,12 +6908,23 @@ function demConfirmNewOcc(){
 }
 
 // ── SAVE ──
-function demSave(){
+async function demSave(){
   if(demEditId){
-    demFieldSave();
-    demCloseDrawer();
-    renderDemKanban();
-    showToast("Demanda salva","success");
+    // Save de card existente (drawer)
+    const saveBtn = document.getElementById("demSaveBtn");
+    const originalHtml = saveBtn ? saveBtn.innerHTML : "";
+    if(saveBtn){
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = `<span class="dsb-spinner" style="border-color:#fff;border-top-color:transparent;width:12px;height:12px"></span> Salvando…`;
+    }
+    const ok = await demFieldSave();
+    if(saveBtn){ saveBtn.disabled = false; saveBtn.innerHTML = originalHtml; }
+    if(ok){
+      demCloseDrawer();
+      renderDemKanban();
+      showToast("Demanda salva", "success");
+    }
+    // Se !ok, o toast de erro já foi mostrado em dbSaveDemCard e o drawer continua aberto
     return;
   }
   if(!demNewProfId||!demNewOccId){showToast("Selecione profissional e ocorrência","warn");return;}
@@ -6694,12 +6950,29 @@ function demSave(){
   const newId = DEM_NEXT_ID++;
   const newCard = {id:newId,profId:prof.id,profNome:prof.nome,occId:occ.id,occN:occ.n,tipo,etapa,status:"Novas Demandas",responsavel:resp,periodo:per,seiGrupo:null,createdAt:new Date().toISOString(),demData:demInitData(etapa,occ,isMP)};
   DEM_ENTRIES.push(newCard);
-  dbSaveDemCard(newCard); // v64: persiste card na tabela dem_cards
+
+  // Botão "Salvando…"
+  const saveBtn = document.getElementById("demSaveBtn");
+  const originalHtml = saveBtn ? saveBtn.innerHTML : "";
+  if(saveBtn){
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = `<span class="dsb-spinner" style="border-color:#fff;border-top-color:transparent;width:12px;height:12px"></span> Salvando…`;
+  }
+
+  const ok = await dbSaveDemCard(newCard);
+
+  if(saveBtn){ saveBtn.disabled = false; saveBtn.innerHTML = originalHtml; }
+
+  if(!ok){
+    // Save falhou — remove o card da memória para evitar fantasma
+    DEM_ENTRIES = DEM_ENTRIES.filter(x=>x.id!==newId);
+    return;
+  }
+
   demCloseDrawer();
   renderDemKanban();
   showToast("Demanda criada","success");
-  // Abrir drawer do card recém-criado
-  setTimeout(()=>demOpenCard(newId), 80);
+  setTimeout(()=>demOpenCard(newCard.id), 80);
 }
 
 // ── FORCE NEW CARD FOR SAME ETAPA (GESTOR ONLY) ──
@@ -6899,7 +7172,11 @@ function switchTab(t){
   document.getElementById("view-"+t)?.classList.add("active");
   if(t==="dash") renderDashboard();
   if(t==="cfg"){ renderSettingsLog(); renderThemeSwatches(); renderUserOpts(); renderTagCatalog(); }
-  if(t==="dem") initDemandas();
+  if(t==="dem"){
+    initDemandas();
+    // v65: reconcilia com banco para pegar mudanças de outros usuários
+    setTimeout(()=>demReconcile(), 200);
+  }
   if(t==="lic"){
     document.getElementById("relScreen1").style.display="flex";
     document.getElementById("relScreen2").style.display="none";
@@ -7502,7 +7779,52 @@ function buildOccCard(occ, idx){
   const pend      = occPendencies(occ);
   const hasPend   = pend.length > 0;
   const isMpOcc = occ.tipoAfasta==="Licença Maternidade"||occ.tipoAfasta==="Licença Paternidade";
-  const alerta16  = !occ.inss && !isMpOcc && occ.periodo>=16;
+
+  // Art. 5º: cálculo da janela de 60 dias para essa ocorrência (só Afastamento por Saúde)
+  const art5 = (currentProf && occ.tipoAfasta === "Afastamento por Saúde")
+    ? computaArt5(currentProf, occ)
+    : null;
+
+  // Banner do Art. 5º — 3 níveis:
+  //   - dentro do limite (≤15) e ≥3d: info azul (apenas se tem múltiplos afastamentos na janela)
+  //   - próximo do limite (13-15): aviso amarelo
+  //   - excedeu (≥16): crítico vermelho
+  let art5Banner = "";
+  if(art5 && !occ.inss){
+    const occsList = art5.ocorrenciasNaJanela.length > 1
+      ? ` · ${art5.ocorrenciasNaJanela.length} afastamentos na janela`
+      : "";
+    if(art5.excedeu){
+      art5Banner = `
+        <div class="occ-art5 crit" id="art5-${occ.id}">
+          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+          <div>
+            <div><b>Art. 5º — Suspensão obrigatória:</b> ${art5.totalDias} dias de afastamento por saúde em 60 dias${occsList}.</div>
+            <div class="art5-detail">Limite: 15 dias contínuos ou intercalados. Janela: ${fmtI(art5.janelaInicio)} a ${fmtI(art5.janelaFim)}.</div>
+          </div>
+        </div>`;
+    } else if(art5.proximoLimite){
+      art5Banner = `
+        <div class="occ-art5 warn" id="art5-${occ.id}">
+          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
+          <div>
+            <div><b>Art. 5º — próximo do limite:</b> ${art5.totalDias} de 15 dias em 60d${occsList}.</div>
+            <div class="art5-detail">Janela: ${fmtI(art5.janelaInicio)} a ${fmtI(art5.janelaFim)}.</div>
+          </div>
+        </div>`;
+    } else if(art5.totalDias >= 3 && art5.ocorrenciasNaJanela.length > 1){
+      // só mostra info se há múltiplas ocorrências (caso contrário não há novidade)
+      art5Banner = `
+        <div class="occ-art5 info" id="art5-${occ.id}">
+          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          <div>
+            <div><b>Art. 5º:</b> ${art5.totalDias} dias em 60d · ${art5.ocorrenciasNaJanela.length} afastamentos na janela.</div>
+            <div class="art5-detail">Limite: 15d. Janela: ${fmtI(art5.janelaInicio)} a ${fmtI(art5.janelaFim)}.</div>
+          </div>
+        </div>`;
+    }
+  }
+
   const hasLembrete = occ.lembrete && occ.lembrete.data;
   const tipoLabel = occ.tipoAfasta || occ.tipoDoc || "Afastamento";
 
@@ -7548,10 +7870,7 @@ function buildOccCard(occ, idx){
       <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
       Campos obrigatórios incompletos: ${pend.join(", ")}
     </div>
-    <div class="occ-alert${alerta16?" show":""}" id="alert-${occ.id}">
-      <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
-      Período ≥ 16 dias — verificar suspensão da bolsa formação
-    </div>
+    ${art5Banner}
     <div class="occ-body" id="body-${occ.id}">${buildFormHTML(occ)}</div>
     <div class="occ-footer" id="foot-${occ.id}">
       <span class="edit-meta">Editado por ${occ.editadoPor} em ${occ.editadoEm}</span>
