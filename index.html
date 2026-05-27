@@ -5084,14 +5084,10 @@ async function dbSaveDemCard(d){
   // Marca card como "salvando" para badge visual
   d._saving = true;
   d._saveError = null;
-  // Atualiza o badge se a função visual estiver disponível
   if(typeof updateCardSaveBadge === "function") updateCardSaveBadge(d.id);
 
-  // Payload mínimo: só os campos que mudam
-  // created_at e created_by ficam por conta do banco (default 'now()' / '')
-  const row = {
-    occ_id:      d.occId,
-    etapa:       d.etapa,
+  // Payload dos campos que podem mudar
+  const payload = {
     status:      d.status,
     responsavel: d.responsavel||"",
     periodo:     d.periodo||"",
@@ -5101,23 +5097,67 @@ async function dbSaveDemCard(d){
   };
 
   try {
-    const { data, error } = await _supa
+    // 1. Verifica se já existe um registro com essa combinação (occ_id, etapa)
+    const { data: existing, error: selErr } = await _supa
       .from("dem_cards")
-      .upsert([row], {onConflict: "occ_id,etapa"})
-      .select()
-      .single();
+      .select("id, created_at")
+      .eq("occ_id", d.occId)
+      .eq("etapa", d.etapa)
+      .maybeSingle();
 
-    if(error){
-      console.error("[dbSaveDemCard] error:", error);
+    if(selErr){
+      console.error("[dbSaveDemCard] select error:", selErr);
       d._saving = false;
-      d._saveError = error.message || error.code || "erro desconhecido";
+      d._saveError = selErr.message || selErr.code || "erro ao consultar";
       if(typeof updateCardSaveBadge === "function") updateCardSaveBadge(d.id);
       showToast("Erro ao salvar demanda: " + d._saveError, "error");
       return false;
     }
 
-    if(data?.id) d.id = data.id;
-    if(data?.created_at) d.createdAt = data.created_at;
+    let savedRow;
+    if(existing){
+      // 2a. JÁ EXISTE — UPDATE por id (sem tocar occ_id/etapa/created_at)
+      const { data, error } = await _supa
+        .from("dem_cards")
+        .update(payload)
+        .eq("id", existing.id)
+        .select()
+        .single();
+      if(error){
+        console.error("[dbSaveDemCard] update error:", error);
+        d._saving = false;
+        d._saveError = error.message || error.code || "erro ao atualizar";
+        if(typeof updateCardSaveBadge === "function") updateCardSaveBadge(d.id);
+        showToast("Erro ao salvar demanda: " + d._saveError, "error");
+        return false;
+      }
+      savedRow = data;
+    } else {
+      // 2b. NÃO EXISTE — INSERT (banco gera id via sequence e created_at via default)
+      const insertRow = {
+        occ_id: d.occId,
+        etapa:  d.etapa,
+        ...payload,
+      };
+      const { data, error } = await _supa
+        .from("dem_cards")
+        .insert([insertRow])
+        .select()
+        .single();
+      if(error){
+        console.error("[dbSaveDemCard] insert error:", error);
+        d._saving = false;
+        d._saveError = error.message || error.code || "erro ao inserir";
+        if(typeof updateCardSaveBadge === "function") updateCardSaveBadge(d.id);
+        showToast("Erro ao salvar demanda: " + d._saveError, "error");
+        return false;
+      }
+      savedRow = data;
+    }
+
+    // Atualiza o card em memória com o id real e created_at do banco
+    if(savedRow?.id) d.id = savedRow.id;
+    if(savedRow?.created_at) d.createdAt = savedRow.created_at;
 
     d._saving = false;
     d._saveError = null;
