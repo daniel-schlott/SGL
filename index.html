@@ -8083,6 +8083,8 @@ function renderOccurrences(){
   grid.appendChild(frag);
   // render timeline block
   renderTimelineBlock();
+  // v67: atualiza botões SharePoint após ocorrências carregadas
+  renderSpLinks();
 }
 
 function buildOccCard(occ, idx){
