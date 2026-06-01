@@ -5543,6 +5543,7 @@ async function demReconcile(){
 
     // Re-renderiza apenas se houve mudanças e estamos na aba demandas
     if(changes > 0 && currentTab === "dem"){
+      _demRebuildSeiGroups();
       renderDemKanban();
     }
   } catch(e){
@@ -5601,6 +5602,8 @@ async function demBootstrap(){
     }
   } catch(e){ console.warn("[demBootstrap] dem_cards unavailable, using legacy:", e); }
 
+  // Reconstrói grupos SEI por nº de processo (fonte única de verdade)
+  _demRebuildSeiGroups();
   if(usedTable) return;
 
   // ── FALLBACK LEGADO: regenera cards a partir das ocorrências ──
@@ -5676,6 +5679,8 @@ async function demBootstrap(){
   } catch(e){
     console.warn("[demBootstrap] migração falhou silenciosamente:", e);
   }
+  // Reconstrói grupos SEI por nº de processo (path legado)
+  _demRebuildSeiGroups();
 }
 
 function demInitData(etapa,occ,isMP){
@@ -6037,7 +6042,26 @@ async function demPersistCardStatus(d){
 }
 
 // ── SEI UNLINK ──
-function demUnlinkSei(id){
+// Extrai o nº SEI do demData de um card, independente do campo usado
+function demGetSeiNum(d){
+  const dd = d.demData || {};
+  return dd.numProcSusp || dd.numProcReat || dd.numProcRest || dd.procRest || "";
+}
+
+// Reconstrói seiGrupo para todos os DEM_ENTRIES agrupando por nº SEI
+// (fonte única de verdade — não depende de coluna no banco)
+function _demRebuildSeiGroups(){
+  const seiMap = {}; // sei -> grpId
+  DEM_ENTRIES.forEach(d => {
+    d.seiGrupo = null;
+    const sei = demGetSeiNum(d);
+    if(!sei) return;
+    if(!seiMap[sei]) seiMap[sei] = DEM_NEXT_GRP++;
+    d.seiGrupo = seiMap[sei];
+  });
+}
+
+async function demUnlinkSei(id){
   const d=DEM_ENTRIES.find(x=>x.id===id); if(!d) return;
   d.seiGrupo=null;
   // clear SEI field in demData
@@ -6049,14 +6073,21 @@ function demUnlinkSei(id){
   demSyncToOcc(d);
   renderDemKanban();
   showToast("SEI desvinculado","success");
+  // Persistir card e ocorrência no banco
+  const occ = demGetOcc(d);
+  await Promise.all([
+    dbSaveDemCard(d),
+    occ ? DB.saveOcc(d.profId, occ) : Promise.resolve(),
+  ]);
 }
 
-function demApplySei(){
+async function demApplySei(){
   const sei=document.getElementById("demSeiInputVal")?.value?.trim();
   if(!sei){showToast("Digite o nº SEI antes de aplicar","warn");return;}
   if(!procVal(sei)){showToast("Formato inválido. Use o padrão SEI: 25043.001234/2025-01","warn");return;}
   if(!demSeiSel.size){showToast("Selecione ao menos um card","warn");return;}
   const grpId=DEM_NEXT_GRP++;
+  const affected=[];
   demSeiSel.forEach(id=>{
     const d=DEM_ENTRIES.find(x=>x.id===id); if(!d) return;
     d.seiGrupo=grpId;
@@ -6066,9 +6097,16 @@ function demApplySei(){
     else if("numProcRest" in dd) dd.numProcRest=sei;
     else if("procRest" in dd) dd.procRest=sei;
     demSyncToOcc(d);
+    affected.push(d);
   });
-  showToast(`SEI ${sei} vinculado a ${demSeiSel.size} card(s)`,"success");
+  const count=affected.length;
+  showToast(`SEI ${sei} vinculado a ${count} card(s)`,"success");
   demToggleSeiMode();
+  // Persistir todos os cards afetados e suas ocorrências no banco
+  await Promise.all(affected.flatMap(d => {
+    const occ = demGetOcc(d);
+    return [dbSaveDemCard(d), occ ? DB.saveOcc(d.profId, occ) : Promise.resolve()];
+  }));
 }
 
 // ── OPEN CARD DRAWER ──
