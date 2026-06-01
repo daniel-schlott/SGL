@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v0.67.0</title>
+<title>Mais Médicos — Gestão de Licenças v0.68.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1741,17 +1741,39 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
     </div>
   </div>
 
-  <!-- Dados de Teste -->
+  <!-- Backup completo (v68) -->
   <div class="sv-section">
     <div class="sv-section-hd">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-      <h2>Dados de teste</h2>
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <h2>Backup completo da base</h2>
     </div>
     <div class="sv-section-body">
       <div class="sv-row" style="border-bottom:none;padding-bottom:0">
         <div class="sv-row-label">
-          Carregar planilha
-          <div class="sv-row-desc">Substitui os dados de exemplo por dados reais. Use o modelo CSV para o formato correto.</div>
+          Exportar todas as tabelas
+          <div class="sv-row-desc">Gera um <b>.xlsx</b> (uma aba por tabela, legível) e um <b>.json</b> (cópia fiel para eventual restauração). Lê os dados direto do servidor no momento do clique.</div>
+        </div>
+        <div class="sv-row-ctrl">
+          <button class="btn btn-primary btn-sm" onclick="backupFull()" title="Baixar backup completo (XLSX + JSON)">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Baixar backup completo
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Carga de dados (v68) -->
+  <div class="sv-section">
+    <div class="sv-section-hd">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      <h2>Carga de dados (planilha)</h2>
+    </div>
+    <div class="sv-section-body">
+      <div class="sv-row" style="border-bottom:none;padding-bottom:0">
+        <div class="sv-row-label">
+          Carregar planilha (.xlsx)
+          <div class="sv-row-desc">Baixe o modelo, preencha e carregue. Somente registros <b>novos</b> são inseridos — profissionais já existentes (mesmo CPF+ciclo) e ocorrências já existentes (mesmo tipo+data de início) são ignorados. Cada ocorrência nova gera um card de demanda.</div>
         </div>
         <div class="sv-row-ctrl">
           <div class="upload-section" id="uploadSection"></div>
@@ -3067,7 +3089,7 @@ function showLoginScreen(reason) {
             <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           </div>
           <div class="auth-title">Gestão de Licenças</div>
-          <div class="auth-sub">Programa Mais Médicos · v0.67.0</div>
+          <div class="auth-sub">Programa Mais Médicos · v0.68.0</div>
         </div>
         <div class="auth-body">
           <div id="authAlert" class="auth-alert"></div>
@@ -9915,6 +9937,109 @@ function doXlsx(rows,filename){
   XLSX.writeFile(wb,filename);
 }
 
+// ── BACKUP COMPLETO (v68) ──────────────────────────────────────────
+// Lê todas as tabelas direto do Supabase (select * paginado) e gera dois
+// arquivos: um .xlsx (1 aba por tabela, legível) e um .json (cópia fiel,
+// preserva JSONB/arrays para eventual restauração).
+const BACKUP_TABLES = [
+  "team","cycles","professionals","occurrences","status_history",
+  "dem_cards","dem_card_events","audit_log","folha_deadlines",
+  "professionals_archive","occurrences_archive",
+];
+
+// Nomes de aba do Excel: máx 31 chars, sem caracteres inválidos
+function _xlsSheetName(name){
+  return String(name).replace(/[\\/?*\[\]:]/g,"_").slice(0,31);
+}
+
+async function _fetchTableAll(table){
+  const PAGE=1000; let from=0; let all=[];
+  while(true){
+    const { data, error } = await _supa.from(table).select("*").range(from, from+PAGE-1);
+    if(error){ console.warn(`[backup] ${table}:`, error.message||error); return { rows: all, error }; }
+    if(!data || !data.length) break;
+    all = all.concat(data);
+    if(data.length < PAGE) break;
+    from += PAGE;
+    if(from > 200000){ console.warn(`[backup] ${table}: limite de segurança atingido`); break; }
+  }
+  return { rows: all, error:null };
+}
+
+// Converte uma lista de objetos em AOA (cabeçalho = união das chaves);
+// objetos/arrays viram JSON string para caber na célula.
+function _rowsToAoa(rows){
+  const keys=[]; const seen=new Set();
+  rows.forEach(r=>Object.keys(r||{}).forEach(k=>{ if(!seen.has(k)){ seen.add(k); keys.push(k); } }));
+  const aoa=[keys];
+  rows.forEach(r=>{
+    aoa.push(keys.map(k=>{
+      const v=r?.[k];
+      if(v==null) return "";
+      if(typeof v==="object") return JSON.stringify(v);
+      return v;
+    }));
+  });
+  return { aoa, keys };
+}
+
+async function backupFull(){
+  if(typeof XLSX==="undefined"){ showToast("Biblioteca XLSX não carregada","warn"); return; }
+  const ovl=document.getElementById("uploadProgress");
+  const bar=document.getElementById("uploadProgressBar");
+  const pct=document.getElementById("uploadProgressPct");
+  const pmsg=document.getElementById("uploadProgressMsg");
+  const pttl=document.getElementById("uploadProgressTitle");
+  if(ovl){ ovl.style.display="flex"; if(pttl) pttl.textContent="Gerando backup completo"; if(bar) bar.style.width="0%"; }
+
+  try{
+    const wb = XLSX.utils.book_new();
+    const jsonOut = {
+      _meta: { sistema:"Gestão de Licenças", versao:"0.68.0", geradoEm:new Date().toISOString(), geradoPor: ME?.name||"", tabelas:{} },
+      dados: {},
+    };
+    let totalRows=0, falhas=0;
+
+    for(let i=0;i<BACKUP_TABLES.length;i++){
+      const table=BACKUP_TABLES[i];
+      if(pmsg) pmsg.textContent=`Lendo ${table}…`;
+      const { rows, error } = await _fetchTableAll(table);
+      if(error) falhas++;
+      jsonOut.dados[table]=rows;
+      jsonOut._meta.tabelas[table]=rows.length;
+      totalRows += rows.length;
+      // Aba do XLSX (sempre cria, mesmo vazia)
+      const { aoa } = rows.length ? _rowsToAoa(rows) : { aoa:[["(sem registros)"]] };
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      XLSX.utils.book_append_sheet(wb, ws, _xlsSheetName(table));
+      const p=Math.round((i+1)/BACKUP_TABLES.length*100);
+      if(bar) bar.style.width=p+"%";
+      if(pct) pct.textContent=p+"%";
+    }
+
+    const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g,"-");
+    // 1) XLSX
+    if(pmsg) pmsg.textContent="Gerando arquivo .xlsx…";
+    XLSX.writeFile(wb, `backup_completo_${ts}.xlsx`);
+    // 2) JSON (download separado)
+    if(pmsg) pmsg.textContent="Gerando arquivo .json…";
+    const blob = new Blob([JSON.stringify(jsonOut, null, 2)], { type:"application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href=url; a.download=`backup_completo_${ts}.json`; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+
+    try{ await addLog("Backup",0,"[Backup completo]",`${BACKUP_TABLES.length} tabelas`,"",`${totalRows} registros`); }catch(_){}
+    if(ovl) ovl.style.display="none";
+    if(falhas>0) showToast(`Backup gerado com ${falhas} tabela(s) inacessível(is). ${totalRows} registros exportados.`,"warn",7000);
+    else showToast(`Backup completo gerado: ${BACKUP_TABLES.length} tabelas, ${totalRows} registros (XLSX + JSON).`,"success",6000);
+  }catch(err){
+    console.error("[backupFull]", err);
+    if(ovl) ovl.style.display="none";
+    showToast("Erro ao gerar backup: "+(err.message||err),"error",6000);
+  }
+}
+
 function toggleExpMenu(id){
   const all=["expListMenu","expDetMenu","expProfMenu"];
   all.forEach(mid=>{ if(mid!==id) document.getElementById(mid)?.classList.remove("open"); });
@@ -10140,18 +10265,14 @@ function renderUploadSection(){
         </div>
       </div>
       <div class="upload-row-actions">
-        <button class="btn btn-ghost btn-sm" onclick="downloadTemplate('${t.id}')" title="Baixar modelo CSV">
+        <button class="btn btn-ghost btn-sm" onclick="downloadTemplate('${t.id}')" title="Baixar modelo XLSX">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Modelo
         </button>
-        ${t.loaded?`<button class="btn btn-ghost btn-sm" onclick="downloadBackup('${t.id}')" title="Baixar backup dos dados carregados">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Backup
-        </button>`:""}
-        <label class="btn btn-primary btn-sm" style="cursor:pointer" title="Carregar CSV">
+        <label class="btn btn-primary btn-sm" style="cursor:pointer" title="Carregar planilha XLSX">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>
           Carregar
-          <input type="file" accept=".csv" class="upload-file-input" onchange="handleUpload('${t.id}',this)">
+          <input type="file" accept=".xlsx,.xls" class="upload-file-input" onchange="handleUpload('${t.id}',this)">
         </label>
         ${t.loaded?`<button class="btn btn-danger btn-sm" onclick="resetUpload('${t.id}')" title="Remover dados carregados">✕</button>`:""}
       </div>
@@ -10160,13 +10281,37 @@ function renderUploadSection(){
 
 function downloadTemplate(typeId){
   const t = UPLOAD_TYPES.find(x=>x.id===typeId);
-  const headers = CSV_HEADERS[typeId];
-  const csv = headers + "\n";
-  const a = document.createElement("a");
-  a.href = "data:text/csv;charset=utf-8,\uFEFF" + encodeURIComponent(csv);
-  a.download = `modelo_${typeId}.csv`;
-  a.click();
-  showToast(`Modelo ${t.label} baixado`, "success");
+  if(typeof XLSX==="undefined"){ showToast("Biblioteca XLSX não carregada","warn"); return; }
+  const headers = CSV_HEADERS[typeId].split(",");
+  // Aba de dados — apenas o cabeçalho (usuário preenche a partir da linha 2)
+  const wsData = XLSX.utils.aoa_to_sheet([headers]);
+  wsData["!cols"] = headers.map(()=>({wch:18}));
+  // Aba de instruções
+  const instr = [
+    ["MODELO DE CARGA — "+t.label],
+    [""],
+    ["Como usar:"],
+    ["1. Preencha a aba \"Dados\" a partir da linha 2 (não altere o cabeçalho da linha 1)."],
+    ["2. Datas no formato AAAA-MM-DD (ex: 2026-05-31)."],
+    ["3. CPF pode ser com ou sem pontuação."],
+    ["4. Campo \"ciclo\" identifica o ciclo do profissional (usado para evitar duplicatas)."],
+    ["5. Salve e carregue o arquivo no botão \"Carregar\"."],
+    [""],
+    ["Regras de deduplicação ao carregar:"],
+    ["- Profissional já existente (mesmo CPF + ciclo) NÃO é duplicado."],
+    ["- Ocorrência já existente (mesmo tipo de afastamento + data de início no mesmo profissional) é ignorada."],
+    ["- Cada ocorrência nova gera automaticamente um card de demanda."],
+    [""],
+    ["Campos (cabeçalho da aba Dados):"],
+    ...headers.map(h=>[h]),
+  ];
+  const wsInfo = XLSX.utils.aoa_to_sheet(instr);
+  wsInfo["!cols"] = [{wch:90}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, wsData, "Dados");
+  XLSX.utils.book_append_sheet(wb, wsInfo, "Instruções");
+  XLSX.writeFile(wb, `modelo_${typeId}.xlsx`);
+  showToast(`Modelo ${t.label} (.xlsx) baixado`, "success");
 }
 
 function downloadBackup(typeId){
@@ -10223,84 +10368,108 @@ function downloadBackup(typeId){
 function handleUpload(typeId, input){
   const file = input.files[0];
   if(!file) return;
-  // Try UTF-8 first (handles UTF-8-sig BOM), fallback to Latin-1 for older Excel exports
+  if(typeof XLSX==="undefined"){ showToast("Biblioteca XLSX não carregada","warn"); input.value=""; return; }
   const reader = new FileReader();
   reader.onload = e=>{
     try{
-      let text = e.target.result;
-      // Strip BOM if present
-      if(text.charCodeAt(0)===0xFEFF) text = text.slice(1);
-      parseAndLoadCSV(typeId, text, file.name);
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:"array"});
+      // Usa a aba "Dados" do modelo; se não houver, usa a primeira aba
+      const sheetName = wb.SheetNames.includes("Dados") ? "Dados" : wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      if(!ws){ showToast("Planilha vazia ou ilegível","warn"); return; }
+      const rawRows = XLSX.utils.sheet_to_json(ws, {defval:"", raw:false});
+      processUploadRows(typeId, rawRows, file.name);
     } catch(err){
-      showToast("Erro ao ler o arquivo: " + err.message, "warn");
+      console.error("[handleUpload]", err);
+      showToast("Erro ao ler a planilha: " + err.message, "warn");
     }
   };
-  reader.readAsText(file, "UTF-8");
+  reader.readAsArrayBuffer(file);
   input.value = "";
 }
 
-function parseAndLoadCSV(typeId, text, fileName){
-  const lines = text.replace(/\r/g,"").split("\n").filter(l=>l.trim());
-  if(lines.length < 2){ showToast("Arquivo sem dados","warn"); return; }
-  const headers = lines[0].split(",").map(h=>h.trim().replace(/^"|"$/g,""));
-  const dataLines = lines.slice(1);
-  const total = dataLines.length;
-  if(!total){ showToast("Arquivo sem dados","warn"); return; }
+// v68: Carga incremental — só insere registros NOVOS.
+//  - Profissional já existe se houver mesmo CPF (só dígitos) + ciclo.
+//  - Ocorrência já existe se, no mesmo profissional, houver mesmo
+//    tipoAfasta + dataInicio.
+//  - Cada ocorrência nova gera um card de demanda de entrada
+//    ("Suspensão" para saúde, "Suspensão da Bolsa" para mat/pat).
+function processUploadRows(typeId, rawRows, fileName){
+  // Normaliza chaves/valores para string aparada e descarta linhas sem nome
+  const rows = (rawRows||[]).map(r=>{
+    const o={};
+    Object.keys(r).forEach(k=>{ o[String(k).trim()] = (r[k]==null?"":String(r[k])).trim(); });
+    return o;
+  }).filter(r=>r.nome);
+  const total = rows.length;
+  if(!total){ showToast("Planilha sem dados","warn"); return; }
 
-  // Parse all rows up front (CPU only, no DOM)
-  const rows = dataLines.map(line=>{
-    const vals = line.match(/(".*?"|[^,]+|(?<=,)(?=,)|^(?=,)|(?<=,)$)/g)||line.split(",");
-    const obj={};
-    headers.forEach((h,i)=>{ obj[h]=(vals[i]||"").replace(/^"|"$/g,"").trim(); });
-    return obj;
-  });
+  const isMP = typeId==="maternidade" || typeId==="paternidade";
+  const expectedTipo = UPLOAD_TYPES.find(t=>t.id===typeId)?.tipoAfasta || "";
 
-  // Show progress overlay — UI won't freeze thanks to chunks
+  // Índice de profissionais existentes por CPF+ciclo
+  const profKey = (cpf, ciclo)=> String(cpf||"").replace(/\D/g,"") + "|" + String(ciclo||"").trim();
+  const existingIdx = new Map();
+  DB.getAll().forEach(p=> existingIdx.set(profKey(p.cpf, p.ciclo), p));
+  const batchIdx = new Map(); // profissionais criados nesta carga
+
+  const newProfs = [];        // profissionais novos (precisam de DB.save)
+  const newOccs  = [];        // {prof, occ} ocorrências novas a persistir
+  let profsNew=0, occsNew=0, occsSkip=0;
+
+  function findOrCreateProf(row){
+    const key = profKey(row.cpf, row.ciclo);
+    if(batchIdx.has(key)) return batchIdx.get(key);
+    if(existingIdx.has(key)) return existingIdx.get(key);
+    const prof = {
+      // sem id — o servidor gera ao salvar (evita colisão com ids reais)
+      nome:row.nome, cpf:row.cpf||"", siape:row.siape||"",
+      programa:row.programa||"PMMB", ciclo:row.ciclo||"",
+      uf:row.uf||"", municipio:row.municipio||"",
+      email:row.email||"", inicioAtiv:row.inicioAtiv||"",
+      metodEntrada:row.metodEntrada||"",
+      status:"analisando", responsavel:ME.name,
+      statusHistory:[{s:"analisando",ts:tsNow()}], occurrences:[],
+      _isNewProf:true,
+    };
+    batchIdx.set(key, prof);
+    newProfs.push(prof);
+    profsNew++;
+    return prof;
+  }
+
+  function occDup(prof, tipoAfasta, dataInicio){
+    return (prof.occurrences||[]).some(o=>
+      (o.tipoAfasta||"")===tipoAfasta && (o.dataInicio||"")===(dataInicio||""));
+  }
+
+  // Overlay de progresso
   const ovl=document.getElementById("uploadProgress");
   const bar=document.getElementById("uploadProgressBar");
   const pct=document.getElementById("uploadProgressPct");
   const pmsg=document.getElementById("uploadProgressMsg");
   const pttl=document.getElementById("uploadProgressTitle");
-  if(ovl){ovl.style.display="flex"; pttl.textContent=`Carregando ${fileName}`; bar.style.width="0%";}
+  if(ovl){ ovl.style.display="flex"; if(pttl) pttl.textContent=`Carregando ${fileName}`; if(bar) bar.style.width="0%"; }
 
   const CHUNK=200;
-  let idx=0, added=0, updated=0;
+  let idx=0;
 
-  async function processChunk(){
+  function processChunk(){
     const end=Math.min(idx+CHUNK,total);
     for(let i=idx;i<end;i++){
       const row=rows[i];
-      if(!row.nome) continue;
-      const cpfKey = row.cpf && row.cpf.replace(/\D/g,"");
-      let prof = DB.getAll().find(p=>(cpfKey && p.cpf.replace(/\D/g,"")===cpfKey) || p.nome===row.nome);
-      if(!prof){
-        prof={
-          id:++nextProfId, nome:row.nome, cpf:row.cpf||"", siape:row.siape||"",
-          programa:row.programa||"PMMB", ciclo:row.ciclo||"",
-          uf:row.uf||"", municipio:row.municipio||"",
-          email:row.email||"", inicioAtiv:row.inicioAtiv||"",
-          metodEntrada:row.metodEntrada||"",
-          status:"analisando", responsavel:ME.name,
-          statusHistory:[{s:"analisando",ts:tsNow()}], occurrences:[],
-          _uploaded: true,
-        };
-        DB._profs.push(prof); // direct push — reindex once at end
-        added++;
-      } else { updated++; }
-      const isMP=typeId==="maternidade"||typeId==="paternidade";
+      const prof = findOrCreateProf(row);
+      const tipoAfasta = ((row.tipoAfasta||"").trim()===expectedTipo) ? row.tipoAfasta.trim() : expectedTipo;
+      const dataInicio = row.dataInicio || row.inicioLic || "";
+      if(occDup(prof, tipoAfasta, dataInicio)){ occsSkip++; continue; }
+
       const occ={
         id:++nextOccId, n:prof.occurrences.length+1,
-        _isNew: true,
-        // typeId is authoritative — only allow row.tipoAfasta if it exactly matches
-        // the expected type to avoid wrong form being shown
-        tipoAfasta:(()=>{
-          const expected = UPLOAD_TYPES.find(t=>t.id===typeId)?.tipoAfasta||"";
-          const fromRow  = (row.tipoAfasta||"").trim();
-          return fromRow===expected ? fromRow : expected;
-        })(),
+        _isNew:true,
+        tipoAfasta,
         tipoDoc:row.tipoDoc||"ATESTADO",
         cids:[row.cid1,row.cid2,row.cid3,row.cid4].filter(Boolean),
-        dataInicio:row.dataInicio||row.inicioLic||"",
+        dataInicio,
         periodo:parseInt(row.periodo)||null,
         inss:row.tipoDoc==="COMUNICADO DE DECISÃO INSS",
         beneficioInssAte:row.beneficioInssAte||"",
@@ -10341,55 +10510,82 @@ function parseAndLoadCSV(typeId, text, fileName){
         editadoPor:ME.name, editadoEm:nowStr()
       };
       prof.occurrences.push(occ);
+      newOccs.push({prof, occ});
+      occsNew++;
     }
     idx=end;
-
-    // update progress bar
     const p=Math.round(idx/total*100);
     if(bar) bar.style.width=p+"%";
     if(pct) pct.textContent=p+"%";
-    if(pmsg) pmsg.textContent=`${idx.toLocaleString("pt-BR")} de ${total.toLocaleString("pt-BR")} registros`;
-
-    if(idx<total){
-      setTimeout(processChunk,0); // yield to browser — keeps UI responsive
-    } else {
-      // Finalise — reindex once, rebuild log index, clear cache
-      DB._reindex();
-      _logIdxRebuild();
-
-      // Persist all to Supabase
-      const ut2=UPLOAD_TYPES.find(t=>t.id===typeId);
-      if(ut2){ut2.loaded=true;ut2.file=fileName;}
-      renderUploadSection();
-      if(pmsg) pmsg.textContent="Salvando no servidor…";
-
-      // Save profs + occs to Supabase (sequential to avoid rate limits)
-      // Coleta erros sem abortar o upload inteiro em uma falha pontual
-      let uploadErrors = 0;
-      for(const prof of DB.getAll()){
-        if(!prof._uploaded) continue; // only newly created
-        const pRes = await DB.save(prof);
-        if(!pRes.ok) { uploadErrors++; continue; }
-        for(const occ of prof.occurrences) {
-          // skipLock: bulk-inserted occs have no prior server state
-          const oRes = await DB.saveOcc(prof.id, occ, {skipLock:true});
-          if(!oRes.ok) uploadErrors++;
-        }
-        delete prof._uploaded;
-      }
-
-      await addLog("Criação",0,`[Upload ${typeId}]`,`${fileName}`,"",`${total} registros`);
-      if(ovl) ovl.style.display="none";
-      renderInitState();
-      if(document.getElementById("view-dash")?.classList.contains("active")) renderDashboard();
-      if(uploadErrors > 0) {
-        showToast(`${total.toLocaleString("pt-BR")} carregados, mas ${uploadErrors} falharam ao salvar`,"warn",6000);
-      } else {
-        showToast(`${total.toLocaleString("pt-BR")} registros carregados (${added} novos, ${updated} atualizados)`,"success");
-      }
-    }
+    if(pmsg) pmsg.textContent=`${idx.toLocaleString("pt-BR")} de ${total.toLocaleString("pt-BR")} linhas analisadas`;
+    if(idx<total){ setTimeout(processChunk,0); }
+    else { finalize(); }
   }
-  setTimeout(processChunk,50); // 50ms delay so overlay renders first
+
+  async function finalize(){
+    if(pmsg) pmsg.textContent="Salvando no servidor…";
+    let errors=0, cardsCreated=0;
+
+    // 1) Profissionais novos primeiro (servidor gera id; _localSave adiciona ao cache)
+    for(const prof of newProfs){
+      const pRes = await DB.save(prof);
+      if(!pRes.ok){ errors++; }
+      delete prof._isNewProf;
+    }
+    // 2) Ocorrências novas + card de demanda de entrada
+    for(const {prof, occ} of newOccs){
+      if(!prof.id){ errors++; continue; } // profissional não salvou
+      const oRes = await DB.saveOcc(prof.id, occ, {skipLock:true});
+      if(!oRes.ok){ errors++; continue; }
+      try{
+        const ok = await genUploadCard(prof, occ, isMP);
+        if(ok) cardsCreated++;
+      }catch(e){ console.warn("[upload card]", e); }
+    }
+
+    DB._reindex();
+    if(typeof _logIdxRebuild==="function") _logIdxRebuild();
+    const ut2=UPLOAD_TYPES.find(t=>t.id===typeId);
+    if(ut2){ ut2.loaded=true; ut2.file=fileName; }
+    renderUploadSection();
+    await addLog("Criação",0,`[Carga ${typeId}]`,fileName,"",`${profsNew} prof novos · ${occsNew} ocorrências novas · ${occsSkip} ignoradas`);
+    if(ovl) ovl.style.display="none";
+    renderInitState();
+    if(document.getElementById("view-dash")?.classList.contains("active")) renderDashboard();
+    if(currentTab==="dem" && typeof renderDemKanban==="function") renderDemKanban();
+
+    const resumo = `${profsNew} prof novos, ${occsNew} ocorrências novas (${cardsCreated} cards), ${occsSkip} ignoradas`;
+    if(errors>0) showToast(`Carga concluída com ${errors} falha(s). ${resumo}`,"warn",7000);
+    else showToast(`Carga concluída — ${resumo}`,"success",6000);
+  }
+
+  setTimeout(processChunk,50); // 50ms para o overlay renderizar antes
+}
+
+// v68: gera e persiste o card de demanda de entrada para uma ocorrência recém-criada
+async function genUploadCard(prof, occ, isMP){
+  const etapa = isMP ? "Suspensão da Bolsa" : "Suspensão";
+  const tipo  = isMP ? (occ.tipoAfasta==="Licença Maternidade"?"maternidade":"paternidade") : "saude";
+  const per = (()=>{
+    if(!occ.dataInicio) return "";
+    const d=new Date(occ.dataInicio+"T00:00:00");
+    return isNaN(d.getTime())?"":d.toLocaleString("pt-BR",{month:"long",year:"numeric"});
+  })();
+  // Não duplica card se já existir localmente (occId+etapa)
+  if(DEM_ENTRIES.some(x=>x.occId===occ.id && x.etapa===etapa)) return false;
+  const d = {
+    id: DEM_NEXT_ID++,
+    profId: prof.id, profNome: prof.nome,
+    occId: occ.id, occN: occ.n,
+    tipo, etapa,
+    status: "Novas Demandas",
+    responsavel: prof.responsavel || ME.name,
+    periodo: per, seiGrupo: null,
+    demData: demInitData(etapa, occ, isMP),
+  };
+  const ok = await dbSaveDemCard(d); // insere em dem_cards e atualiza d.id com id do servidor
+  if(ok){ DEM_ENTRIES.push(d); return true; }
+  return false;
 }
 
 function resetUpload(typeId){
