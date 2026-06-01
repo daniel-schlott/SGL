@@ -13192,7 +13192,7 @@ function ofTabelaSuspensao(cards){
     const d16 = (dia16==="—"?"":dia16).toUpperCase();
     const pags = (card.demData||{}).pagamentos||[];
     const susp = (pags[0]&&pags[0].tipoPag) ? pags[0].tipoPag.toUpperCase() : "INTEGRAL";
-    const anexo = (card.demData||{}).numProcSusp||"";
+    const anexo = ""; // preenchido no SEI
     return `<tr style="background:${idx%2===0?'#fff':'#f9fafb'}">
 ${TD(String(idx+1),'center')}
 ${TD(p.siape||"")}
