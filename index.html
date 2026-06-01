@@ -13098,12 +13098,21 @@ async function ofEditorSave(){
 // ── ENGINE DE SUBSTITUIÇÃO ──────────────────────────────────────────
 function ofEsc(s){ return String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
-function ofBuildContext(d, extra){
+// Retorna todos os cards do mesmo seiGrupo e mesma etapa (inclui o próprio).
+// Se não há seiGrupo, retorna apenas [d].
+function ofGetLinkedCards(d){
+  if(!d.seiGrupo) return [d];
+  return DEM_ENTRIES.filter(x=>x.seiGrupo===d.seiGrupo && x.etapa===d.etapa);
+}
+
+function ofBuildContext(d, extra, linkedCards){
+  const cards = linkedCards || [d]; // todos os vinculados
   const p = DB.getById(d.profId) || {};
   const occ = demGetOcc(d) || {};
   const dd = d.demData || {};
   const {dia16,termino} = (typeof calcDates==="function") ? calcDates(occ) : {dia16:"",termino:""};
   const ctx = {
+    // vars escalares = card de origem (para prose do corpo)
     nome:p.nome||d.profNome||"", cpf:ofCpf(p.cpf), siape:p.siape||"",
     programa:p.programa||"", ciclo:p.ciclo||"", uf:p.uf||"", municipio:p.municipio||"",
     email:p.email||"", responsavel:d.responsavel||p.responsavel||"",
@@ -13120,9 +13129,9 @@ function ofBuildContext(d, extra){
     numero_oficio:"", data_oficio:ofHoje(), mes_folha:""
   };
   Object.assign(ctx, extra||{});
-  // tabelas
-  ctx.TABELA_SUSPENSAO = ofTabelaSuspensao(ctx, occ, d);
-  ctx.TABELA_PAGAMENTOS = ofTabelaPagamentos(dd);
+  // tabelas — passam todos os cards vinculados
+  ctx.TABELA_SUSPENSAO = ofTabelaSuspensao(cards);
+  ctx.TABELA_PAGAMENTOS = ofTabelaPagamentos(cards);
   return ctx;
 }
 
@@ -13132,35 +13141,56 @@ function ofHoje(){
   return `${d.getDate()} de ${meses[d.getMonth()]} de ${d.getFullYear()}`;
 }
 
-function ofTabelaSuspensao(ctx, occ, d){
-  const periodo = (occ.dataInicio && occ.periodo) ? `${fmtI(occ.dataInicio)} a ${ctx.termino}` : "";
-  const dia16 = ctx.dia16 || "";
+// Recebe array de cards; gera uma linha por card
+function ofTabelaSuspensao(cards){
+  const rows = cards.map(card=>{
+    const p = DB.getById(card.profId)||{};
+    const occ = demGetOcc(card)||{};
+    const {dia16,termino} = (typeof calcDates==="function") ? calcDates(occ) : {dia16:"",termino:""};
+    const periodo = (occ.dataInicio && occ.periodo) ? `${fmtI(occ.dataInicio)} a ${termino==="—"?"":termino}` : "";
+    const d16 = dia16==="—"?"":dia16;
+    const susp = (card.demData||{}).tipoPagSusp||"INTEGRAL";
+    return `<tr>
+<td style="padding:4px 6px">${ofEsc(p.siape||"")}</td>
+<td style="padding:4px 6px">${ofEsc(p.nome||card.profNome||"")}</td>
+<td style="padding:4px 6px">${ofEsc(ofCpf(p.cpf))}</td>
+<td style="padding:4px 6px">LICENÇA MÉDICA SUPERIOR A 15 DIAS</td>
+<td style="padding:4px 6px">${ofEsc(periodo)}</td>
+<td style="padding:4px 6px">${ofEsc(d16)}</td>
+<td style="padding:4px 6px">${ofEsc(susp)}</td></tr>`;
+  }).join("");
   return `<table style="border-collapse:collapse;width:100%;font-size:0.82em;margin:8px 0" border="1">
 <thead><tr style="background:#f1f5f5">
 <th style="padding:4px 6px">SIAPE</th><th style="padding:4px 6px">Nome</th><th style="padding:4px 6px">CPF</th>
 <th style="padding:4px 6px">Motivo</th><th style="padding:4px 6px">15 primeiros dias</th>
 <th style="padding:4px 6px">16º dia (INSS)</th><th style="padding:4px 6px">Suspensão</th></tr></thead>
-<tbody><tr>
-<td style="padding:4px 6px">${ofEsc(ctx.siape)}</td><td style="padding:4px 6px">${ofEsc(ctx.nome)}</td>
-<td style="padding:4px 6px">${ofEsc(ctx.cpf)}</td><td style="padding:4px 6px">LICENÇA MÉDICA SUPERIOR A 15 DIAS</td>
-<td style="padding:4px 6px">${ofEsc(periodo)}</td><td style="padding:4px 6px">${ofEsc(dia16)}</td>
-<td style="padding:4px 6px">INTEGRAL</td></tr></tbody></table>`;
+<tbody>${rows}</tbody></table>`;
 }
 
-function ofTabelaPagamentos(dd){
-  const pags = (dd.pagamentos||[]).filter(x=>x && (x.periodo||x.valor||x.mesAno||x.tipoPag));
-  if(!pags.length) return `<p style="font-style:italic;color:#92400e">⚠ Sem pagamentos cadastrados na demanda. Inclua os valores no card antes de gerar, ou complete manualmente.</p>`;
-  const rows = pags.map(x=>`<tr>
+// Recebe array de cards; agrupa por profissional quando há múltiplos
+function ofTabelaPagamentos(cards){
+  const TABLE_STYLE = `border-collapse:collapse;width:100%;font-size:0.82em;margin:8px 0`;
+  const TH = `<thead><tr style="background:#f1f5f5">
+<th style="padding:4px 6px">Tipo</th><th style="padding:4px 6px">Mês/Ano</th>
+<th style="padding:4px 6px">Período</th><th style="padding:4px 6px">Processo</th>
+<th style="padding:4px 6px">Valor</th></tr></thead>`;
+
+  const sections = cards.map(card=>{
+    const p = DB.getById(card.profId)||{};
+    const pags = ((card.demData||{}).pagamentos||[]).filter(x=>x&&(x.periodo||x.valor||x.mesAno||x.tipoPag));
+    const header = cards.length>1
+      ? `<div style="font-weight:600;font-size:0.82em;margin:10px 0 3px">${ofEsc(p.nome||card.profNome||"")} — SIAPE ${ofEsc(p.siape||"")}</div>`
+      : "";
+    if(!pags.length) return header+`<p style="font-style:italic;color:#92400e;font-size:0.82em">⚠ Sem pagamentos cadastrados para este profissional.</p>`;
+    const rows = pags.map(x=>`<tr>
 <td style="padding:4px 6px">${ofEsc(x.tipoPag||"")}</td>
 <td style="padding:4px 6px">${ofEsc(x.mesAno||"")}</td>
 <td style="padding:4px 6px">${ofEsc(x.periodo||"")}</td>
 <td style="padding:4px 6px">${ofEsc(x.proc||"")}</td>
 <td style="padding:4px 6px;text-align:right">${ofEsc(x.valor||"")}</td></tr>`).join("");
-  return `<table style="border-collapse:collapse;width:100%;font-size:0.82em;margin:8px 0" border="1">
-<thead><tr style="background:#f1f5f5">
-<th style="padding:4px 6px">Tipo</th><th style="padding:4px 6px">Mês/Ano</th>
-<th style="padding:4px 6px">Período</th><th style="padding:4px 6px">Processo</th>
-<th style="padding:4px 6px">Valor</th></tr></thead><tbody>${rows}</tbody></table>`;
+    return `${header}<table style="${TABLE_STYLE}" border="1">${TH}<tbody>${rows}</tbody></table>`;
+  }).join("");
+  return sections;
 }
 
 function ofRender(corpo, ctx){
@@ -13175,9 +13205,11 @@ function ofOpenFromCard(){
   if(typeof demEditId==="undefined" || demEditId==null){ showToast("Abra um card de demanda primeiro","warn"); return; }
   const d = DEM_ENTRIES.find(x=>x.id===demEditId); if(!d){ showToast("Card não encontrado","error"); return; }
   _ofGenCardId = d.id;
+  const linked = ofGetLinkedCards(d);
   const matches = OF_TEMPLATES.filter(t=>t.etapa===d.etapa || t.etapa==="Geral");
   document.getElementById("ofGenTitle").textContent = "Gerar ofício";
-  document.getElementById("ofGenSub").textContent = `${d.profNome} · Ocorrência ${d.occN} · ${d.etapa}`;
+  const linkedLabel = linked.length>1 ? ` · <strong>${linked.length} cards vinculados</strong> incluídos` : "";
+  document.getElementById("ofGenSub").innerHTML = `${ofEsc(d.profNome)} · Ocorrência ${d.occN} · ${ofEsc(d.etapa)}${linkedLabel}`;
   const body = document.getElementById("ofGenBody");
   const foot = document.getElementById("ofGenFoot");
   if(!matches.length){
@@ -13187,7 +13219,14 @@ function ofOpenFromCard(){
     return;
   }
   const opts = matches.map(t=>`<option value="${t.id}">${ofEsc(t.nome)}</option>`).join("");
+  // Banner de cards vinculados
+  const linkedBanner = linked.length>1
+    ? `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:8px 12px;font-size:0.8em;color:#166534;margin-bottom:10px">
+        ✓ <strong>${linked.length} profissionais</strong> vinculados neste SEI serão incluídos nas tabelas do ofício:
+        ${linked.map(c=>{ const pr=DB.getById(c.profId)||{}; return `<span style="display:inline-block;background:#dcfce7;border-radius:4px;padding:1px 6px;margin:2px">${ofEsc(pr.nome||c.profNome||"")}</span>`; }).join("")}
+       </div>` : "";
   body.innerHTML = `
+    ${linkedBanner}
     <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px">
       <div class="dem-field" style="flex:1;min-width:200px"><label>Modelo</label>
         <select id="ofGenSelect" onchange="ofGenPreview()">${opts}</select></div>
@@ -13209,11 +13248,12 @@ function ofOpenFromCard(){
 
 function ofGenPreview(){
   const d = DEM_ENTRIES.find(x=>x.id===_ofGenCardId); if(!d) return;
-  const t = OF_TEMPLATES.find(x=>x.id===document.getElementById("ofGenSelect").value); if(!t) return;
+  const t = OF_TEMPLATES.find(x=>x.id===document.getElementById("ofGenSelect")?.value); if(!t) return;
+  const linked = ofGetLinkedCards(d);
   const ctx = ofBuildContext(d, {
     numero_oficio: document.getElementById("ofGenNum").value.trim(),
     mes_folha: document.getElementById("ofGenMes").value.trim()
-  });
+  }, linked);
   document.getElementById("ofGenPreview").innerHTML = ofRender(t.corpo, ctx);
 }
 
