@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v0.68.0</title>
+<title>Mais Médicos — Gestão de Licenças v0.68.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1554,6 +1554,11 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
     Ciclos
   </div>
 
+  <div class="ntab" id="tab-modelos" onclick="switchTab('modelos')">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+    Modelos
+  </div>
+
   <div class="nusr">
     <div class="nusr-pill"><div class="nusr-dot"></div><span id="navUserName">Maria Silva</span></div>
     <button onclick="authLogout()" title="Sair" style="padding:4px 9px;border-radius:var(--r);background:var(--nav-pill-bg);border:1px solid var(--nav-br);color:rgba(255,255,255,.7);font-size:0.7857em;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:5px;transition:background .12s" onmouseover="this.style.background='rgba(255,255,255,.2)'" onmouseout="this.style.background='var(--nav-pill-bg)'">
@@ -1659,6 +1664,9 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
         <div class="dem-dr-head-sub" id="demDrSub"></div>
       </div>
       <div class="dem-dr-actions">
+        <button class="dem-dr-iconbtn" onclick="ofOpenFromCard()" title="Gerar ofício a partir desta demanda">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        </button>
         <button class="dem-dr-iconbtn" onclick="calcOpenModal()" title="Calculadora de Pagamentos/Indevidos">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 7h6M9 12h6M9 17h4"/></svg>
         </button>
@@ -1678,6 +1686,75 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
         Salvar
       </button>
     </div>
+  </div>
+</div>
+
+<!-- ── MODELOS DE OFÍCIO VIEW ── -->
+<div class="view" id="view-modelos">
+  <div class="dem-wrap" style="max-width:1100px;margin:0 auto">
+    <div class="dem-hd">
+      <div>
+        <div class="dem-title">Modelos de ofício</div>
+        <div style="font-size:0.8571em;color:var(--tx3);margin-top:2px">Crie e edite modelos com variáveis. Qualquer usuário pode editar. Os modelos ficam disponíveis no botão "Gerar ofício" do card de demanda.</div>
+      </div>
+      <button class="btn btn-primary" onclick="ofNewTemplate()">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Novo modelo
+      </button>
+    </div>
+    <div id="ofTemplateList" style="display:grid;gap:10px;margin-top:14px"></div>
+  </div>
+</div>
+
+<!-- ── EDITOR DE MODELO (modal) ── -->
+<div class="dem-overlay" id="ofEditorOverlay">
+  <div class="dem-overlay-bg" onclick="ofEditorClose()"></div>
+  <div class="dem-drawer" id="ofEditorDrawer" style="max-width:760px">
+    <div class="dem-dr-head">
+      <div class="dem-dr-head-info">
+        <div class="dem-dr-head-title">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span id="ofEdTitle">Modelo</span>
+        </div>
+        <div class="dem-dr-head-sub">Use variáveis entre chaves duplas. Clique numa variável abaixo para inserir.</div>
+      </div>
+      <div class="dem-dr-actions">
+        <button class="dem-dr-iconbtn" onclick="ofEditorClose()" title="Fechar">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="dem-dr-body" id="ofEdBody"></div>
+    <div class="dem-dr-foot">
+      <button class="btn btn-ghost" onclick="ofEditorClose()">Cancelar</button>
+      <button class="btn btn-primary" onclick="ofEditorSave()">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
+        Salvar modelo
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── GERAR OFÍCIO (modal) ── -->
+<div class="dem-overlay" id="ofGenOverlay">
+  <div class="dem-overlay-bg" onclick="ofGenClose()"></div>
+  <div class="dem-drawer" id="ofGenDrawer" style="max-width:820px">
+    <div class="dem-dr-head">
+      <div class="dem-dr-head-info">
+        <div class="dem-dr-head-title">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span id="ofGenTitle">Gerar ofício</span>
+        </div>
+        <div class="dem-dr-head-sub" id="ofGenSub"></div>
+      </div>
+      <div class="dem-dr-actions">
+        <button class="dem-dr-iconbtn" onclick="ofGenClose()" title="Fechar">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="dem-dr-body" id="ofGenBody"></div>
+    <div class="dem-dr-foot" id="ofGenFoot"></div>
   </div>
 </div>
 
@@ -3089,7 +3166,7 @@ function showLoginScreen(reason) {
             <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           </div>
           <div class="auth-title">Gestão de Licenças</div>
-          <div class="auth-sub">Programa Mais Médicos · v0.68.0</div>
+          <div class="auth-sub">Programa Mais Médicos · v0.68.1</div>
         </div>
         <div class="auth-body">
           <div id="authAlert" class="auth-alert"></div>
@@ -7489,6 +7566,7 @@ function switchTab(t){
   }
   // calc handled by view switch
   if(t==="cycles"){ renderCyclesView(); }
+  if(t==="modelos"){ ofRenderTemplateList(); }
 }
 
 function goBack(){
@@ -9995,7 +10073,7 @@ async function backupFull(){
   try{
     const wb = XLSX.utils.book_new();
     const jsonOut = {
-      _meta: { sistema:"Gestão de Licenças", versao:"0.68.0", geradoEm:new Date().toISOString(), geradoPor: ME?.name||"", tabelas:{} },
+      _meta: { sistema:"Gestão de Licenças", versao:"0.68.1", geradoEm:new Date().toISOString(), geradoPor: ME?.name||"", tabelas:{} },
       dados: {},
     };
     let totalRows=0, falhas=0;
@@ -10233,13 +10311,15 @@ function setFontSize(px, el){
 
 // ── UPLOAD / DATA TEST ──
 const UPLOAD_TYPES = [
-  {id:"saude",      label:"Afastamentos por Saúde",  tipoAfasta:"Afastamento por Saúde",  file:null, loaded:false},
-  {id:"maternidade",label:"Licenças Maternidade",     tipoAfasta:"Licença Maternidade",    file:null, loaded:false},
-  {id:"paternidade",label:"Licenças Paternidade",     tipoAfasta:"Licença Paternidade",    file:null, loaded:false},
+  {id:"professores", label:"Profissionais (cadastro)", tipoAfasta:"",                       file:null, loaded:false},
+  {id:"saude",       label:"Afastamentos por Saúde",   tipoAfasta:"Afastamento por Saúde",  file:null, loaded:false},
+  {id:"maternidade", label:"Licenças Maternidade",      tipoAfasta:"Licença Maternidade",    file:null, loaded:false},
+  {id:"paternidade", label:"Licenças Paternidade",      tipoAfasta:"Licença Paternidade",    file:null, loaded:false},
 ];
 
 // CSV template column definitions per type
 const CSV_HEADERS = {
+  professores:"nome,cpf,siape,programa,ciclo,uf,municipio,email,inicioAtiv,metodEntrada",
   saude:      "nome,cpf,siape,programa,ciclo,uf,municipio,email,inicioAtiv,metodEntrada,dtEntradaNucleo,dtCienciaCoord,metodoEntrada,especEntrada,tipoDoc,tipoAfasta,cid1,cid2,cid3,cid4,dataInicio,periodo,beneficioInssAte,faltasInjust,retornoDias,suspBolsa,tipoPagSusp,folhaCoapeSupsp,numProcSusp,dataReat,tipoPagReat,folhaCoapeReat,numProcReat,tipoRest,periodoRest,numProcRest,periodoPagos,procPagRetro,obs,lembrete_data,lembrete_nota",
   maternidade:"nome,cpf,siape,programa,ciclo,uf,municipio,email,inicioAtiv,metodEntrada,tipoAfasta,statusBolsa,inicioLic,terminoLic,prorrogacao,inicioProrrog,terminoProrrog,retornoUbs,numProcSusp,mesAnoSusp,tipoReat,numProcReat,mesAnoReat,tipoPag,periodoRest,gruDesconto,procRest,mesAnoRest,procPagRetro,periodoPagRetro,procPagExAnter,periodoPagExAnter,procComp120,obs,lembrete_data,lembrete_nota",
   paternidade:"nome,cpf,siape,programa,ciclo,uf,municipio,email,inicioAtiv,metodEntrada,tipoAfasta,statusBolsa,inicioLic,terminoLic,prorrogacao,inicioProrrog,terminoProrrog,retornoUbs,numProcSusp,mesAnoSusp,tipoReat,numProcReat,mesAnoReat,tipoPag,periodoRest,gruDesconto,procRest,mesAnoRest,procPagRetro,periodoPagRetro,procPagExAnter,periodoPagExAnter,obs,lembrete_data,lembrete_nota",
@@ -10298,9 +10378,15 @@ function downloadTemplate(typeId){
     ["5. Salve e carregue o arquivo no botão \"Carregar\"."],
     [""],
     ["Regras de deduplicação ao carregar:"],
+    ["- CPF é obrigatório; linhas sem CPF são ignoradas."],
     ["- Profissional já existente (mesmo CPF + ciclo) NÃO é duplicado."],
-    ["- Ocorrência já existente (mesmo tipo de afastamento + data de início no mesmo profissional) é ignorada."],
-    ["- Cada ocorrência nova gera automaticamente um card de demanda."],
+    ...(typeId==="professores" ? [
+      ["- Esta carga apenas cadastra profissionais (não cria afastamentos)."],
+      ["- O campo \"ciclo\" deve bater com o nome (ou número) de um ciclo cadastrado."],
+    ] : [
+      ["- Ocorrência já existente (mesmo tipo de afastamento + data de início no mesmo profissional) é ignorada."],
+      ["- Cada ocorrência nova gera automaticamente um card de demanda."],
+    ]),
     [""],
     ["Campos (cabeçalho da aba Dados):"],
     ...headers.map(h=>[h]),
@@ -10388,12 +10474,26 @@ function handleUpload(typeId, input){
   input.value = "";
 }
 
+// v68.1: resolve o texto do ciclo da planilha para o cicloId (FK) real.
+// Compara contra o nome do ciclo (principal) e o número (fallback),
+// ignorando acentos/caixa. Retorna null se não encontrar.
+function resolveCicloId(cicloTexto){
+  const raw = String(cicloTexto||"").trim();
+  if(!raw) return null;
+  const t = normStr(raw);
+  const cy = DB.getCycles().find(c=>
+    normStr(c.nome||"")===t || String(c.numero||"").trim()===raw
+  );
+  return cy ? cy.id : null;
+}
+
 // v68: Carga incremental — só insere registros NOVOS.
 //  - Profissional já existe se houver mesmo CPF (só dígitos) + ciclo.
 //  - Ocorrência já existe se, no mesmo profissional, houver mesmo
 //    tipoAfasta + dataInicio.
 //  - Cada ocorrência nova gera um card de demanda de entrada
 //    ("Suspensão" para saúde, "Suspensão da Bolsa" para mat/pat).
+//  - typeId "professores": só cadastra/dedup profissionais, sem ocorrências.
 function processUploadRows(typeId, rawRows, fileName){
   // Normaliza chaves/valores para string aparada e descarta linhas sem nome
   const rows = (rawRows||[]).map(r=>{
@@ -10406,6 +10506,7 @@ function processUploadRows(typeId, rawRows, fileName){
 
   const isMP = typeId==="maternidade" || typeId==="paternidade";
   const expectedTipo = UPLOAD_TYPES.find(t=>t.id===typeId)?.tipoAfasta || "";
+  const profsOnly = typeId==="professores"; // carga de cadastro: não cria ocorrências
 
   // Índice de profissionais existentes por CPF+ciclo
   const profKey = (cpf, ciclo)=> String(cpf||"").replace(/\D/g,"") + "|" + String(ciclo||"").trim();
@@ -10415,16 +10516,17 @@ function processUploadRows(typeId, rawRows, fileName){
 
   const newProfs = [];        // profissionais novos (precisam de DB.save)
   const newOccs  = [];        // {prof, occ} ocorrências novas a persistir
-  let profsNew=0, occsNew=0, occsSkip=0;
+  let profsNew=0, profsExist=0, occsNew=0, occsSkip=0, noCpf=0;
 
   function findOrCreateProf(row){
     const key = profKey(row.cpf, row.ciclo);
     if(batchIdx.has(key)) return batchIdx.get(key);
-    if(existingIdx.has(key)) return existingIdx.get(key);
+    if(existingIdx.has(key)){ if(profsOnly) profsExist++; return existingIdx.get(key); }
     const prof = {
       // sem id — o servidor gera ao salvar (evita colisão com ids reais)
       nome:row.nome, cpf:row.cpf||"", siape:row.siape||"",
       programa:row.programa||"PMMB", ciclo:row.ciclo||"",
+      cicloId: resolveCicloId(row.ciclo),   // v68.1: vincula ao ciclo de verdade
       uf:row.uf||"", municipio:row.municipio||"",
       email:row.email||"", inicioAtiv:row.inicioAtiv||"",
       metodEntrada:row.metodEntrada||"",
@@ -10458,7 +10560,11 @@ function processUploadRows(typeId, rawRows, fileName){
     const end=Math.min(idx+CHUNK,total);
     for(let i=idx;i<end;i++){
       const row=rows[i];
+      // v68.1: CPF é obrigatório — sem ele não há como deduplicar com segurança
+      if(!String(row.cpf||"").replace(/\D/g,"")){ noCpf++; continue; }
       const prof = findOrCreateProf(row);
+      // Carga de cadastro: apenas cria/dedup o profissional, sem ocorrência
+      if(profsOnly) continue;
       const tipoAfasta = ((row.tipoAfasta||"").trim()===expectedTipo) ? row.tipoAfasta.trim() : expectedTipo;
       const dataInicio = row.dataInicio || row.inicioLic || "";
       if(occDup(prof, tipoAfasta, dataInicio)){ occsSkip++; continue; }
@@ -10548,13 +10654,20 @@ function processUploadRows(typeId, rawRows, fileName){
     const ut2=UPLOAD_TYPES.find(t=>t.id===typeId);
     if(ut2){ ut2.loaded=true; ut2.file=fileName; }
     renderUploadSection();
-    await addLog("Criação",0,`[Carga ${typeId}]`,fileName,"",`${profsNew} prof novos · ${occsNew} ocorrências novas · ${occsSkip} ignoradas`);
+    const logDetalhe = profsOnly
+      ? `${profsNew} prof novos · ${profsExist} já existentes · ${noCpf} sem CPF`
+      : `${profsNew} prof novos · ${occsNew} ocorrências novas · ${occsSkip} ignoradas · ${noCpf} sem CPF`;
+    await addLog("Criação",0,`[Carga ${typeId}]`,fileName,"",logDetalhe);
     if(ovl) ovl.style.display="none";
     renderInitState();
     if(document.getElementById("view-dash")?.classList.contains("active")) renderDashboard();
     if(currentTab==="dem" && typeof renderDemKanban==="function") renderDemKanban();
 
-    const resumo = `${profsNew} prof novos, ${occsNew} ocorrências novas (${cardsCreated} cards), ${occsSkip} ignoradas`;
+    const partes = profsOnly
+      ? [`${profsNew} profissionais novos`, `${profsExist} já existentes ignorados`]
+      : [`${profsNew} prof novos`, `${occsNew} ocorrências novas (${cardsCreated} cards)`, `${occsSkip} ignoradas`];
+    if(noCpf>0) partes.push(`${noCpf} sem CPF ignoradas`);
+    const resumo = partes.join(", ");
     if(errors>0) showToast(`Carga concluída com ${errors} falha(s). ${resumo}`,"warn",7000);
     else showToast(`Carga concluída — ${resumo}`,"success",6000);
   }
@@ -11283,6 +11396,7 @@ async function initApp(){
   // quando o dashboard for a primeira aba aberta
   await demBootstrap();
   await folhaDeadlineLoad(); // v66
+  await ofTemplatesLoad();   // v69
 
   // Inicializa escopo do dashboard para evitar erro na primeira renderização
   window.dashScope = isGestor() ? "equipe" : "mine";
@@ -12740,6 +12854,390 @@ function calcCloseFloatModal() {
   if(origCont && wrap) origCont.appendChild(wrap);
   document.body.style.overflow = "";
 }
+</script>
+
+<script>
+// ── v69: MODELOS DE OFÍCIO ──
+// ══════════════════════════════════════════════════════════════════
+// v69: MODELOS DE OFÍCIO + GERAÇÃO A PARTIR DO CARD DE DEMANDA
+// ══════════════════════════════════════════════════════════════════
+// Modelos = texto com variáveis {{var}} + tokens de tabela. Persistência
+// em Supabase (tabela oficio_templates) com fallback para localStorage.
+// O resultado da geração é sempre um rascunho editável (contenteditable),
+// com botões Copiar / Copiar texto / Imprimir.
+
+let OF_TEMPLATES = [];           // [{id, nome, etapa, corpo, updatedAt, updatedBy}]
+let _ofUsingLocal = false;       // true se caiu no fallback localStorage
+let _ofEditId = null;            // id do modelo em edição (null = novo)
+let _ofGenCardId = null;         // card de demanda que originou a geração
+
+// Etapas que um modelo pode atender (espelha DEM_ENTRIES.etapa)
+const OF_ETAPAS = [
+  "Suspensão","Suspensão da Bolsa","Reativação","Restituição",
+  "Restituição ao Erário","Pagamento Retroativo","Carta de Concessão","Geral"
+];
+
+// Catálogo de variáveis exibido no editor (apenas referência visual)
+const OF_VARS = [
+  {grupo:"Profissional", itens:[
+    ["nome","Nome do profissional"],["cpf","CPF"],["siape","SIAPE"],
+    ["programa","Programa (PMMB/PMME)"],["ciclo","Ciclo"],["uf","UF"],
+    ["municipio","Município"],["email","E-mail"],["responsavel","Responsável"]
+  ]},
+  {grupo:"Ocorrência", itens:[
+    ["tipo_afastamento","Tipo de afastamento"],["data_inicio","Data de início da licença"],
+    ["periodo_dias","Período (dias)"],["dia16","16º dia da licença"],
+    ["termino","Término da licença"],["beneficio_inss_ate","Benefício INSS até"],
+    ["data_reativacao","Data de reativação"],["desconto_inicio","Desconto — início"],
+    ["desconto_fim","Desconto — fim"]
+  ]},
+  {grupo:"Processo / Folha", itens:[
+    ["num_proc_susp","Nº processo SEI (suspensão)"],["num_proc_reat","Nº processo SEI (reativação)"],
+    ["num_proc_rest","Nº processo SEI (restituição)"],["etapa","Etapa da demanda"],
+    ["numero_oficio","Nº do ofício (preencher ao gerar)"],["data_oficio","Data do ofício (preencher ao gerar)"],
+    ["mes_folha","Mês/ano da folha (preencher ao gerar)"]
+  ]},
+  {grupo:"Tabelas (inserem blocos prontos)", itens:[
+    ["TABELA_SUSPENSAO","Tabela de suspensão (SIAPE/CPF/períodos)"],
+    ["TABELA_PAGAMENTOS","Tabela de valores (cancelamento/retroativo/desconto)"]
+  ]}
+];
+
+// ── PERSISTÊNCIA ────────────────────────────────────────────────────
+function ofDefaults(){
+  const today = "{{data_oficio}}";
+  const RES = `<p style="margin-left:60px;font-size:0.9em">Resolução nº 472, de 11 de dezembro de 2024</p>
+<p style="margin-left:60px;font-size:0.9em">Art. 2º Constituem condições de afastamento por motivo alheio à vontade do médico e impeditivo do cumprimento de suas obrigações no âmbito do Projeto Mais Médicos para o Brasil, as seguintes situações:</p>
+<p style="margin-left:60px;font-size:0.9em">I - afastamentos com manutenção do pagamento da bolsa-formação:</p>
+<p style="margin-left:60px;font-size:0.9em">a) condições de saúde pessoal do médico participante que gerem incapacidade física ou mental temporária;</p>
+<p style="margin-left:60px;font-size:0.9em">Art. 5º Nas situações de afastamento previstas nas alíneas "a" e "b" do inciso I do art. 2º, as incapacidades descritas deverão ser comprovadas por meio de atestado médico, limitadas, para fins de percepção da bolsa-formação, a até 15 (quinze) dias contínuos ou intercalados em um período de 60 (sessenta) dias contados a partir do primeiro dia de afastamento.</p>
+<p style="margin-left:60px;font-size:0.9em">§ 1º Nos casos da alínea "a" do inciso I do art. 2º, quando o afastamento for superior a 15 (quinze) dias, o médico deverá adotar as devidas medidas para gozo do benefício de seguridade social perante o INSS, sem fazer jus a qualquer complementação de valor de bolsa-formação em relação ao benefício previdenciário.</p>`;
+
+  return [
+    {
+      id:"seed-susp", nome:"Suspensão de bolsa-formação", etapa:"Suspensão",
+      corpo:`<p><strong>OFÍCIO Nº {{numero_oficio}}/CGPP/DEGEPS/SGTES/MS</strong></p>
+<p style="text-align:right">Brasília, {{data_oficio}}.</p>
+<p>À Coordenação de Administração de Pessoas - COAPE/COGEP/SAA/SE/MS</p>
+<p><strong>Assunto:</strong> Suspensão de bolsa-formação dos participantes do Programa Mais Médicos, no SIAPE - Licença Médica.</p>
+<p>1. Trata-se de análise de dados para suspensão da bolsa-formação por motivo de licença médica no SIAPE dos profissionais do Projeto Mais Médicos para o Brasil - PMMB, para a folha do mês de {{mes_folha}}.</p>
+<p>2. Solicita-se a adoção de providências quanto à suspensão das bolsas-formação no SIAPE dos profissionais-bolsistas do PMMB, em razão de licença médica superior a 15 (quinze) dias, de responsabilidade do INSS, em conformidade com o disposto na Resolução nº 472, de 11 de dezembro de 2024.</p>
+<p>3. A referida norma trata do afastamento em que o médico participante, na qualidade de contribuinte individual, deverá adotar as medidas cabíveis junto ao INSS para usufruto dos benefícios de seguridade social a partir do 16º dia.</p>
+${RES}
+<p>4. Assim, segue planilha abaixo com a análise das documentações recebidas, que resultaram na suspensão da bolsa-formação:</p>
+{{TABELA_SUSPENSAO}}
+<p>5. Solicita-se por oportuno, o retorno dos autos a esta CGPP, com extrato do atendimento da demanda, para seguimento do processo.</p>
+<p>Atenciosamente,</p>`
+    },
+    {
+      id:"seed-reat", nome:"Cancelamento de suspensão + pagamento retroativo", etapa:"Reativação",
+      corpo:`<p><strong>OFÍCIO Nº {{numero_oficio}}/CGPP/DEGEPS/SGTES/MS</strong></p>
+<p style="text-align:right">Brasília, {{data_oficio}}.</p>
+<p>À Coordenação de Administração de Pessoas - COAPE/COGEP/SAA/SE/MS</p>
+<p><strong>Assunto:</strong> Cancelamento de Suspensão e Pagamento Retroativo de bolsa-formação no SIAPE - Licença Médica.</p>
+<p>1. Solicita-se a adoção das devidas providências quanto ao cancelamento da suspensão e ao pagamento retroativo da Bolsa-Formação no SIAPE, referentes ao(à) profissional {{nome}}, vinculado(a) ao Projeto Mais Médicos.</p>
+<p>2. A bolsa-formação foi suspensa em decorrência de afastamento por licença médica superior a 15 (quinze) dias, situação tratada junto ao INSS.</p>
+${RES}
+<p>3. O(A) profissional retornou às atividades em {{data_reativacao}} e está exercendo normalmente suas funções; portanto, a bolsa-formação deverá ser reativada.</p>
+<p>4. Segue, abaixo, a discriminação dos períodos e dos valores referentes ao cancelamento da suspensão e ao pagamento retroativo:</p>
+{{TABELA_PAGAMENTOS}}
+<p>5. Solicita-se por oportuno, o retorno dos autos a esta CGPP, com extrato do atendimento da demanda, para seguimento do processo.</p>
+<p>Atenciosamente,</p>`
+    },
+    {
+      id:"seed-rest", nome:"Reativação com restituição (rascunho — completar análise)", etapa:"Restituição",
+      corpo:`<p><strong>OFÍCIO Nº {{numero_oficio}}/CGPP/DEGEPS/SGTES/MS</strong></p>
+<p style="text-align:right">Brasília, {{data_oficio}}.</p>
+<p>À Coordenação de Administração de Pessoas - COAPE/COGEP/SAA/SE/MS</p>
+<p><strong>Assunto:</strong> Cancelamento de Suspensão, Desconto e Pagamento Retroativo de bolsa-formação no SIAPE - Licença Médica.</p>
+<p>1. Solicita-se a adoção das devidas providências quanto ao cancelamento da suspensão, desconto e pagamento retroativo da Bolsa-Formação no SIAPE, referentes ao(à) profissional {{nome}}.</p>
+<p>2. Informa-se a necessidade de processar: a) cancelamento da suspensão; b) desconto relativo ao período de licença pago indevidamente; c) pagamento retroativo correspondente às atividades de ensino-serviço.</p>
+${RES}
+<p>3. Segue a documentação referente a {{nome}}, relativa ao período da licença médica, com base na qual foi realizada a análise de pagamento.</p>
+<p style="background:#fff7ed;border-left:3px solid #ea580c;padding:8px 12px;font-style:italic">⚠ COMPLETAR: inserir aqui a tabela de análise período-a-período (dias trabalhados conforme folha de ponto, finais de semana, dias de estudo) e a fundamentação dos parágrafos 6.1 a 6.5, conforme o caso concreto.</p>
+<p>4. Segue, abaixo, a discriminação dos períodos e valores referentes ao cancelamento, desconto e pagamento retroativo:</p>
+{{TABELA_PAGAMENTOS}}
+<p>5. Solicita-se por oportuno, o retorno dos autos a esta CGPP, com extrato do atendimento da demanda, para seguimento do processo.</p>
+<p>Atenciosamente,</p>`
+    }
+  ];
+}
+
+async function ofTemplatesLoad(){
+  try{
+    const {data,error} = await _supa.from("oficio_templates").select("*").order("nome",{ascending:true});
+    if(error) throw error;
+    _ofUsingLocal = false;
+    OF_TEMPLATES = (data||[]).map(r=>({id:String(r.id),nome:r.nome,etapa:r.etapa,corpo:r.corpo,updatedAt:r.updated_at,updatedBy:r.updated_by}));
+    if(!OF_TEMPLATES.length){
+      // tabela existe mas vazia: semeia os modelos padrão no banco
+      for(const t of ofDefaults()){ await ofTemplateUpsert(t,true); }
+    }
+  } catch(e){
+    console.warn("[ofTemplatesLoad] usando localStorage:",e?.message||e);
+    _ofUsingLocal = true;
+    try{ OF_TEMPLATES = JSON.parse(localStorage.getItem("ofTemplates")||"[]"); }catch(_){ OF_TEMPLATES=[]; }
+    if(!OF_TEMPLATES.length){ OF_TEMPLATES = ofDefaults(); ofTemplatesPersistLocal(); }
+  }
+}
+
+function ofTemplatesPersistLocal(){
+  try{ localStorage.setItem("ofTemplates", JSON.stringify(OF_TEMPLATES)); }catch(_){}
+}
+
+async function ofTemplateUpsert(t, silent){
+  // grava em memória
+  const idx = OF_TEMPLATES.findIndex(x=>x.id===t.id);
+  if(idx>=0) OF_TEMPLATES[idx]=t; else OF_TEMPLATES.push(t);
+  if(_ofUsingLocal){ ofTemplatesPersistLocal(); return; }
+  try{
+    const who = (typeof currentUser!=="undefined" && currentUser?.name) ? currentUser.name : (document.getElementById("navUserName")?.textContent||"");
+    const payload = {nome:t.nome, etapa:t.etapa, corpo:t.corpo, updated_by:who};
+    // seeds usam id textual; deixe o banco gerar id real
+    if(t.id && !String(t.id).startsWith("seed-")) payload.id = t.id;
+    const {data:row,error} = await _supa.from("oficio_templates").upsert(payload).select().single();
+    if(error) throw error;
+    if(row){ t.id=String(row.id); const i=OF_TEMPLATES.findIndex(x=>x===t); if(i>=0) OF_TEMPLATES[i]=t; }
+  }catch(e){
+    console.warn("[ofTemplateUpsert]",e); _ofUsingLocal=true; ofTemplatesPersistLocal();
+    if(!silent) showToast("Salvo localmente (tabela oficio_templates indisponível)","warn");
+  }
+}
+
+async function ofTemplateDelete(id){
+  if(!confirm("Excluir este modelo?")) return;
+  OF_TEMPLATES = OF_TEMPLATES.filter(x=>x.id!==id);
+  if(_ofUsingLocal){ ofTemplatesPersistLocal(); }
+  else { try{ await _supa.from("oficio_templates").delete().eq("id",id); }catch(e){ console.warn(e); } }
+  ofRenderTemplateList();
+  showToast("Modelo excluído","success");
+}
+
+// ── LISTA DE MODELOS (aba Modelos) ──────────────────────────────────
+function ofRenderTemplateList(){
+  const el = document.getElementById("ofTemplateList"); if(!el) return;
+  if(_ofUsingLocal){
+    el.innerHTML = `<div style="background:#fff7ed;border:1px solid #fdba74;color:#9a3412;padding:8px 12px;border-radius:8px;font-size:0.8571em">
+      ⚠ Modelos sendo salvos apenas neste navegador. Para compartilhar entre usuários, crie a tabela <code>oficio_templates</code> no Supabase (DDL fornecido na documentação).</div>`;
+  } else el.innerHTML = "";
+  if(!OF_TEMPLATES.length){
+    el.innerHTML += `<div style="font-size:0.8571em;color:var(--tx3);padding:14px 0">Nenhum modelo. Clique em "Novo modelo".</div>`;
+    return;
+  }
+  OF_TEMPLATES.slice().sort((a,b)=>a.nome.localeCompare(b.nome)).forEach(t=>{
+    const card=document.createElement("div");
+    card.style.cssText="background:var(--sf);border:1px solid var(--br);border-radius:10px;padding:14px 16px;display:flex;align-items:center;gap:14px";
+    card.innerHTML=`
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;color:var(--tx1)">${ofEsc(t.nome)}</div>
+        <div style="font-size:0.7857em;color:var(--tx3);margin-top:2px">Etapa: ${ofEsc(t.etapa)}${t.updatedBy?` · editado por ${ofEsc(t.updatedBy)}`:""}</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="ofEditTemplate('${t.id}')" style="font-size:0.8em">Editar</button>
+      <button class="btn btn-ghost btn-sm" onclick="ofDuplicateTemplate('${t.id}')" style="font-size:0.8em">Duplicar</button>
+      <button class="btn btn-ghost btn-sm" onclick="ofTemplateDelete('${t.id}')" style="font-size:0.8em;color:var(--rd)">Excluir</button>`;
+    el.appendChild(card);
+  });
+}
+
+// ── EDITOR DE MODELO ────────────────────────────────────────────────
+function ofNewTemplate(){ _ofEditId=null; ofEditorRender({id:null,nome:"",etapa:"Geral",corpo:""}); }
+function ofEditTemplate(id){ const t=OF_TEMPLATES.find(x=>x.id===id); if(!t)return; _ofEditId=id; ofEditorRender(t); }
+function ofDuplicateTemplate(id){
+  const t=OF_TEMPLATES.find(x=>x.id===id); if(!t)return;
+  _ofEditId=null; ofEditorRender({id:null,nome:t.nome+" (cópia)",etapa:t.etapa,corpo:t.corpo});
+}
+
+function ofEditorRender(t){
+  document.getElementById("ofEdTitle").textContent = t.id ? "Editar modelo" : "Novo modelo";
+  const etapaOpts = OF_ETAPAS.map(e=>`<option${t.etapa===e?" selected":""}>${e}</option>`).join("");
+  const varsHtml = OF_VARS.map(g=>`
+    <div style="margin-bottom:8px">
+      <div style="font-size:0.7143em;text-transform:uppercase;letter-spacing:.04em;color:var(--tx3);margin-bottom:4px">${g.grupo}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">
+        ${g.itens.map(([k,desc])=>`<button type="button" title="${ofEsc(desc)}" onclick="ofInsertVar('${k}')" style="font-family:var(--mono,monospace);font-size:0.75em;background:var(--sf2);border:1px solid var(--br);border-radius:6px;padding:2px 7px;cursor:pointer;color:var(--tx2)">{{${k}}}</button>`).join("")}
+      </div>
+    </div>`).join("");
+  document.getElementById("ofEdBody").innerHTML=`
+    <div class="dem-field" style="margin-bottom:10px"><label>Nome do modelo</label>
+      <input type="text" id="ofEdNome" value="${ofEsc(t.nome)}" placeholder="ex: Suspensão de bolsa-formação"></div>
+    <div class="dem-field" style="margin-bottom:14px"><label>Etapa vinculada</label>
+      <select id="ofEdEtapa">${etapaOpts}</select>
+      <div style="font-size:0.75em;color:var(--tx3);margin-top:3px">O modelo aparece no botão "Gerar ofício" dos cards desta etapa. "Geral" aparece em todos.</div></div>
+    <div class="dem-field" style="margin-bottom:10px"><label>Corpo do ofício</label>
+      <div style="font-size:0.75em;color:var(--tx3);margin-bottom:5px">Variáveis disponíveis (clique para inserir no ponto do cursor):</div>
+      ${varsHtml}
+      <textarea id="ofEdCorpo" style="width:100%;min-height:280px;font-family:var(--mono,monospace);font-size:0.82em;line-height:1.5;padding:10px;border:1px solid var(--br);border-radius:8px;resize:vertical;background:var(--bg);color:var(--tx1)" spellcheck="false">${ofEsc(t.corpo)}</textarea>
+    </div>`;
+  document.getElementById("ofEditorOverlay").classList.add("open");
+}
+
+function ofInsertVar(key){
+  const ta=document.getElementById("ofEdCorpo"); if(!ta)return;
+  const tok = `{{${key}}}`;
+  const s=ta.selectionStart??ta.value.length, e=ta.selectionEnd??ta.value.length;
+  ta.value = ta.value.slice(0,s)+tok+ta.value.slice(e);
+  ta.focus(); ta.selectionStart=ta.selectionEnd=s+tok.length;
+}
+
+function ofEditorClose(){ document.getElementById("ofEditorOverlay").classList.remove("open"); }
+
+async function ofEditorSave(){
+  const nome=document.getElementById("ofEdNome").value.trim();
+  const etapa=document.getElementById("ofEdEtapa").value;
+  const corpo=document.getElementById("ofEdCorpo").value;
+  if(!nome){ showToast("Informe o nome do modelo","error"); return; }
+  const t = _ofEditId ? OF_TEMPLATES.find(x=>x.id===_ofEditId) : {id:null};
+  const obj = {id: t?.id||null, nome, etapa, corpo};
+  if(!obj.id) obj.id = "tmp-"+Date.now();
+  await ofTemplateUpsert(obj);
+  ofEditorClose();
+  ofRenderTemplateList();
+  showToast("Modelo salvo","success");
+}
+
+// ── ENGINE DE SUBSTITUIÇÃO ──────────────────────────────────────────
+function ofEsc(s){ return String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+function ofBuildContext(d, extra){
+  const p = DB.getById(d.profId) || {};
+  const occ = demGetOcc(d) || {};
+  const dd = d.demData || {};
+  const {dia16,termino} = (typeof calcDates==="function") ? calcDates(occ) : {dia16:"",termino:""};
+  const ctx = {
+    nome:p.nome||d.profNome||"", cpf:ofCpf(p.cpf), siape:p.siape||"",
+    programa:p.programa||"", ciclo:p.ciclo||"", uf:p.uf||"", municipio:p.municipio||"",
+    email:p.email||"", responsavel:d.responsavel||p.responsavel||"",
+    etapa:d.etapa||"", tipo_afastamento:occ.tipoAfasta||occ.tipoDoc||"",
+    data_inicio:fmtI(occ.dataInicio)||"", periodo_dias:(occ.periodo||"")+"",
+    dia16:dia16==="—"?"":dia16, termino:termino==="—"?"":termino,
+    beneficio_inss_ate:fmtI(occ.beneficioInssAte||dd.inssAte)||"",
+    data_reativacao:fmtI(dd.dataReatIni||occ.dataReat)||"",
+    desconto_inicio:fmtI(dd.descontoIni||occ.descontoIni)||"",
+    desconto_fim:fmtI(dd.descontoFim||occ.descontoFim)||"",
+    num_proc_susp:dd.numProcSusp||occ.numProcSusp||"",
+    num_proc_reat:dd.numProcReat||occ.numProcReat||"",
+    num_proc_rest:dd.numProcRest||occ.numProcRest||"",
+    numero_oficio:"", data_oficio:ofHoje(), mes_folha:""
+  };
+  Object.assign(ctx, extra||{});
+  // tabelas
+  ctx.TABELA_SUSPENSAO = ofTabelaSuspensao(ctx, occ, d);
+  ctx.TABELA_PAGAMENTOS = ofTabelaPagamentos(dd);
+  return ctx;
+}
+
+function ofCpf(c){ if(!c)return""; const d=String(c).replace(/\D/g,"").padStart(11,"0"); return d.length===11?`${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`:c; }
+function ofHoje(){
+  const d=new Date(); const meses=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+  return `${d.getDate()} de ${meses[d.getMonth()]} de ${d.getFullYear()}`;
+}
+
+function ofTabelaSuspensao(ctx, occ, d){
+  const periodo = (occ.dataInicio && occ.periodo) ? `${fmtI(occ.dataInicio)} a ${ctx.termino}` : "";
+  const dia16 = ctx.dia16 || "";
+  return `<table style="border-collapse:collapse;width:100%;font-size:0.82em;margin:8px 0" border="1">
+<thead><tr style="background:#f1f5f5">
+<th style="padding:4px 6px">SIAPE</th><th style="padding:4px 6px">Nome</th><th style="padding:4px 6px">CPF</th>
+<th style="padding:4px 6px">Motivo</th><th style="padding:4px 6px">15 primeiros dias</th>
+<th style="padding:4px 6px">16º dia (INSS)</th><th style="padding:4px 6px">Suspensão</th></tr></thead>
+<tbody><tr>
+<td style="padding:4px 6px">${ofEsc(ctx.siape)}</td><td style="padding:4px 6px">${ofEsc(ctx.nome)}</td>
+<td style="padding:4px 6px">${ofEsc(ctx.cpf)}</td><td style="padding:4px 6px">LICENÇA MÉDICA SUPERIOR A 15 DIAS</td>
+<td style="padding:4px 6px">${ofEsc(periodo)}</td><td style="padding:4px 6px">${ofEsc(dia16)}</td>
+<td style="padding:4px 6px">INTEGRAL</td></tr></tbody></table>`;
+}
+
+function ofTabelaPagamentos(dd){
+  const pags = (dd.pagamentos||[]).filter(x=>x && (x.periodo||x.valor||x.mesAno||x.tipoPag));
+  if(!pags.length) return `<p style="font-style:italic;color:#92400e">⚠ Sem pagamentos cadastrados na demanda. Inclua os valores no card antes de gerar, ou complete manualmente.</p>`;
+  const rows = pags.map(x=>`<tr>
+<td style="padding:4px 6px">${ofEsc(x.tipoPag||"")}</td>
+<td style="padding:4px 6px">${ofEsc(x.mesAno||"")}</td>
+<td style="padding:4px 6px">${ofEsc(x.periodo||"")}</td>
+<td style="padding:4px 6px">${ofEsc(x.proc||"")}</td>
+<td style="padding:4px 6px;text-align:right">${ofEsc(x.valor||"")}</td></tr>`).join("");
+  return `<table style="border-collapse:collapse;width:100%;font-size:0.82em;margin:8px 0" border="1">
+<thead><tr style="background:#f1f5f5">
+<th style="padding:4px 6px">Tipo</th><th style="padding:4px 6px">Mês/Ano</th>
+<th style="padding:4px 6px">Período</th><th style="padding:4px 6px">Processo</th>
+<th style="padding:4px 6px">Valor</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function ofRender(corpo, ctx){
+  return String(corpo||"").replace(/\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g, (m,key)=>{
+    if(key in ctx) return ctx[key]!=null && ctx[key]!=="" ? ctx[key] : (key==="numero_oficio"||key==="mes_folha" ? `<span style="background:#fef3c7">[${key}]</span>` : "");
+    return `<span style="background:#fee2e2" title="variável desconhecida">{{${key}}}</span>`;
+  });
+}
+
+// ── GERAÇÃO A PARTIR DO CARD ────────────────────────────────────────
+function ofOpenFromCard(){
+  if(typeof demEditId==="undefined" || demEditId==null){ showToast("Abra um card de demanda primeiro","warn"); return; }
+  const d = DEM_ENTRIES.find(x=>x.id===demEditId); if(!d){ showToast("Card não encontrado","error"); return; }
+  _ofGenCardId = d.id;
+  const matches = OF_TEMPLATES.filter(t=>t.etapa===d.etapa || t.etapa==="Geral");
+  document.getElementById("ofGenTitle").textContent = "Gerar ofício";
+  document.getElementById("ofGenSub").textContent = `${d.profNome} · Ocorrência ${d.occN} · ${d.etapa}`;
+  const body = document.getElementById("ofGenBody");
+  const foot = document.getElementById("ofGenFoot");
+  if(!matches.length){
+    body.innerHTML = `<div style="font-size:0.9em;color:var(--tx2)">Nenhum modelo para a etapa "<strong>${ofEsc(d.etapa)}</strong>".<br><br>Crie um na aba <strong>Modelos</strong> (vinculado a esta etapa ou a "Geral").</div>`;
+    foot.innerHTML = `<button class="btn btn-ghost" onclick="ofGenClose()">Fechar</button>`;
+    document.getElementById("ofGenOverlay").classList.add("open");
+    return;
+  }
+  const opts = matches.map(t=>`<option value="${t.id}">${ofEsc(t.nome)}</option>`).join("");
+  body.innerHTML = `
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px">
+      <div class="dem-field" style="flex:1;min-width:200px"><label>Modelo</label>
+        <select id="ofGenSelect" onchange="ofGenPreview()">${opts}</select></div>
+      <div class="dem-field" style="width:130px"><label>Nº do ofício</label>
+        <input type="text" id="ofGenNum" placeholder="ex: 6167/2025" oninput="ofGenPreview()"></div>
+      <div class="dem-field" style="width:150px"><label>Mês da folha</label>
+        <input type="text" id="ofGenMes" placeholder="ex: Janeiro de 2026" oninput="ofGenPreview()"></div>
+    </div>
+    <div style="font-size:0.75em;color:var(--tx3);margin-bottom:6px">Rascunho editável — ajuste o texto antes de copiar para o SEI.</div>
+    <div id="ofGenPreview" contenteditable="true" style="border:1px solid var(--br);border-radius:8px;padding:18px 22px;background:#fff;color:#1a1a1a;min-height:300px;max-height:48vh;overflow:auto;font-family:'Times New Roman',Georgia,serif;font-size:13px;line-height:1.55"></div>`;
+  foot.innerHTML = `
+    <button class="btn btn-ghost" onclick="ofGenClose()">Fechar</button>
+    <button class="btn btn-ghost" onclick="ofGenCopyText()">Copiar texto</button>
+    <button class="btn btn-ghost" onclick="ofGenPrint()">Imprimir / PDF</button>
+    <button class="btn btn-primary" onclick="ofGenCopyRich()">Copiar (com tabela)</button>`;
+  document.getElementById("ofGenOverlay").classList.add("open");
+  ofGenPreview();
+}
+
+function ofGenPreview(){
+  const d = DEM_ENTRIES.find(x=>x.id===_ofGenCardId); if(!d) return;
+  const t = OF_TEMPLATES.find(x=>x.id===document.getElementById("ofGenSelect").value); if(!t) return;
+  const ctx = ofBuildContext(d, {
+    numero_oficio: document.getElementById("ofGenNum").value.trim(),
+    mes_folha: document.getElementById("ofGenMes").value.trim()
+  });
+  document.getElementById("ofGenPreview").innerHTML = ofRender(t.corpo, ctx);
+}
+
+function ofGenClose(){ document.getElementById("ofGenOverlay").classList.remove("open"); _ofGenCardId=null; }
+
+function ofGenCopyRich(){
+  const el=document.getElementById("ofGenPreview"); if(!el)return;
+  const html=el.innerHTML, text=el.innerText;
+  try{
+    const blob=new ClipboardItem({"text/html":new Blob([html],{type:"text/html"}),"text/plain":new Blob([text],{type:"text/plain"})});
+    navigator.clipboard.write([blob]).then(()=>showToast("Copiado (cole no SEI)","success"),()=>ofGenCopyText());
+  }catch(_){ ofGenCopyText(); }
+}
+function ofGenCopyText(){
+  const el=document.getElementById("ofGenPreview"); if(!el)return;
+  navigator.clipboard.writeText(el.innerText).then(()=>showToast("Texto copiado","success"),()=>showToast("Não foi possível copiar","error"));
+}
+function ofGenPrint(){
+  const el=document.getElementById("ofGenPreview"); if(!el)return;
+  const w=window.open("","_blank");
+  w.document.write(`<html><head><title>Ofício</title><style>body{font-family:'Times New Roman',serif;font-size:12pt;line-height:1.5;padding:2.5cm 3cm;max-width:21cm;margin:0 auto;color:#000}table{border-collapse:collapse;width:100%}th,td{border:1px solid #333;padding:4px 6px;font-size:9pt}</style></head><body>${el.innerHTML}</body></html>`);
+  w.document.close(); w.focus(); setTimeout(()=>w.print(),250);
+}
+
 </script>
 
 <!-- ── MODAL NOVA ETAPA RELACIONADA (v63) ── -->
