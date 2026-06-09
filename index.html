@@ -1550,7 +1550,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
   </div>
 
   <div class="ntab" id="tab-cycles" onclick="switchTab('cycles')">
-    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
     Ciclos
   </div>
 
@@ -7786,11 +7786,6 @@ function openProf(id){
   pv.style.display = "flex";
   document.getElementById("topName").textContent = currentProf.nome;
   document.getElementById("topSub").textContent  = `${currentProf.cpf} · ${currentProf.programa} ${currentProf.ciclo} · ${currentProf.municipio}/${currentProf.uf}`;
-  const n = 2 + Math.floor(Math.random()*2);
-  document.getElementById("collabDots").innerHTML =
-    `<div class="collab">` +
-    TEAM.slice(0,n).map(t=>`<div class="collab-dot" style="background:${t.color}" title="${t.name}">${t.ini}</div>`).join("") +
-    `</div>`;
   renderCycleSelector();  // v52
   renderSpLinks();        // v67
   renderProfCard();
@@ -12774,11 +12769,12 @@ function calcUpdatePagResult() {
   const { bolsa, inss, rule } = calcGetPagParams();
   const diasMes  = Number(document.getElementById('calc-pag-diasmes')?.value  || pg.diasMes || 31);
   const diasTrab = Math.min(Number(document.getElementById('calc-pag-drastrab')?.value || pg.diasTrabalhados || diasMes), diasMes);
-  const brutoProp   = calcTrunc((diasTrab / diasMes) * bolsa, 4);
+  const brutoBase   = bolsa + inss;
+  const brutoProp   = calcTrunc((diasTrab / diasMes) * brutoBase, 4);
   const inssProp    = calcTrunc(calcInssPartial(brutoProp, rule, inss), 2);
   const liquido     = calcTrunc(brutoProp - inssProp, 2);
-  const brutoFull   = calcTrunc(bolsa, 2);
-  const inssFull    = calcTrunc(calcInssPartial(bolsa, rule, inss), 2);
+  const brutoFull   = calcTrunc(brutoBase, 2);
+  const inssFull    = calcTrunc(calcInssPartial(brutoBase, rule, inss), 2);
   const liquidoFull = calcTrunc(brutoFull - inssFull, 2);
   const resBox = document.getElementById('calc-pag-result-box');
   if (!resBox) return;
