@@ -13027,8 +13027,8 @@ async function ofTemplateUpsert(t, silent){
   try{
     const who = (typeof currentUser!=="undefined" && currentUser?.name) ? currentUser.name : (document.getElementById("navUserName")?.textContent||"");
     const payload = {nome:t.nome, etapa:t.etapa, corpo:t.corpo, updated_by:who};
-    // seeds usam id textual; deixe o banco gerar id real
-    if(t.id && !String(t.id).startsWith("seed-")) payload.id = t.id;
+    // ids locais (seed-, tmp-) são textuais; só enviar id numérico real do banco
+    if(t.id && /^\d+$/.test(String(t.id))) payload.id = t.id;
     const {data:row,error} = await _supa.from("oficio_templates").upsert(payload).select().single();
     if(error) throw error;
     if(row){ t.id=String(row.id); const i=OF_TEMPLATES.findIndex(x=>x===t); if(i>=0) OF_TEMPLATES[i]=t; }
