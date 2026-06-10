@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v0.71.1</title>
+<title>Mais Médicos — Gestão de Licenças v0.72.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -2348,7 +2348,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
           <button id="relPgNext" onclick="changeRelPage(1)">Próxima →</button>
         </div>
       </div>
-      <div style="position:sticky;bottom:0;left:0;padding:4px 12px;font-size:0.6786em;color:var(--tx3);pointer-events:none;background:var(--sf);border-top:1px solid var(--br)">v0.62.0</div>
+
     </div>
   </div>
 
@@ -3169,7 +3169,7 @@ function showLoginScreen(reason) {
             <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           </div>
           <div class="auth-title">Gestão de Licenças</div>
-          <div class="auth-sub">Programa Mais Médicos · v0.71.1</div>
+          <div class="auth-sub">Programa Mais Médicos · v0.72.0</div>
         </div>
         <div class="auth-body">
           <div id="authAlert" class="auth-alert"></div>
@@ -5491,10 +5491,20 @@ function demRealtimeInit(){
     if(document.hidden) return;
     await demReconcile();
   }, _DEM_POLL_MS);
+
+  // Reconcilia imediatamente ao voltar para a janela/aba (evita esperar até 10s)
+  document.addEventListener("visibilitychange", _demOnVisible);
 }
 
 function demRealtimeStop(){
   if(_demPollingInterval){ clearInterval(_demPollingInterval); _demPollingInterval = null; }
+  document.removeEventListener("visibilitychange", _demOnVisible);
+}
+
+async function _demOnVisible(){
+  if(document.hidden) return;
+  if(currentTab !== "dem") return;
+  await demReconcile();
 }
 
 // v65.8: PostgREST limita default em 1000 linhas. Pagina explicitamente.
@@ -5641,6 +5651,7 @@ async function demBootstrap(){
           seiGrupo:   null,
           createdAt:  c.created_at,
           demData,
+          _lastSync: c.updated_at ? new Date(c.updated_at).getTime() : 0,
         });
       });
       // Ajusta DEM_NEXT_ID para acima do maior id numérico
