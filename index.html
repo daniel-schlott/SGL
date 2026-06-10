@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v0.68.1</title>
+<title>Mais Médicos — Gestão de Licenças v0.71.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -3166,7 +3166,7 @@ function showLoginScreen(reason) {
             <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           </div>
           <div class="auth-title">Gestão de Licenças</div>
-          <div class="auth-sub">Programa Mais Médicos · v0.68.1</div>
+          <div class="auth-sub">Programa Mais Médicos · v0.71.1</div>
         </div>
         <div class="auth-body">
           <div id="authAlert" class="auth-alert"></div>
@@ -6938,6 +6938,9 @@ function restBlank(){ return {tipoRest:"",periodoRest:"",numProcRest:"",periodoP
 // ── NEW DEMANDA ──
 function demOpenNew(){
   demEditId=null; demNewProfId=null; demNewOccId=null;
+  // Restaura rodapé (pode ter sido ocultado pelo form de novo profissional)
+  const foot=document.querySelector("#demDrawer .dem-dr-foot");
+  if(foot) foot.style.display="";
   document.getElementById("demDrTitle").textContent="Nova demanda";
   document.getElementById("demDrSub").textContent="Vincular a uma ocorrência existente";
   const saveBtn=document.getElementById("demSaveBtn");
@@ -6994,6 +6997,9 @@ function demFilterProfList(q){
 }
 
 function demOpenCreateProf(nome){
+  // Oculta rodapé — este form tem seus próprios botões internos
+  const foot=document.querySelector("#demDrawer .dem-dr-foot");
+  if(foot) foot.style.display="none";
   const _ufs=["AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS","MT","PA","PB","PE","PI","PR","RJ","RN","RO","RR","RS","SC","SE","SP","TO"];
   const ufOpts=_ufs.map(u=>`<option value="${u}">${u}</option>`).join("");
   const cicloOpts=DB.getCycles().map(c=>`<option value="${c.id}">${c.numero||c.label||c.id}</option>`).join("");
@@ -7127,6 +7133,9 @@ async function demSaveNewProf(ev){
 
 function demSelectProf(profId){
   demNewProfId=profId;
+  // Restaura rodapé (caso venha do form de novo profissional)
+  const foot=document.querySelector("#demDrawer .dem-dr-foot");
+  if(foot) foot.style.display="";
   const prof=DB.getById(profId); if(!prof) return;
   const occs=prof.occurrences||[];
   const respOpts=TEAM.filter(u=>u.active!==false).map(u=>'<option'+(u.name===ME.name?' selected':'')+'>'+u.name+'</option>').join("");
@@ -7224,6 +7233,7 @@ function demSelectOcc(occId){
       +'</div>'
       +'<div id="demNPEtapasNovaOcc"></div>'
       +'</div>';
+    sec.scrollIntoView({behavior:'smooth', block:'nearest'});
     return;
   }
 
@@ -13027,8 +13037,8 @@ async function ofTemplateUpsert(t, silent){
   try{
     const who = (typeof currentUser!=="undefined" && currentUser?.name) ? currentUser.name : (document.getElementById("navUserName")?.textContent||"");
     const payload = {nome:t.nome, etapa:t.etapa, corpo:t.corpo, updated_by:who};
-    // ids locais (seed-, tmp-) são textuais; só enviar id numérico real do banco
-    if(t.id && /^\d+$/.test(String(t.id))) payload.id = t.id;
+    // seeds usam id textual; deixe o banco gerar id real
+    if(t.id && !String(t.id).startsWith("seed-")) payload.id = t.id;
     const {data:row,error} = await _supa.from("oficio_templates").upsert(payload).select().single();
     if(error) throw error;
     if(row){ t.id=String(row.id); const i=OF_TEMPLATES.findIndex(x=>x===t); if(i>=0) OF_TEMPLATES[i]=t; }
