@@ -1570,8 +1570,11 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
   </div>
 </nav>
 
-
-<!-- ── DEMANDAS VIEW ── -->
+<!-- ── BANNER OFFLINE (v71.1) ── -->
+<div id="offlineBanner" style="display:none;position:fixed;top:46px;left:0;right:0;z-index:31;background:#92510A;color:#fff;font-size:0.8em;font-weight:500;padding:6px 16px;align-items:center;gap:8px;justify-content:center">
+  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="14" height="14" style="flex-shrink:0"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.56 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+  Sem conexão — as alterações não serão salvas até a rede ser restaurada
+</div>
 <div class="view" id="view-dem">
 <div class="dem-wrap">
 
@@ -2031,7 +2034,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
     <div class="dash-hd-right">
       <div class="dash-quick-search">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input id="dashQuickSearch" type="text" placeholder="Buscar CPF, nome ou SEI…" oninput="dashRenderQuickSearch(this.value)" onfocus="dashRenderQuickSearch(this.value)" onblur="setTimeout(()=>dashHideQuickSearch(),200)">
+        <input id="dashQuickSearch" type="text" placeholder="Buscar CPF, nome ou SEI…" oninput="_dashSearchDebounced(this.value)" onfocus="dashRenderQuickSearch(this.value)" onblur="setTimeout(()=>dashHideQuickSearch(),200)">
         <div id="dashQuickResults" class="dash-qs-results"></div>
       </div>
       <button class="btn btn-primary btn-sm" onclick="dashNewDemanda()">
@@ -3263,6 +3266,7 @@ async function authDoLogin() {
 
 // Logout
 async function authLogout() {
+  demRealtimeStop(); // v71.1
   await _supa.auth.signOut();
   // Limpa estado
   ME = Object.assign({}, TEAM[0]);
@@ -3285,6 +3289,16 @@ function authStartPeriodicCheck() {
 }
 
 function isGestor(){ return (ME.role||"analista")==="gestor"; }
+
+// ── OFFLINE INDICATOR (v71.1) ──
+function _offlineUpdate(){
+  const banner = document.getElementById("offlineBanner");
+  if(!banner) return;
+  const offline = !navigator.onLine;
+  banner.style.display = offline ? "flex" : "none";
+}
+window.addEventListener("offline", _offlineUpdate);
+window.addEventListener("online",  _offlineUpdate);
 function canEditOcc(prof){ return true; }
 function canEditCadastral(){ return isGestor(); }
 function canDeleteOcc(prof){ return isGestor() || prof.responsavel===ME.name; }
@@ -3337,6 +3351,15 @@ function nowStr(){ const n=new Date(); return n.toLocaleDateString("pt-BR")+" "+
 function tsNow(){ return new Date().toISOString().slice(0,10); }
 // v66: normaliza string removendo acentos para buscas
 function normStr(s){ return (s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase(); }
+
+// v71.1: debounce genérico
+function debounce(fn, ms){
+  let t;
+  return function(...args){ clearTimeout(t); t = setTimeout(()=>fn.apply(this, args), ms); };
+}
+// Versões debounced das buscas — chamadas pelos oninput dos inputs
+const _demSearchDebounced   = debounce(v => demFilterProfList(v), 150);
+const _dashSearchDebounced  = debounce(v => dashRenderQuickSearch(v), 200);
 
 // v67: URL da pasta SharePoint — gerada automaticamente por ano de ocorrência
 const SP_BASE = "https://saudegov.sharepoint.com/:f:/r/sites/LICENAS609/Shared%20Documents/General/DOCUMENTOS%20DOS%20PROFISSIONAIS";
@@ -5449,6 +5472,31 @@ function updateCardSaveBadge(cardId){
 // - Não remove cards locais que estão com _saving=true (em trânsito)
 let _demReconcileInProgress = false;
 
+// ── REALTIME (v71.1) ──
+// Canal Supabase Realtime que escuta mudanças em dem_cards feitas por outros usuários.
+// INSERT/UPDATE → demReconcile() (já existe, trata mescla e conflito)
+// DELETE        → remove o card de DEM_ENTRIES e re-renderiza o kanban
+// ── POLLING (v71.1) ──
+// Substitui Realtime (não disponível no Free tier).
+// Chama demReconcile() a cada 10s apenas quando:
+//   1. O usuário está na aba "Demandas" (currentTab === "dem")
+//   2. A aba do navegador está visível (!document.hidden)
+let _demPollingInterval = null;
+const _DEM_POLL_MS = 10_000;
+
+function demRealtimeInit(){
+  if(_demPollingInterval) clearInterval(_demPollingInterval);
+  _demPollingInterval = setInterval(async () => {
+    if(currentTab !== "dem") return;
+    if(document.hidden) return;
+    await demReconcile();
+  }, _DEM_POLL_MS);
+}
+
+function demRealtimeStop(){
+  if(_demPollingInterval){ clearInterval(_demPollingInterval); _demPollingInterval = null; }
+}
+
 // v65.8: PostgREST limita default em 1000 linhas. Pagina explicitamente.
 async function _demFetchAllCards(){
   const PAGE = 1000;
@@ -6949,7 +6997,7 @@ function demOpenNew(){
   document.getElementById("demDrBody").innerHTML=
     '<div class="dem-dr-section">'
     +'<div class="dem-dr-section-hd"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>Selecionar profissional</div>'
-    +'<input class="dem-np-search" id="demNPSearchInput" type="text" placeholder="Buscar por nome, CPF, e-mail ou SIAPE..." oninput="demFilterProfList(this.value)">'
+    +'<input class="dem-np-search" id="demNPSearchInput" type="text" placeholder="Buscar por nome, CPF, e-mail ou SIAPE..." oninput="_demSearchDebounced(this.value)">'
     +'<div class="dem-np-list" id="demNPList"></div>'
     +'</div>';
   demFilterProfList("");
@@ -11438,6 +11486,7 @@ async function initApp(){
   // Inicializa demandas antecipadamente para que DEM_ENTRIES esteja populado
   // quando o dashboard for a primeira aba aberta
   await demBootstrap();
+  demRealtimeInit();   // v71.1: escuta mudanças em dem_cards em tempo real
   await folhaDeadlineLoad(); // v66
   await ofTemplatesLoad();   // v69
 
