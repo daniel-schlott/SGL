@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v0.72.1</title>
+<title>Mais Médicos — Gestão de Licenças v0.72.2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1476,6 +1476,15 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 .calc-pag-hero-lbl{font-size:0.643em;font-weight:700;text-transform:uppercase;letter-spacing:.06em;opacity:.85}
 .calc-pag-hero-val{font-size:1.857em;font-weight:800;font-family:'DM Mono',monospace;line-height:1.1;margin-top:4px}
 .calc-pag-hero-sub{font-size:0.714em;font-weight:500;opacity:.85;margin-top:5px}
+.calc-pag-hero.danger{background:linear-gradient(135deg,#B91C1C,#7F1D1D)}
+.calc-pag-hero.neutral{background:var(--sf3);color:var(--tx2)}
+.calc-pag-hero.neutral .calc-pag-hero-lbl{opacity:1;color:var(--tx3)}
+.calc-pag-hero.neutral .calc-pag-hero-sub{opacity:1;color:var(--tx3)}
+.calc-cen-hero{padding:10px 12px;text-align:center;border-radius:var(--r);margin-bottom:10px}
+.calc-cen-hero.danger{background:linear-gradient(135deg,#B91C1C,#7F1D1D);color:#fff}
+.calc-cen-hero.neutral{background:var(--sf3);color:var(--tx2)}
+.calc-cen-hero-lbl{font-size:0.643em;font-weight:700;text-transform:uppercase;letter-spacing:.05em;opacity:.85}
+.calc-cen-hero-val{font-size:1.286em;font-weight:800;font-family:'DM Mono',monospace;line-height:1.1;margin-top:3px}
 
 /* Sub-modal Novo Preset */
 .calc-preset-overlay{position:fixed;inset:0;z-index:300;pointer-events:none;display:flex;align-items:center;justify-content:center;padding:24px}
@@ -3173,7 +3182,7 @@ function showLoginScreen(reason) {
             <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           </div>
           <div class="auth-title">Gestão de Licenças</div>
-          <div class="auth-sub">Programa Mais Médicos · v0.72.1</div>
+          <div class="auth-sub">Programa Mais Médicos · v0.72.2</div>
         </div>
         <div class="auth-body">
           <div id="authAlert" class="auth-alert"></div>
@@ -10309,21 +10318,39 @@ const THEMES = [
     vars:{ac:"#1351B4",acm:"#0C326F",acl:"#D4E5FF",bg:"#F5F7FA",sf:"#FFFFFF",sf2:"#EEF2F8",sf3:"#E2EAF4",br:"#C5CDD8",br2:"#8FA3C0",tx:"#071D41",tx2:"#3D5680",tx3:"#6B7C99","nav-bg":"#071D41","nav-ac":"#6FA8FF","nav-tx":"#FFFFFF","nav-tx2":"rgba(255,255,255,0.90)","nav-tx3":"rgba(255,255,255,0.55)","nav-br":"rgba(255,255,255,0.20)","nav-pill-bg":"rgba(255,255,255,0.12)"}
   },
   {
-    id:"dark", name:"Dark Professional", desc:"Modo escuro — redução de fadiga ocular",
+    id:"dark", name:"Dark Professional", desc:"Modo escuro — redução de fadiga ocular", dark:true,
     dots:["#3B82F6","#1F2937","#374151"],
     vars:{ac:"#3B82F6",acm:"#2563EB",acl:"rgba(59,130,246,0.15)",bg:"#111827",sf:"#1F2937",sf2:"#111827",sf3:"#111827",br:"#374151",br2:"#4B5563",tx:"#F9FAFB",tx2:"#9CA3AF",tx3:"#6B7280","nav-bg":"#1F2937","nav-ac":"#60A5FA","nav-tx":"#FFFFFF","nav-tx2":"rgba(255,255,255,0.90)","nav-tx3":"rgba(255,255,255,0.55)","nav-br":"rgba(255,255,255,0.20)","nav-pill-bg":"rgba(255,255,255,0.12)"}
   },
   {
-    id:"charcoal", name:"Charcoal", desc:"Cinzento escuro — corporativo e neutro",
+    id:"charcoal", name:"Charcoal", desc:"Cinzento escuro — corporativo e neutro", dark:true,
     dots:["#10B981","#2A2A2A","#4A4A4A"],
     vars:{ac:"#10B981",acm:"#059669",acl:"#1A3D2E",bg:"#1A1A1A",sf:"#2A2A2A",sf2:"#333333",sf3:"#3D3D3D",br:"#4A4A4A",br2:"#5A5A5A",tx:"#E8E8E8",tx2:"#B0B0B0",tx3:"#808080","nav-bg":"#2A2A2A","nav-ac":"#34D399","nav-tx":"#FFFFFF","nav-tx2":"rgba(255,255,255,0.90)","nav-tx3":"rgba(255,255,255,0.55)","nav-br":"rgba(255,255,255,0.20)","nav-pill-bg":"rgba(255,255,255,0.12)"}
   },
   {
-    id:"govbr-dark", name:"Gov.br Escuro", desc:"Variante dark da identidade federal",
+    id:"govbr-dark", name:"Gov.br Escuro", desc:"Variante dark da identidade federal", dark:true,
     dots:["#5992ED","#0D1B2A","#1E3550"],
     vars:{ac:"#5992ED",acm:"#3B78D9",acl:"rgba(89,146,237,0.18)",bg:"#0D1B2A",sf:"#132236",sf2:"#0D1B2A",sf3:"#0D1B2A",br:"#1E3550",br2:"#2A4A6E",tx:"#E8EEF8",tx2:"#92A8C8",tx3:"#5A7498","nav-bg":"#132236","nav-ac":"#7AABFF","nav-tx":"#FFFFFF","nav-tx2":"rgba(255,255,255,0.90)","nav-tx3":"rgba(255,255,255,0.55)","nav-br":"rgba(255,255,255,0.20)","nav-pill-bg":"rgba(255,255,255,0.12)"}
   },
 ];
+
+// Paletas semânticas (status). Tints claros para temas claros; translúcidos + sólidos vivos para temas escuros.
+const SEMANTIC_LIGHT = {
+  bl:"#1B3FA0", bll:"#EBF0FB",
+  am:"#92510A", aml:"#FDF3E3",
+  rd:"#991B1B", rdl:"#FEF2F2",
+  pu:"#5B21B6", pul:"#F5F3FF",
+  tl:"#0F766E", tll:"#F0FDFA",
+  or:"#C2410C", orl:"#FFF7ED",
+};
+const SEMANTIC_DARK = {
+  bl:"#60A5FA", bll:"rgba(96,165,250,0.15)",
+  am:"#FBBF24", aml:"rgba(251,191,36,0.15)",
+  rd:"#F87171", rdl:"rgba(248,113,113,0.15)",
+  pu:"#A78BFA", pul:"rgba(167,139,250,0.15)",
+  tl:"#2DD4BF", tll:"rgba(45,212,191,0.15)",
+  or:"#FB923C", orl:"rgba(251,146,60,0.15)",
+};
 
 let currentTheme = "govbr";
 
@@ -10345,6 +10372,9 @@ function applyTheme(id){
   ["nav-bg","nav-ac","nav-tx","nav-tx2","nav-tx3","nav-br","nav-pill-bg"].forEach(k=>{
     if(t.vars[k]) root.setProperty("--"+k, t.vars[k]);
   });
+  // Paleta semântica (status) — segue claro/escuro do tema
+  const sem = t.dark ? SEMANTIC_DARK : SEMANTIC_LIGHT;
+  Object.entries(sem).forEach(([k,v])=> root.setProperty("--"+k, v));
   renderThemeSwatches();
 }
 
@@ -12531,12 +12561,10 @@ function calcUpdatePeriodoResult() {
   }
   const hasVal = r.indevido > 0;
   resBox.innerHTML = `
-    <div style="background:${hasVal?'var(--rdl)':'var(--sf2)'};border:1px solid ${hasVal?'#FECACA':'var(--br)'};border-radius:var(--r);padding:12px 14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-      <div>
-        <div style="font-size:0.714em;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${hasVal?'var(--rd)':'var(--tx3)'}">Valor Indevido</div>
-        ${r.invalido && C > 0 ? '<div style="font-size:0.714em;color:var(--am);margin-top:2px">⚠ Dias indevidos maior que dias pagos</div>' : ''}
-      </div>
-      <div style="font-size:1.429em;font-weight:700;font-family:\'DM Mono\',monospace;color:${hasVal?'var(--rd)':'var(--tx3)'}">${calcFmtBRL(r.indevido)}</div>
+    <div class="calc-pag-hero ${hasVal?'danger':'neutral'}" style="border-radius:var(--r)">
+      <div class="calc-pag-hero-lbl">${hasVal?'Valor recebido indevidamente':'Nenhum valor indevido'}</div>
+      <div class="calc-pag-hero-val">${calcFmtBRL(r.indevido)}</div>
+      ${r.invalido && C > 0 ? '<div class="calc-pag-hero-sub">⚠ Dias indevidos maior que dias pagos</div>' : (hasVal ? `<div class="calc-pag-hero-sub">${C} de ${A} dias indevidos</div>` : '')}
     </div>`;
 }
 
@@ -12631,8 +12659,10 @@ function calcRenderCenarios() {
         </div>
         <!-- Col 3: resultado -->
         <div class="calc-cenario-col is-result" id="calc-cenario-result-${d}">
-          <div class="calc-cenario-result-lbl">Valor indevido</div>
-          <span class="calc-cenario-result-val zero">${calcFmtBRL(0)}</span>
+          <div class="calc-cen-hero neutral">
+            <div class="calc-cen-hero-lbl">Valor indevido</div>
+            <div class="calc-cen-hero-val">${calcFmtBRL(0)}</div>
+          </div>
         </div>
       </div>`;
     container.appendChild(div);
@@ -12659,28 +12689,21 @@ function calcUpdateCenarioResult(d) {
   const hasVal = r.indevido > 0;
   const hasIndev = C > 0 && !r.invalido;
 
-  // Atualizar cor/estado do container
-  resEl.style.background = hasVal ? 'var(--rdl)' : 'var(--sf2)';
+  resEl.style.background = '';
 
   resEl.innerHTML = `
-    <div class="calc-cenario-result-lbl">Valor indevido</div>
-    <span class="calc-cenario-result-val ${hasVal?'positive':'zero'}">${calcFmtBRL(r.indevido)}</span>
-    <div style="margin-top:10px;padding-top:10px;border-top:1px solid ${hasVal?'rgba(248,81,73,.2)':'var(--br)'}">
-      <div class="calc-cenario-result-lbl" style="margin-bottom:6px">Recebeu</div>
-      <div class="calc-cenario-rec-row"><span>Bruto</span><span>${calcFmtBRL(r.J)}</span></div>
-      <div class="calc-cenario-rec-row"><span>INSS</span><span style="color:var(--rd)">- ${calcFmtBRL(r.K)}</span></div>
+    <div class="calc-cen-hero ${hasVal?'danger':'neutral'}">
+      <div class="calc-cen-hero-lbl">Valor indevido</div>
+      <div class="calc-cen-hero-val">${calcFmtBRL(r.indevido)}</div>
     </div>
+    <div class="calc-cenario-result-lbl" style="margin-bottom:6px">Recebeu</div>
+    <div class="calc-cenario-rec-row"><span>Bruto</span><span>${calcFmtBRL(r.J)}</span></div>
+    <div class="calc-cenario-rec-row"><span>INSS</span><span style="color:var(--rd)">- ${calcFmtBRL(r.K)}</span></div>
     ${hasIndev ? `
     <div style="margin-top:8px">
-      <div class="calc-cenario-result-lbl" style="margin-bottom:6px;color:${hasVal?'var(--rd)':'var(--tx3)'}">Receberia</div>
-      <div class="calc-cenario-rec-row">
-        <span style="color:${hasVal?'var(--rd)':'var(--tx3)'}">Bruto</span>
-        <span style="color:${hasVal?'var(--rd)':'var(--tx)'}">${calcFmtBRL(r.M)}</span>
-      </div>
-      <div class="calc-cenario-rec-row">
-        <span style="color:${hasVal?'var(--rd)':'var(--tx3)'}">INSS</span>
-        <span style="color:${hasVal?'var(--rd)':'var(--tx)'}">- ${calcFmtBRL(r.Nv)}</span>
-      </div>
+      <div class="calc-cenario-result-lbl" style="margin-bottom:6px">Receberia</div>
+      <div class="calc-cenario-rec-row"><span>Bruto</span><span>${calcFmtBRL(r.M)}</span></div>
+      <div class="calc-cenario-rec-row"><span>INSS</span><span style="color:var(--rd)">- ${calcFmtBRL(r.Nv)}</span></div>
     </div>` : ''}
     ${r.invalido && C > 0 ? '<div style="margin-top:8px;font-size:0.714em;color:var(--am)">⚠ Dias indevidos &gt; dias pagos</div>' : ''}`;
 }
