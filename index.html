@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v0.72.0</title>
+<title>Mais Médicos — Gestão de Licenças v0.72.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1472,6 +1472,10 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 .calc-pag-cmp-cell:first-child{border-right:1px solid var(--br)}
 .calc-pag-cmp-lbl{font-size:0.643em;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:4px}
 .calc-pag-cmp-val{font-size:0.929em;font-weight:600;font-family:'DM Mono',monospace;color:var(--tx)}
+.calc-pag-hero{padding:16px 18px;background:linear-gradient(135deg,var(--acm),var(--ac));color:#fff;text-align:center}
+.calc-pag-hero-lbl{font-size:0.643em;font-weight:700;text-transform:uppercase;letter-spacing:.06em;opacity:.85}
+.calc-pag-hero-val{font-size:1.857em;font-weight:800;font-family:'DM Mono',monospace;line-height:1.1;margin-top:4px}
+.calc-pag-hero-sub{font-size:0.714em;font-weight:500;opacity:.85;margin-top:5px}
 
 /* Sub-modal Novo Preset */
 .calc-preset-overlay{position:fixed;inset:0;z-index:300;pointer-events:none;display:flex;align-items:center;justify-content:center;padding:24px}
@@ -3169,7 +3173,7 @@ function showLoginScreen(reason) {
             <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           </div>
           <div class="auth-title">Gestão de Licenças</div>
-          <div class="auth-sub">Programa Mais Médicos · v0.72.0</div>
+          <div class="auth-sub">Programa Mais Médicos · v0.72.1</div>
         </div>
         <div class="auth-body">
           <div id="authAlert" class="auth-alert"></div>
@@ -12720,6 +12724,8 @@ function calcRenderPagamento() {
   pg.autoPreset = true;
   const { preset, bolsa, inss, rule } = calcGetPagParams();
   const diasDetectados = calcDaysInMonth(pg.ano, pg.mes);
+  pg.diasMes = diasDetectados;
+  if (!pg.diasTrabalhados || pg.diasTrabalhados > diasDetectados) pg.diasTrabalhados = diasDetectados;
   container.innerHTML = `
     <div class="calc-card">
       <div class="calc-card-hd">
@@ -12850,8 +12856,11 @@ function calcUpdatePagResult() {
   if (!resBox) return;
   resBox.innerHTML = `
     <div class="calc-pag-result">
-      <div class="calc-pag-result-hd">Resultado — ${diasTrab} de ${diasMes} dias trabalhados</div>
-      <div class="calc-pag-row"><span class="calc-pag-row-lbl">Bruto proporcional</span><span class="calc-pag-row-val">${calcFmtBRL(brutoProp)}</span></div>
+      <div class="calc-pag-hero">
+        <div class="calc-pag-hero-lbl">Bruto proporcional a pagar</div>
+        <div class="calc-pag-hero-val">${calcFmtBRL(brutoProp)}</div>
+        <div class="calc-pag-hero-sub">${diasTrab} de ${diasMes} dias trabalhados</div>
+      </div>
       <div class="calc-pag-row"><span class="calc-pag-row-lbl">INSS descontado</span><span class="calc-pag-row-val" style="color:var(--rd)">- ${calcFmtBRL(inssProp)}</span></div>
       <div class="calc-pag-row liquido"><span class="calc-pag-row-lbl">Líquido a receber</span><span class="calc-pag-row-val">${calcFmtBRL(liquido)}</span></div>
       <div class="calc-pag-compare">
