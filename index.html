@@ -12559,11 +12559,11 @@ function calcUpdatePeriodoResult() {
     resBox = document.createElement('div'); resBox.id = 'calc-per-result-box';
     cardBody.appendChild(resBox);
   }
-  const hasVal = r.indevido > 0;
+  const hasVal = r.indevido !== 0;
   resBox.innerHTML = `
     <div class="calc-pag-hero ${hasVal?'danger':'neutral'}" style="border-radius:var(--r)">
       <div class="calc-pag-hero-lbl">${hasVal?'Valor recebido indevidamente':'Nenhum valor indevido'}</div>
-      <div class="calc-pag-hero-val">${calcFmtBRL(r.indevido)}</div>
+      <div class="calc-pag-hero-val">${calcFmtBRL(Math.abs(r.indevido))}</div>
       ${r.invalido && C > 0 ? '<div class="calc-pag-hero-sub">⚠ Dias indevidos maior que dias pagos</div>' : (hasVal ? `<div class="calc-pag-hero-sub">${C} de ${A} dias indevidos</div>` : '')}
     </div>`;
 }
@@ -12584,15 +12584,15 @@ function calcBuildRecBox(r, C) {
             <span style="font-weight:600;font-family:'DM Mono',monospace;color:var(--tx)">- ${calcFmtBRL(r.K)}</span>
           </div>
         </div>
-        <div style="padding:10px 12px;border-bottom:1px solid var(--br);background:${hasIndev?'var(--rdl)':'var(--sf2)'}">
-          <div style="font-size:0.643em;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:${hasIndev?'var(--rd)':'var(--tx3)'};margin-bottom:6px">Receberia</div>
+        <div style="padding:10px 12px;border-bottom:1px solid var(--br);background:var(--sf2)">
+          <div style="font-size:0.643em;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-bottom:6px">Receberia</div>
           <div style="display:flex;justify-content:space-between;font-size:0.786em;margin-bottom:3px">
-            <span style="color:${hasIndev?'var(--rd)':'var(--tx3)'}">Bruto</span>
-            <span style="font-weight:600;font-family:'DM Mono',monospace;color:${hasIndev?'var(--rd)':'var(--tx3)'}">${hasIndev ? calcFmtBRL(r.M) : '—'}</span>
+            <span style="color:var(--tx3)">Bruto</span>
+            <span style="font-weight:600;font-family:'DM Mono',monospace;color:var(--tx)">${hasIndev ? calcFmtBRL(r.M) : '—'}</span>
           </div>
           <div style="display:flex;justify-content:space-between;font-size:0.786em">
-            <span style="color:${hasIndev?'var(--rd)':'var(--tx3)'}">INSS</span>
-            <span style="font-weight:600;font-family:'DM Mono',monospace;color:${hasIndev?'var(--rd)':'var(--tx3)'}">${hasIndev ? '- ' + calcFmtBRL(r.Nv) : '—'}</span>
+            <span style="color:var(--tx3)">INSS</span>
+            <span style="font-weight:600;font-family:'DM Mono',monospace;color:var(--tx)">${hasIndev ? '- ' + calcFmtBRL(r.Nv) : '—'}</span>
           </div>
         </div>
       </div>
@@ -12686,7 +12686,7 @@ function calcUpdateCenarioResult(d) {
 
   const resEl = document.getElementById(`calc-cenario-result-${d}`);
   if (!resEl) return;
-  const hasVal = r.indevido > 0;
+  const hasVal = r.indevido !== 0;
   const hasIndev = C > 0 && !r.invalido;
 
   resEl.style.background = '';
@@ -12694,7 +12694,7 @@ function calcUpdateCenarioResult(d) {
   resEl.innerHTML = `
     <div class="calc-cen-hero ${hasVal?'danger':'neutral'}">
       <div class="calc-cen-hero-lbl">Valor indevido</div>
-      <div class="calc-cen-hero-val">${calcFmtBRL(r.indevido)}</div>
+      <div class="calc-cen-hero-val">${calcFmtBRL(Math.abs(r.indevido))}</div>
     </div>
     <div class="calc-cenario-result-lbl" style="margin-bottom:6px">Recebeu</div>
     <div class="calc-cenario-rec-row"><span>Bruto</span><span>${calcFmtBRL(r.J)}</span></div>
