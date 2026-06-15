@@ -12899,13 +12899,16 @@ function calcUpdatePagResult() {
   const { bolsa, inss, rule } = calcGetPagParams();
   const diasMes  = Number(document.getElementById('calc-pag-diasmes')?.value  || pg.diasMes || 31);
   const diasTrab = Math.min(Number(document.getElementById('calc-pag-drastrab')?.value || pg.diasTrabalhados || diasMes), diasMes);
-  const brutoBase   = bolsa + inss;
-  const brutoProp   = calcTrunc((diasTrab / diasMes) * brutoBase, 4);
-  const inssProp    = calcTrunc(calcInssPartial(brutoProp, rule, inss), 2);
-  const liquido     = calcTrunc(brutoProp - inssProp, 2);
-  const brutoFull   = calcTrunc(brutoBase, 2);
-  const inssFull    = calcTrunc(calcInssPartial(brutoBase, rule, inss), 2);
-  const liquidoFull = calcTrunc(brutoFull - inssFull, 2);
+  // Usar Decimal.js para brutoProp e liquido — evita erros float em ×10000 (ex: 2016: 10570.88×10000 ≠ inteiro)
+  const dBolsa    = D(bolsa), dInss = D(inss);
+  const brutoBaseD = dBolsa.plus(dInss);
+  const brutoPropD = dTrunc(brutoBaseD.mul(D(diasTrab)).div(D(diasMes)), 4);
+  const brutoProp  = brutoPropD.toNumber();
+  const inssProp   = calcTrunc(calcInssPartial(brutoProp, rule, inss), 2);
+  const liquido    = dTrunc(brutoPropD.minus(D(inssProp)), 2).toNumber();
+  const brutoFull   = calcTrunc(brutoBaseD.toNumber(), 2);
+  const inssFull    = calcTrunc(calcInssPartial(brutoFull, rule, inss), 2);
+  const liquidoFull = dTrunc(D(brutoFull).minus(D(inssFull)), 2).toNumber();
   const resBox = document.getElementById('calc-pag-result-box');
   if (!resBox) return;
   resBox.innerHTML = `
@@ -12964,17 +12967,18 @@ function calcAcumComputeLinhas(de, ate) {
   return linhas;
 }
 
-// Calcula bruto proporcional, INSS e líquido de uma linha
+// Calcula bruto proporcional, INSS e líquido de uma linha (Decimal.js — evita erros float como 10570.88*10000)
 function calcAcumCalcLinha(linha) {
   const preset    = calcFindPeriodById(linha.presetId);
-  const bolsaFull = calcGetBolsa(preset, linha.diasMes);
-  const inssFull  = preset.inss;
-  const brutoBase = bolsaFull + inssFull;
-  const brutoProp = calcTrunc((linha.diasTrab / linha.diasMes) * brutoBase, 4);
-  const inssProp  = calcTrunc(calcInssPartial(brutoProp, preset.rule, inssFull), 2);
-  // Usar Decimal.js para evitar imprecisão float na subtração (ex: 10570.88 - 570.88 ≠ 10000.00 em float)
-  const liquido   = dTrunc(D(brutoProp).minus(D(inssProp)), 2).toNumber();
-  return { brutoProp, inssProp, liquido };
+  const dBolsa    = D(calcGetBolsa(preset, linha.diasMes));
+  const dInss     = D(preset.inss);
+  const dDias     = D(linha.diasTrab);
+  const dDiasMes  = D(linha.diasMes);
+  const brutoBase = dBolsa.plus(dInss);
+  const brutoProp = dTrunc(brutoBase.mul(dDias).div(dDiasMes), 4);
+  const inssProp  = dTrunc(calcInssPartialDec(brutoProp, preset.rule, dInss), 2);
+  const liquido   = dTrunc(brutoProp.minus(inssProp), 2);
+  return { brutoProp: brutoProp.toNumber(), inssProp: inssProp.toNumber(), liquido: liquido.toNumber() };
 }
 
 function calcRenderAcumulado() {
