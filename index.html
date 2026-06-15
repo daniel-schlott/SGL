@@ -11900,7 +11900,25 @@ bootstrap();
 
   <!-- PAINEL PAGAMENTO -->
   <div id="calc-panel-pagamento" style="display:none">
-    <div id="calc-modo-pagamento"></div>
+    <!-- Nível 2: Modo Mensal / Modo Período Acumulado -->
+    <div class="calc-mode-grid">
+      <button data-calc-pag-modo="mensal" class="calc-mode-btn active" onclick="calcSetPagModo('mensal')">
+        <div class="calc-mode-ico"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+        <div><div class="calc-mode-label">Modo Mensal</div><div class="calc-mode-desc">Cálculo para um mês específico</div></div>
+      </button>
+      <button data-calc-pag-modo="acumulado" class="calc-mode-btn" onclick="calcSetPagModo('acumulado')">
+        <div class="calc-mode-ico"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/><path d="M3 14h18"/></svg></div>
+        <div><div class="calc-mode-label">Período Acumulado</div><div class="calc-mode-desc">Total recebido em múltiplos meses</div></div>
+      </button>
+    </div>
+    <!-- Sub-painel Mensal (existente) -->
+    <div id="calc-pag-panel-mensal">
+      <div id="calc-modo-pagamento"></div>
+    </div>
+    <!-- Sub-painel Acumulado (novo) -->
+    <div id="calc-pag-panel-acumulado" style="display:none">
+      <div id="calc-acum-container"></div>
+    </div>
   </div>
 
   <!-- FOOTER INFO -->
@@ -12150,6 +12168,8 @@ const calcState = {
     ano: Math.min(Math.max(_today.getFullYear(), 2013), 2026),
     mes: _today.getMonth() + 1,
     selDe: '', selAte: '', autoPreset: true,
+    pagModo: 'mensal',
+    acumulado: { de: '', ate: '', linhas: [] },
   }
 };
 
@@ -12225,7 +12245,7 @@ function calcSetTipo(tipo) {
   if (indevPanel) indevPanel.style.display = tipo === 'indevidos' ? '' : 'none';
   if (pagPanel)   pagPanel.style.display   = tipo === 'pagamento' ? '' : 'none';
   if (tipo === 'indevidos') calcSetModoIndev(calcState.modo === 'geral' ? 'geral' : 'periodo');
-  if (tipo === 'pagamento') calcSetModoIndev('periodo');
+  if (tipo === 'pagamento') calcSetPagModo(calcState.pagamento.pagModo || 'mensal');
 }
 
 function calcSetModoIndev(modo) {
@@ -12255,12 +12275,17 @@ function calcSetPagSelMode(sm) {
 function calcUpdateHeadSub() {
   const el = document.getElementById('calc-modal-head-sub');
   if (!el) return;
-  const tipo = calcState.tipo === 'indevidos' ? 'Indevidos' : 'Pagamento do Mês';
+  const tipo = calcState.tipo === 'indevidos' ? 'Indevidos' : 'Pagamento';
   let sub2 = '';
   if (calcState.tipo === 'indevidos') {
     sub2 = calcState.modo === 'geral' ? 'Modo Geral' : 'Escolher Período';
   } else {
-    sub2 = calcState.pagamento.selMode === 'mes' ? 'Mês/Ano' : 'Período';
+    const pagModo = calcState.pagamento.pagModo || 'mensal';
+    if (pagModo === 'acumulado') {
+      sub2 = 'Período Acumulado';
+    } else {
+      sub2 = calcState.pagamento.selMode === 'mes' ? 'Mês/Ano' : 'Período';
+    }
   }
   el.textContent = `${tipo} · ${sub2} · 2013–2026`;
 }
@@ -12721,9 +12746,15 @@ function calcClear() {
     if (bc) bc.value = ''; if (ic) ic.value = '';
     calcInited = false; calcInitIfNeeded();
   } else {
-    calcState.pagamento.bolsaCustom = ''; calcState.pagamento.inssCustom = '';
-    calcState.pagamento.diasMes = 31; calcState.pagamento.diasTrabalhados = 31;
-    calcRenderPagamento();
+    const pagModo = calcState.pagamento.pagModo || 'mensal';
+    if (pagModo === 'acumulado') {
+      calcState.pagamento.acumulado = { de: '', ate: '', linhas: [] };
+      calcRenderAcumulado();
+    } else {
+      calcState.pagamento.bolsaCustom = ''; calcState.pagamento.inssCustom = '';
+      calcState.pagamento.diasMes = 31; calcState.pagamento.diasTrabalhados = 31;
+      calcRenderPagamento();
+    }
   }
   showToast('Valores limpos', 'success');
 }
@@ -12893,7 +12924,190 @@ function calcUpdatePagResult() {
     </div>`;
 }
 
-// ── PRESETS CUSTOMIZADOS ──────────────────────────────────────────────────────
+// ── MODO PAGAMENTO — PERÍODO ACUMULADO ───────────────────────────────────────
+
+function calcSetPagModo(modo) {
+  calcState.pagamento.pagModo = modo;
+  document.querySelectorAll('[data-calc-pag-modo]').forEach(b => {
+    b.classList.toggle('active', b.dataset.calcPagModo === modo);
+  });
+  const panelMensal = document.getElementById('calc-pag-panel-mensal');
+  const panelAcum   = document.getElementById('calc-pag-panel-acumulado');
+  if (panelMensal) panelMensal.style.display = modo === 'mensal'    ? '' : 'none';
+  if (panelAcum)   panelAcum.style.display   = modo === 'acumulado' ? '' : 'none';
+  if (modo === 'acumulado') calcRenderAcumulado();
+  calcUpdateHeadSub();
+}
+
+// Gera linhas mês a mês para o intervalo [de, ate] (YYYY-MM-DD)
+function calcAcumComputeLinhas(de, ate) {
+  if (!de || !ate || de > ate) return [];
+  const parts0 = de.split('-').map(Number),  y0 = parts0[0], m0 = parts0[1], d0 = parts0[2];
+  const parts1 = ate.split('-').map(Number), y1 = parts1[0], m1 = parts1[1], d1 = parts1[2];
+  const linhas = [];
+  let y = y0, m = m0;
+  while (y < y1 || (y === y1 && m <= m1)) {
+    const diasMes  = calcDaysInMonth(y, m);
+    const isFirst  = (y === y0 && m === m0);
+    const isLast   = (y === y1 && m === m1);
+    let diasTrab;
+    if (isFirst && isLast) { diasTrab = d1 - d0 + 1; }
+    else if (isFirst)      { diasTrab = diasMes - d0 + 1; }
+    else if (isLast)       { diasTrab = d1; }
+    else                   { diasTrab = diasMes; }
+    diasTrab = Math.max(0, Math.min(diasTrab, diasMes));
+    const preset = calcFindPeriod(y, m) || CALC_PERIODS[0];
+    linhas.push({ ano: y, mes: m, diasMes, diasTrab, presetId: preset.id });
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return linhas;
+}
+
+// Calcula bruto proporcional, INSS e líquido de uma linha
+function calcAcumCalcLinha(linha) {
+  const preset    = calcFindPeriodById(linha.presetId);
+  const bolsaFull = calcGetBolsa(preset, linha.diasMes);
+  const inssFull  = preset.inss;
+  const brutoBase = bolsaFull + inssFull;
+  const brutoProp = calcTrunc((linha.diasTrab / linha.diasMes) * brutoBase, 4);
+  const inssProp  = calcTrunc(calcInssPartial(brutoProp, preset.rule, inssFull), 2);
+  const liquido   = calcTrunc(brutoProp - inssProp, 2);
+  return { brutoProp, inssProp, liquido };
+}
+
+function calcRenderAcumulado() {
+  const container = document.getElementById('calc-acum-container');
+  if (!container) return;
+  const acum = calcState.pagamento.acumulado;
+  const nMeses = acum.linhas.length;
+  container.innerHTML = `
+    <div class="calc-card">
+      <div class="calc-card-hd">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        <div><div class="calc-card-hd-title">Período de permanência</div><div class="calc-card-hd-sub">Informe o intervalo completo para apurar os recebimentos mês a mês</div></div>
+      </div>
+      <div class="calc-card-body" style="display:flex;flex-direction:column;gap:12px">
+        <div class="calc-3col">
+          <div class="calc-field"><label>De</label><input id="calc-acum-de" type="date" value="${acum.de||''}" onchange="calcOnAcumRangeChange()"></div>
+          <div class="calc-field"><label>Até</label><input id="calc-acum-ate" type="date" value="${acum.ate||''}" onchange="calcOnAcumRangeChange()"></div>
+          <div class="calc-field"><label>Meses</label><div style="padding:7px 9px;border:1px solid var(--br);border-radius:var(--r);background:var(--acl);color:var(--acm);font-size:0.857em;font-weight:500" id="calc-acum-nlinhas">${nMeses ? nMeses + (nMeses===1?' mês':' meses') : '—'}</div></div>
+        </div>
+      </div>
+    </div>
+    <div id="calc-acum-table-wrap"></div>`;
+  calcRenderAcumTable();
+}
+
+function calcRenderAcumTable() {
+  const wrap = document.getElementById('calc-acum-table-wrap');
+  if (!wrap) return;
+  const acum = calcState.pagamento.acumulado;
+  if (!acum.linhas.length) { wrap.innerHTML = ''; return; }
+
+  let totalBruto = 0, totalInss = 0, totalLiq = 0;
+  const rowsHTML = acum.linhas.map((l, i) => {
+    const { brutoProp, inssProp, liquido } = calcAcumCalcLinha(l);
+    totalBruto += brutoProp; totalInss += inssProp; totalLiq += liquido;
+    const preset = calcFindPeriodById(l.presetId);
+    const isEdge = (i === 0 || i === acum.linhas.length - 1);
+    return `<tr style="border-bottom:1px solid var(--br)${isEdge?';background:var(--sf2)':''}">
+      <td style="padding:6px 8px;white-space:nowrap;font-weight:500;color:var(--tx)">${CALC_MESES[l.mes]}/${l.ano}</td>
+      <td style="padding:6px 8px;font-size:0.8em;color:var(--tx2)">${preset.label}</td>
+      <td style="padding:6px 8px;text-align:center">
+        <input type="number" min="0" max="${l.diasMes}" value="${l.diasTrab}"
+          style="width:56px;text-align:center;border:1px solid var(--br);border-radius:var(--r);background:var(--sf);padding:3px 6px;font-size:0.857em;font-family:inherit"
+          title="${l.diasMes} dias no mês"
+          onchange="calcOnAcumDiasTrabChange(${i},+this.value)">
+        <span style="font-size:0.75em;color:var(--tx3);margin-left:3px">/${l.diasMes}</span>
+      </td>
+      <td style="padding:6px 8px;text-align:right;font-family:'DM Mono',monospace">${calcFmtBRL(brutoProp)}</td>
+      <td style="padding:6px 8px;text-align:right;font-family:'DM Mono',monospace;color:var(--rd)">- ${calcFmtBRL(inssProp)}</td>
+      <td style="padding:6px 8px;text-align:right;font-family:'DM Mono',monospace;font-weight:600">${calcFmtBRL(liquido)}</td>
+    </tr>`;
+  }).join('');
+
+  totalBruto = calcTrunc(totalBruto, 2);
+  totalInss  = calcTrunc(totalInss,  2);
+  totalLiq   = calcTrunc(totalLiq,   2);
+
+  wrap.innerHTML = `
+    <div class="calc-card" style="margin-top:12px">
+      <div class="calc-card-hd" style="justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:8px">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 3h18M3 9h18M3 15h18M3 21h18"/></svg>
+          <div class="calc-card-hd-title">Histórico mês a mês</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="calcExportAcumulado()" title="Exportar tabela como .xlsx">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Exportar .xlsx
+        </button>
+      </div>
+      <div class="calc-card-body" style="overflow-x:auto;padding:0">
+        <table style="width:100%;border-collapse:collapse;font-size:0.857em">
+          <thead>
+            <tr style="border-bottom:2px solid var(--br);background:var(--sf2)">
+              <th style="text-align:left;padding:7px 8px;color:var(--tx2);font-weight:600">Mês/Ano</th>
+              <th style="text-align:left;padding:7px 8px;color:var(--tx2);font-weight:600">Preset</th>
+              <th style="text-align:center;padding:7px 8px;color:var(--tx2);font-weight:600">Dias trab.</th>
+              <th style="text-align:right;padding:7px 8px;color:var(--tx2);font-weight:600">Bruto</th>
+              <th style="text-align:right;padding:7px 8px;color:var(--tx2);font-weight:600">INSS</th>
+              <th style="text-align:right;padding:7px 8px;color:var(--tx2);font-weight:600">Líquido</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHTML}</tbody>
+          <tfoot>
+            <tr style="border-top:2px solid var(--br);background:var(--acl)">
+              <td colspan="3" style="padding:8px;font-weight:700;color:var(--tx)">Total (${acum.linhas.length} mes${acum.linhas.length===1?'':'es'})</td>
+              <td style="padding:8px;text-align:right;font-weight:700;font-family:'DM Mono',monospace;color:var(--tx)">${calcFmtBRL(totalBruto)}</td>
+              <td style="padding:8px;text-align:right;font-weight:700;font-family:'DM Mono',monospace;color:var(--rd)">- ${calcFmtBRL(totalInss)}</td>
+              <td style="padding:8px;text-align:right;font-weight:700;font-family:'DM Mono',monospace;color:var(--acm)">${calcFmtBRL(totalLiq)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>`;
+}
+
+function calcOnAcumRangeChange() {
+  const de  = document.getElementById('calc-acum-de')?.value  || '';
+  const ate = document.getElementById('calc-acum-ate')?.value || '';
+  const acum = calcState.pagamento.acumulado;
+  acum.de  = de;
+  acum.ate = ate;
+  acum.linhas = calcAcumComputeLinhas(de, ate);
+  const nEl = document.getElementById('calc-acum-nlinhas');
+  const n = acum.linhas.length;
+  if (nEl) nEl.textContent = n ? n + (n===1?' mês':' meses') : '—';
+  calcRenderAcumTable();
+}
+
+function calcOnAcumDiasTrabChange(idx, val) {
+  const acum = calcState.pagamento.acumulado;
+  if (!acum.linhas[idx]) return;
+  const l = acum.linhas[idx];
+  l.diasTrab = Math.max(0, Math.min(Math.round(val), l.diasMes));
+  calcRenderAcumTable();
+}
+
+function calcExportAcumulado() {
+  const acum = calcState.pagamento.acumulado;
+  if (!acum.linhas.length) { showToast('Nenhum dado para exportar', 'warn'); return; }
+  const header = ['Mês/Ano', 'Preset', 'Dias trabalhados', 'Dias do mês', 'Bruto (R$)', 'INSS (R$)', 'Líquido (R$)'];
+  let totalBruto = 0, totalInss = 0, totalLiq = 0;
+  const rows = acum.linhas.map(l => {
+    const preset = calcFindPeriodById(l.presetId);
+    const { brutoProp, inssProp, liquido } = calcAcumCalcLinha(l);
+    totalBruto += brutoProp; totalInss += inssProp; totalLiq += liquido;
+    return [`${CALC_MESES[l.mes]}/${l.ano}`, preset.label, l.diasTrab, l.diasMes, brutoProp, inssProp, liquido];
+  });
+  totalBruto = calcTrunc(totalBruto, 2);
+  totalInss  = calcTrunc(totalInss,  2);
+  totalLiq   = calcTrunc(totalLiq,   2);
+  rows.push(['TOTAL', '', '', '', totalBruto, totalInss, totalLiq]);
+  doXlsx([header, ...rows], `periodo_acumulado_${acum.de||'inicio'}_${acum.ate||'fim'}.xlsx`);
+  showToast('Exportado como .xlsx', 'success');
+}
 function calcOpenPresetModal() {
   document.getElementById('calcPresetOverlay').classList.add('open');
   calcRenderCustomPresetList();
