@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v0.72.2</title>
+<title>Mais Médicos — Gestão de Licenças v0.73.5</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1359,7 +1359,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 
 /* ── CÁLCULO VIEW ── */
 /* BODY LAYOUT */
-.calc-wrap{width:700px;max-width:100%;display:flex;flex-direction:column;gap:14px}
+.calc-wrap{width:880px;max-width:100%;display:flex;flex-direction:column;gap:14px}
 
 /* HEADER */
 .calc-hd{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:2px}
@@ -1524,7 +1524,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 /* v63 — Modal Calculadora */
 .calc-float-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:8000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .18s}
 .calc-float-overlay.open{opacity:1;pointer-events:all}
-.calc-float-modal{background:var(--bg);border-radius:12px;box-shadow:0 24px 64px rgba(0,0,0,.3);width:780px;max-width:96vw;max-height:92vh;display:flex;flex-direction:column;overflow:hidden}
+.calc-float-modal{background:var(--bg);border-radius:12px;box-shadow:0 24px 64px rgba(0,0,0,.3);width:960px;max-width:96vw;max-height:92vh;display:flex;flex-direction:column;overflow:hidden}
 .calc-float-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--br);flex-shrink:0}
 .calc-float-head-title{font-size:0.9286em;font-weight:600;color:var(--tx)}
 .calc-float-body{flex:1;overflow-y:auto;padding:20px 24px;display:flex;justify-content:center}
@@ -3182,7 +3182,7 @@ function showLoginScreen(reason) {
             <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           </div>
           <div class="auth-title">Gestão de Licenças</div>
-          <div class="auth-sub">Programa Mais Médicos · v0.72.2</div>
+          <div class="auth-sub">Programa Mais Médicos · v0.73.5</div>
         </div>
         <div class="auth-body">
           <div id="authAlert" class="auth-alert"></div>
@@ -13017,18 +13017,18 @@ function calcRenderAcumTable() {
     const preset = calcFindPeriodById(l.presetId);
     const isEdge = (i === 0 || i === acum.linhas.length - 1);
     return `<tr style="border-bottom:1px solid var(--br)${isEdge?';background:var(--sf2)':''}">
-      <td style="padding:6px 8px;white-space:nowrap;font-weight:500;color:var(--tx)">${CALC_MESES[l.mes]}/${l.ano}</td>
-      <td style="padding:6px 8px;font-size:0.8em;color:var(--tx2)">${preset.label}</td>
-      <td style="padding:6px 8px;text-align:center">
+      <td style="padding:6px 10px;white-space:nowrap;font-weight:500;color:var(--tx)">${CALC_MESES[l.mes]}/${l.ano}</td>
+      <td style="padding:6px 10px;font-size:0.8em;color:var(--tx2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${preset.label}">${preset.label}</td>
+      <td style="padding:6px 10px;text-align:center">
         <input type="number" min="0" max="${l.diasMes}" value="${l.diasTrab}"
           style="width:56px;text-align:center;border:1px solid var(--br);border-radius:var(--r);background:var(--sf);padding:3px 6px;font-size:0.857em;font-family:inherit"
           title="${l.diasMes} dias no mês"
           onchange="calcOnAcumDiasTrabChange(${i},+this.value)">
         <span style="font-size:0.75em;color:var(--tx3);margin-left:3px">/${l.diasMes}</span>
       </td>
-      <td style="padding:6px 10px;white-space:nowrap;font-family:'DM Mono',monospace">${calcFmtBRL(brutoProp)}</td>
-      <td style="padding:6px 10px;white-space:nowrap;font-family:'DM Mono',monospace;color:var(--rd)">- ${calcFmtBRL(inssProp)}</td>
-      <td style="padding:6px 10px;white-space:nowrap;font-family:'DM Mono',monospace;font-weight:600">${calcFmtBRL(liquido)}</td>
+      <td style="padding:6px 10px;text-align:right;white-space:nowrap;font-family:'DM Mono',monospace">${calcFmtBRL(brutoProp)}</td>
+      <td style="padding:6px 10px;text-align:right;white-space:nowrap;font-family:'DM Mono',monospace;color:var(--rd)">- ${calcFmtBRL(inssProp)}</td>
+      <td style="padding:6px 10px;text-align:right;white-space:nowrap;font-family:'DM Mono',monospace;font-weight:600">${calcFmtBRL(liquido)}</td>
     </tr>`;
   }).join('');
 
@@ -13051,7 +13051,7 @@ function calcRenderAcumTable() {
         </button>
       </div>
       <div class="calc-card-body" style="overflow-x:auto;padding:0">
-        <table style="width:100%;min-width:680px;border-collapse:collapse;font-size:0.857em">
+        <table style="width:100%;border-collapse:collapse;font-size:0.857em">
           <thead>
             <tr style="border-bottom:2px solid var(--br);background:var(--sf2)">
               <th style="text-align:left;padding:7px 10px;color:var(--tx2);font-weight:600;white-space:nowrap">Mês/Ano</th>
