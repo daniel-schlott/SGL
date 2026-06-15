@@ -12972,7 +12972,8 @@ function calcAcumCalcLinha(linha) {
   const brutoBase = bolsaFull + inssFull;
   const brutoProp = calcTrunc((linha.diasTrab / linha.diasMes) * brutoBase, 4);
   const inssProp  = calcTrunc(calcInssPartial(brutoProp, preset.rule, inssFull), 2);
-  const liquido   = calcTrunc(brutoProp - inssProp, 2);
+  // Usar Decimal.js para evitar imprecisão float na subtração (ex: 10570.88 - 570.88 ≠ 10000.00 em float)
+  const liquido   = dTrunc(D(brutoProp).minus(D(inssProp)), 2).toNumber();
   return { brutoProp, inssProp, liquido };
 }
 
