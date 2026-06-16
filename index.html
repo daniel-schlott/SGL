@@ -12981,11 +12981,58 @@ function calcAcumCalcLinha(linha) {
   return { brutoProp: brutoProp.toNumber(), inssProp: inssProp.toNumber(), liquido: liquido.toNumber() };
 }
 
+// Duração calendário entre duas datas YYYY-MM-DD → "368 dias (1 ano, 2 meses e 3 dias)"
+function calcAcumDuracao(de, ate) {
+  if (!de || !ate) return '—';
+  const d0 = new Date(de + 'T00:00:00');
+  const d1 = new Date(ate + 'T00:00:00');
+  if (d1 < d0) return '—';
+  const totalDias = Math.round((d1 - d0) / 86400000);
+  if (totalDias === 0) return '0 dias';
+  let anos  = d1.getFullYear() - d0.getFullYear();
+  let meses = d1.getMonth()    - d0.getMonth();
+  let dias  = d1.getDate()     - d0.getDate();
+  if (dias  < 0) { meses--; dias  += new Date(d1.getFullYear(), d1.getMonth(), 0).getDate(); }
+  if (meses < 0) { anos--;  meses += 12; }
+  const p = [];
+  if (anos  > 0) p.push(`${anos} ano${anos>1?'s':''}`);
+  if (meses > 0) p.push(`${meses} ${meses>1?'meses':'mês'}`);
+  if (dias  > 0) p.push(`${dias} dia${dias>1?'s':''}`);
+  return `${totalDias} dias (${p.join(', ')})`;
+}
+
+// Data calendário do 365º dia trabalhado, percorrendo os diasTrab de cada linha em sequência
+function calcAcumDate365(linhas, de) {
+  if (!linhas.length || !de) return '—';
+  const startDay = Number(de.split('-')[2]);
+  let cumul = 0;
+  for (let i = 0; i < linhas.length; i++) {
+    const l = linhas[i];
+    const prev = cumul;
+    cumul += l.diasTrab;
+    if (cumul >= 365) {
+      const posWithin = 365 - prev; // posição 1-based dentro dos dias trabalhados deste mês
+      const dayOfMonth = i === 0 ? startDay + posWithin - 1 : posWithin;
+      return `${String(dayOfMonth).padStart(2,'0')}/${String(l.mes).padStart(2,'0')}/${l.ano}`;
+    }
+  }
+  return '—';
+}
+
+// Atualiza os campos de resumo (duração e data dos 365 dias) sem re-renderizar o card inteiro
+function calcAcumUpdateSummary() {
+  const acum = calcState.pagamento.acumulado;
+  const durEl    = document.getElementById('calc-acum-duracao');
+  const date365El = document.getElementById('calc-acum-date365');
+  if (durEl)     durEl.textContent     = calcAcumDuracao(acum.de, acum.ate);
+  if (date365El) date365El.textContent = calcAcumDate365(acum.linhas, acum.de);
+}
+
 function calcRenderAcumulado() {
   const container = document.getElementById('calc-acum-container');
   if (!container) return;
   const acum = calcState.pagamento.acumulado;
-  const nMeses = acum.linhas.length;
+  const infoStyle = `padding:7px 9px;border:1px solid var(--br);border-radius:var(--r);background:var(--acl);color:var(--acm);font-size:0.857em;font-weight:500`;
   container.innerHTML = `
     <div class="calc-card">
       <div class="calc-card-hd">
@@ -12996,7 +13043,10 @@ function calcRenderAcumulado() {
         <div class="calc-3col">
           <div class="calc-field"><label>De</label><input id="calc-acum-de" type="date" value="${acum.de||''}" onchange="calcOnAcumRangeChange()"></div>
           <div class="calc-field"><label>Até</label><input id="calc-acum-ate" type="date" value="${acum.ate||''}" onchange="calcOnAcumRangeChange()"></div>
-          <div class="calc-field"><label>Meses</label><div style="padding:7px 9px;border:1px solid var(--br);border-radius:var(--r);background:var(--acl);color:var(--acm);font-size:0.857em;font-weight:500" id="calc-acum-nlinhas">${nMeses ? nMeses + (nMeses===1?' mês':' meses') : '—'}</div></div>
+          <div class="calc-field"><label>Período de permanência</label><div style="${infoStyle}" id="calc-acum-duracao">${calcAcumDuracao(acum.de, acum.ate)}</div></div>
+        </div>
+        <div class="calc-3col">
+          <div class="calc-field" style="grid-column:1/2"><label>Data dos 365 dias trabalhados</label><div style="${infoStyle}" id="calc-acum-date365">${calcAcumDate365(acum.linhas, acum.de)}</div></div>
         </div>
       </div>
     </div>
@@ -13010,10 +13060,10 @@ function calcRenderAcumTable() {
   const acum = calcState.pagamento.acumulado;
   if (!acum.linhas.length) { wrap.innerHTML = ''; return; }
 
-  let totalBruto = 0, totalInss = 0, totalLiq = 0;
+  let totalBruto = 0, totalInss = 0, totalLiq = 0, totalDiasTrab = 0;
   const rowsHTML = acum.linhas.map((l, i) => {
     const { brutoProp, inssProp, liquido } = calcAcumCalcLinha(l);
-    totalBruto += brutoProp; totalInss += inssProp; totalLiq += liquido;
+    totalBruto += brutoProp; totalInss += inssProp; totalLiq += liquido; totalDiasTrab += l.diasTrab;
     const preset = calcFindPeriodById(l.presetId);
     const isEdge = (i === 0 || i === acum.linhas.length - 1);
     return `<tr style="border-bottom:1px solid var(--br)${isEdge?';background:var(--sf2)':''}">
@@ -13065,7 +13115,12 @@ function calcRenderAcumTable() {
           <tbody>${rowsHTML}</tbody>
           <tfoot>
             <tr style="border-top:2px solid var(--br);background:var(--acl)">
-              <td colspan="3" style="padding:10px;font-weight:700;color:var(--tx);white-space:nowrap">Total (${acum.linhas.length} mes${acum.linhas.length===1?'':'es'})</td>
+              <td style="padding:10px;font-weight:700;color:var(--tx)">Total</td>
+              <td style="padding:10px"></td>
+              <td style="padding:10px;text-align:center;white-space:nowrap">
+                <div style="font-size:0.714em;color:var(--tx3);margin-bottom:2px">Dias trab.</div>
+                <div style="font-weight:700;color:var(--tx)">${totalDiasTrab} dias</div>
+              </td>
               <td style="padding:10px;text-align:right;white-space:nowrap">
                 <div style="font-size:0.714em;color:var(--tx3);margin-bottom:2px">Bruto</div>
                 <div style="font-weight:700;font-family:'DM Mono',monospace;color:var(--tx)">${calcFmtBRL(totalBruto)}</div>
@@ -13092,9 +13147,7 @@ function calcOnAcumRangeChange() {
   acum.de  = de;
   acum.ate = ate;
   acum.linhas = calcAcumComputeLinhas(de, ate);
-  const nEl = document.getElementById('calc-acum-nlinhas');
-  const n = acum.linhas.length;
-  if (nEl) nEl.textContent = n ? n + (n===1?' mês':' meses') : '—';
+  calcAcumUpdateSummary();
   calcRenderAcumTable();
 }
 
@@ -13103,6 +13156,7 @@ function calcOnAcumDiasTrabChange(idx, val) {
   if (!acum.linhas[idx]) return;
   const l = acum.linhas[idx];
   l.diasTrab = Math.max(0, Math.min(Math.round(val), l.diasMes));
+  calcAcumUpdateSummary();
   calcRenderAcumTable();
 }
 
