@@ -12989,16 +12989,27 @@ function calcAcumDuracao(de, ate) {
   if (d1 < d0) return '—';
   const totalDias = Math.round((d1 - d0) / 86400000) + 1; // inclusivo: conta ambos os dias das extremidades
   if (totalDias === 0) return '0 dias';
-  let anos  = d1.getFullYear() - d0.getFullYear();
-  let meses = d1.getMonth()    - d0.getMonth();
-  let dias  = d1.getDate()     - d0.getDate();
-  if (dias  < 0) { meses--; dias  += new Date(d1.getFullYear(), d1.getMonth(), 0).getDate(); }
-  if (meses < 0) { anos--;  meses += 12; }
+  // Decompõe tratando como exclusivo (d0 até d1+1) para resolver o inclusivo corretamente
+  const d1excl = new Date(d1);
+  d1excl.setDate(d1excl.getDate() + 1);
+  let temp = new Date(d0);
+  let anos = 0, meses = 0;
+  while (true) {
+    const next = new Date(temp); next.setFullYear(next.getFullYear() + 1);
+    if (next > d1excl) break;
+    anos++; temp = next;
+  }
+  while (true) {
+    const next = new Date(temp); next.setMonth(next.getMonth() + 1);
+    if (next > d1excl) break;
+    meses++; temp = next;
+  }
+  const dias = Math.round((d1excl - temp) / 86400000);
   const p = [];
   if (anos  > 0) p.push(`${anos} ano${anos>1?'s':''}`);
   if (meses > 0) p.push(`${meses} ${meses>1?'meses':'mês'}`);
   if (dias  > 0) p.push(`${dias} dia${dias>1?'s':''}`);
-  return `${totalDias} dias (${p.join(', ')})`;
+  return `${totalDias} dia${totalDias>1?'s':''} (${p.join(', ')})`;
 }
 
 // Threshold de 12 meses: 365 ou 366 dependendo se há fevereiro bissexto no período
