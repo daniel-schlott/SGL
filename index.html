@@ -13001,8 +13001,8 @@ function calcAcumDuracao(de, ate) {
   return `${totalDias} dias (${p.join(', ')})`;
 }
 
-// Data calendário do 365º dia trabalhado, percorrendo os diasTrab de cada linha em sequência
-function calcAcumDate365(linhas, de) {
+// Data calendário do 365º dia trabalhado. Se não atingido no período, projeta a partir da data final + dias faltantes
+function calcAcumDate365(linhas, de, ate) {
   if (!linhas.length || !de) return '—';
   const startDay = Number(de.split('-')[2]);
   let cumul = 0;
@@ -13016,7 +13016,12 @@ function calcAcumDate365(linhas, de) {
       return `${String(dayOfMonth).padStart(2,'0')}/${String(l.mes).padStart(2,'0')}/${l.ano}`;
     }
   }
-  return '—';
+  // Não atingido: projeta a partir da data final + dias faltantes
+  if (!ate) return '—';
+  const diasFaltam = 365 - cumul;
+  const proj = new Date(ate + 'T00:00:00');
+  proj.setDate(proj.getDate() + diasFaltam);
+  return `${String(proj.getDate()).padStart(2,'0')}/${String(proj.getMonth()+1).padStart(2,'0')}/${proj.getFullYear()}`;
 }
 
 // Atualiza os campos de resumo (duração e data dos 365 dias) sem re-renderizar o card inteiro
@@ -13025,7 +13030,7 @@ function calcAcumUpdateSummary() {
   const durEl    = document.getElementById('calc-acum-duracao');
   const date365El = document.getElementById('calc-acum-date365');
   if (durEl)     durEl.textContent     = calcAcumDuracao(acum.de, acum.ate);
-  if (date365El) date365El.textContent = calcAcumDate365(acum.linhas, acum.de);
+  if (date365El) date365El.textContent = calcAcumDate365(acum.linhas, acum.de, acum.ate);
 }
 
 function calcRenderAcumulado() {
@@ -13046,7 +13051,7 @@ function calcRenderAcumulado() {
           <div class="calc-field"><label>Período de permanência</label><div style="${infoStyle}" id="calc-acum-duracao">${calcAcumDuracao(acum.de, acum.ate)}</div></div>
         </div>
         <div class="calc-3col">
-          <div class="calc-field" style="grid-column:1/2"><label>Data dos 365 dias trabalhados</label><div style="${infoStyle}" id="calc-acum-date365">${calcAcumDate365(acum.linhas, acum.de)}</div></div>
+          <div class="calc-field" style="grid-column:1/2"><label>Data dos 365 dias trabalhados</label><div style="${infoStyle}" id="calc-acum-date365">${calcAcumDate365(acum.linhas, acum.de, acum.ate)}</div></div>
         </div>
       </div>
     </div>
