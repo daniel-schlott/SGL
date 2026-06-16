@@ -12987,7 +12987,7 @@ function calcAcumDuracao(de, ate) {
   const d0 = new Date(de + 'T00:00:00');
   const d1 = new Date(ate + 'T00:00:00');
   if (d1 < d0) return '—';
-  const totalDias = Math.round((d1 - d0) / 86400000);
+  const totalDias = Math.round((d1 - d0) / 86400000) + 1; // inclusivo: conta ambos os dias das extremidades
   if (totalDias === 0) return '0 dias';
   let anos  = d1.getFullYear() - d0.getFullYear();
   let meses = d1.getMonth()    - d0.getMonth();
@@ -13001,24 +13001,34 @@ function calcAcumDuracao(de, ate) {
   return `${totalDias} dias (${p.join(', ')})`;
 }
 
-// Data calendário do 365º dia trabalhado. Se não atingido no período, projeta a partir da data final + dias faltantes
+// Threshold de 12 meses: 365 ou 366 dependendo se há fevereiro bissexto no período
+function calcAcumThreshold(de) {
+  if (!de) return 365;
+  const d0 = new Date(de + 'T00:00:00');
+  const d12m = new Date(d0);
+  d12m.setFullYear(d12m.getFullYear() + 1);
+  return Math.round((d12m - d0) / 86400000);
+}
+
+// Data calendário dos 12 meses trabalhados. Se não atingido no período, projeta a partir da data final + dias faltantes
 function calcAcumDate365(linhas, de, ate) {
   if (!linhas.length || !de) return '—';
+  const threshold = calcAcumThreshold(de);
   const startDay = Number(de.split('-')[2]);
   let cumul = 0;
   for (let i = 0; i < linhas.length; i++) {
     const l = linhas[i];
     const prev = cumul;
     cumul += l.diasTrab;
-    if (cumul >= 365) {
-      const posWithin = 365 - prev; // posição 1-based dentro dos dias trabalhados deste mês
+    if (cumul >= threshold) {
+      const posWithin = threshold - prev; // posição 1-based dentro dos dias trabalhados deste mês
       const dayOfMonth = i === 0 ? startDay + posWithin - 1 : posWithin;
       return `${String(dayOfMonth).padStart(2,'0')}/${String(l.mes).padStart(2,'0')}/${l.ano}`;
     }
   }
   // Não atingido: projeta a partir da data final + dias faltantes
   if (!ate) return '—';
-  const diasFaltam = 365 - cumul;
+  const diasFaltam = threshold - cumul;
   const proj = new Date(ate + 'T00:00:00');
   proj.setDate(proj.getDate() + diasFaltam);
   return `${String(proj.getDate()).padStart(2,'0')}/${String(proj.getMonth()+1).padStart(2,'0')}/${proj.getFullYear()}`;
@@ -13038,6 +13048,9 @@ function calcRenderAcumulado() {
   if (!container) return;
   const acum = calcState.pagamento.acumulado;
   const infoStyle = `padding:7px 9px;border:1px solid var(--br);border-radius:var(--r);background:var(--acl);color:var(--acm);font-size:0.857em;font-weight:500`;
+  const diasVal = acum.de && acum.ate
+    ? Math.round((new Date(acum.ate+'T00:00:00') - new Date(acum.de+'T00:00:00')) / 86400000) + 1
+    : '';
   container.innerHTML = `
     <div class="calc-card">
       <div class="calc-card-hd">
@@ -13045,13 +13058,14 @@ function calcRenderAcumulado() {
         <div><div class="calc-card-hd-title">Período de permanência</div><div class="calc-card-hd-sub">Informe o intervalo completo para apurar os recebimentos mês a mês</div></div>
       </div>
       <div class="calc-card-body" style="display:flex;flex-direction:column;gap:12px">
-        <div class="calc-3col">
-          <div class="calc-field"><label>De</label><input id="calc-acum-de" type="date" value="${acum.de||''}" onchange="calcOnAcumRangeChange()"></div>
-          <div class="calc-field"><label>Até</label><input id="calc-acum-ate" type="date" value="${acum.ate||''}" onchange="calcOnAcumRangeChange()"></div>
+        <div style="display:grid;grid-template-columns:1fr 90px 1fr 1.3fr;gap:10px">
+          <div class="calc-field"><label>De</label><input id="calc-acum-de" type="date" value="${acum.de||''}" onchange="calcOnAcumDeChange()"></div>
+          <div class="calc-field"><label>Dias</label><input id="calc-acum-dias" type="number" min="1" value="${diasVal}" placeholder="—" style="text-align:center" onchange="calcOnAcumDiasChange()"></div>
+          <div class="calc-field"><label>Até</label><input id="calc-acum-ate" type="date" value="${acum.ate||''}" onchange="calcOnAcumAteChange()"></div>
           <div class="calc-field"><label>Período de permanência</label><div style="${infoStyle}" id="calc-acum-duracao">${calcAcumDuracao(acum.de, acum.ate)}</div></div>
         </div>
-        <div class="calc-3col">
-          <div class="calc-field" style="grid-column:1/2"><label>Data dos 365 dias trabalhados</label><div style="${infoStyle}" id="calc-acum-date365">${calcAcumDate365(acum.linhas, acum.de, acum.ate)}</div></div>
+        <div style="display:grid;grid-template-columns:1fr 3fr;gap:10px">
+          <div class="calc-field"><label>Data dos 12 meses trabalhados</label><div style="${infoStyle}" id="calc-acum-date365">${calcAcumDate365(acum.linhas, acum.de, acum.ate)}</div></div>
         </div>
       </div>
     </div>
@@ -13145,13 +13159,56 @@ function calcRenderAcumTable() {
     </div>`;
 }
 
-function calcOnAcumRangeChange() {
-  const de  = document.getElementById('calc-acum-de')?.value  || '';
-  const ate = document.getElementById('calc-acum-ate')?.value || '';
+function calcOnAcumDeChange() {
+  const de = document.getElementById('calc-acum-de')?.value || '';
+  const diasEl = document.getElementById('calc-acum-dias');
+  const ateEl  = document.getElementById('calc-acum-ate');
   const acum = calcState.pagamento.acumulado;
-  acum.de  = de;
+  acum.de = de;
+  if (de && diasEl?.value) {
+    // Dias preenchido: recalcula Até
+    const dias = parseInt(diasEl.value);
+    if (!isNaN(dias) && dias > 0) {
+      const d0 = new Date(de + 'T00:00:00');
+      d0.setDate(d0.getDate() + dias - 1);
+      acum.ate = d0.toISOString().split('T')[0];
+      if (ateEl) ateEl.value = acum.ate;
+    }
+  } else if (de && acum.ate) {
+    // Até preenchido: recalcula Dias
+    const diff = Math.round((new Date(acum.ate+'T00:00:00') - new Date(de+'T00:00:00')) / 86400000) + 1;
+    if (diasEl) diasEl.value = diff > 0 ? diff : '';
+  }
+  acum.linhas = calcAcumComputeLinhas(acum.de, acum.ate);
+  calcAcumUpdateSummary();
+  calcRenderAcumTable();
+}
+
+function calcOnAcumAteChange() {
+  const ate = document.getElementById('calc-acum-ate')?.value || '';
+  const diasEl = document.getElementById('calc-acum-dias');
+  const acum = calcState.pagamento.acumulado;
   acum.ate = ate;
-  acum.linhas = calcAcumComputeLinhas(de, ate);
+  if (acum.de && ate) {
+    const diff = Math.round((new Date(ate+'T00:00:00') - new Date(acum.de+'T00:00:00')) / 86400000) + 1;
+    if (diasEl) diasEl.value = diff > 0 ? diff : '';
+  }
+  acum.linhas = calcAcumComputeLinhas(acum.de, ate);
+  calcAcumUpdateSummary();
+  calcRenderAcumTable();
+}
+
+function calcOnAcumDiasChange() {
+  const de = document.getElementById('calc-acum-de')?.value || '';
+  const dias = parseInt(document.getElementById('calc-acum-dias')?.value || '');
+  const ateEl = document.getElementById('calc-acum-ate');
+  const acum = calcState.pagamento.acumulado;
+  if (!de || isNaN(dias) || dias < 1) return;
+  const d0 = new Date(de + 'T00:00:00');
+  d0.setDate(d0.getDate() + dias - 1);
+  acum.ate = d0.toISOString().split('T')[0];
+  if (ateEl) ateEl.value = acum.ate;
+  acum.linhas = calcAcumComputeLinhas(acum.de, acum.ate);
   calcAcumUpdateSummary();
   calcRenderAcumTable();
 }
