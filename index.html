@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v0.73.5</title>
+<title>Mais Médicos — Gestão de Licenças v0.74.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1252,6 +1252,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 .role-badge{display:inline-flex;align-items:center;padding:1px 7px;border-radius:20px;font-size:0.5625em;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
 .role-gestor{background:var(--acl);color:var(--acm)}
 .role-analista{background:var(--sf3);color:var(--tx3)}
+.role-visitante{background:var(--sf3);color:var(--tx3)}
 
 /* ── TAGS & ALERTAS ── */
 .tag-catalog{display:flex;flex-direction:column;gap:6px}
@@ -1835,7 +1836,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
   </div>
 
   <!-- Backup completo (v68) -->
-  <div class="sv-section">
+  <div class="sv-section" id="cfgSecBackup">
     <div class="sv-section-hd">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       <h2>Backup completo da base</h2>
@@ -1857,7 +1858,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
   </div>
 
   <!-- Carga de dados (v68) -->
-  <div class="sv-section">
+  <div class="sv-section" id="cfgSecCarga">
     <div class="sv-section-hd">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
       <h2>Carga de dados (planilha)</h2>
@@ -1876,7 +1877,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
   </div>
 
   <!-- Log de Modificações -->
-  <div class="sv-section">
+  <div class="sv-section" id="cfgSecLog">
     <div class="sv-section-hd">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
       <h2>Log de modificações</h2>
@@ -1939,7 +1940,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
   </div>
 
   <!-- SharePoint -->
-  <div class="sv-section">
+  <div class="sv-section" id="cfgSecSharePoint">
     <div class="sv-section-hd">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
       <h2>SharePoint — Pasta de documentos</h2>
@@ -3115,7 +3116,7 @@ const TEAM = [
   {name:"Michele C.",    ini:"MC", color:"#991B1B", role:"analista"},
   {name:"Fernanda A.",   ini:"FA", color:"#5B21B6", role:"analista"},
   {name:"Lelis L.",      ini:"LL", color:"#0F766E", role:"analista"},
-  {name:"Visitante",     ini:"VI", color:"#6B7280", role:"analista"},
+  {name:"Visitante",     ini:"VI", color:"#6B7280", role:"visitante"},
 ];
 let ME = Object.assign({}, TEAM[0]);
 
@@ -3302,6 +3303,8 @@ function authStartPeriodicCheck() {
 }
 
 function isGestor(){ return (ME.role||"analista")==="gestor"; }
+function isVisitante(){ return (ME.role||"analista")==="visitante"; }
+function canWrite(){ return !isVisitante(); }
 
 // ── OFFLINE INDICATOR (v71.1) ──
 function _offlineUpdate(){
@@ -3312,10 +3315,10 @@ function _offlineUpdate(){
 }
 window.addEventListener("offline", _offlineUpdate);
 window.addEventListener("online",  _offlineUpdate);
-function canEditOcc(prof){ return true; }
-function canEditCadastral(){ return isGestor(); }
-function canDeleteOcc(prof){ return isGestor() || prof.responsavel===ME.name; }
-function canEditStatusHistory(){ return isGestor(); }
+function canEditOcc(prof){ return canWrite(); }
+function canEditCadastral(){ return canWrite() && isGestor(); }
+function canDeleteOcc(prof){ return canWrite() && (isGestor() || prof.responsavel===ME.name); }
+function canEditStatusHistory(){ return canWrite() && isGestor(); }
 function teamBy(n){ return TEAM.find(t=>t.name===n) || {name:n,ini:n.slice(0,2).toUpperCase(),color:"#6B6860"}; }
 
 // Estado global da aplicação. Concentrado aqui para facilitar busca,
@@ -4472,7 +4475,7 @@ function renderDashboard(){
   // ── ESCOPO (Equipe / Meus / por responsável) ──
   // Inicializa escopo se ainda não definido — analista começa em "mine"
   if(!window.dashScope){
-    window.dashScope = isGestor() ? "equipe" : "mine";
+    window.dashScope = (isGestor()||isVisitante()) ? "equipe" : "mine";
     window.dashRespFilter = "";
   }
   // Marca botões ativos
@@ -6053,6 +6056,7 @@ function demToggleSeiCard(id){
 // ── DRAG AND DROP ──
 let demDragId=null;
 function demDragStart(e,id){
+  if(!canWrite()){ e.preventDefault(); showToast("Sem permissão para mover cards (acesso somente leitura).","warn"); return; }
   demDragId=id;
   e.dataTransfer.effectAllowed="move";
   e.dataTransfer.setData("text/plain",id);
@@ -6075,6 +6079,7 @@ function demDragLeave(e){
 function demDrop(e,st){
   e.preventDefault();
   e.currentTarget.classList.remove("drag-over");
+  if(!canWrite()){ showToast("Sem permissão para mover cards (acesso somente leitura).","warn"); return; }
   const id=parseInt(e.dataTransfer.getData("text/plain")||demDragId);
   const d=DEM_ENTRIES.find(x=>x.id===id); if(!d) return;
   if(d.status!==st){
@@ -7674,7 +7679,13 @@ function switchTab(t){
   document.getElementById("tab-"+t)?.classList.add("active");
   document.getElementById("view-"+t)?.classList.add("active");
   if(t==="dash") renderDashboard();
-  if(t==="cfg"){ renderSettingsLog(); renderThemeSwatches(); renderUserOpts(); renderTagCatalog(); spBaseInit(); renderFolhaDeadlines(); }
+  if(t==="cfg"){
+    renderSettingsLog(); renderThemeSwatches(); renderUserOpts(); renderTagCatalog(); spBaseInit(); renderFolhaDeadlines();
+    ["cfgSecBackup","cfgSecCarga","cfgSecLog","cfgSecSharePoint"].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el) el.style.display = isVisitante() ? "none" : "";
+    });
+  }
   if(t==="dem"){
     initDemandas();
     // v65: reconcilia com banco para pegar mudanças de outros usuários
@@ -11536,7 +11547,7 @@ async function initApp(){
   await ofTemplatesLoad();   // v69
 
   // Inicializa escopo do dashboard para evitar erro na primeira renderização
-  window.dashScope = isGestor() ? "equipe" : "mine";
+  window.dashScope = (isGestor()||isVisitante()) ? "equipe" : "mine";
   window.dashRespFilter = "";
 
   document.getElementById("appLoading")?.remove();
