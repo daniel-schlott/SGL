@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v0.75.1</title>
+<title>Mais Médicos — Gestão de Licenças v0.76.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -492,17 +492,19 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 .s-re{background:var(--tll);color:var(--tl)}
 .s-va{background:var(--bll);color:var(--bl)}
 .s-su{background:var(--rdl);color:var(--rd)}
+.s-dv{background:var(--sf3);color:var(--tx3)}
 .dot-an{background:var(--am)}
 .dot-re{background:var(--tl)}
 .dot-va{background:var(--bl)}
 .dot-su{background:var(--rd)}
+.dot-dv{background:var(--tx3)}
 
 /* ── RELATÓRIO VIEW ── */
 /* Tela 1 — Busca + Resultados */
 .rel-shell{display:flex;width:100%;height:100%;overflow:hidden;flex-direction:column}
 .rel-search-panel{background:var(--sf);border-bottom:1px solid var(--br);padding:14px 20px;flex-shrink:0;overflow-y:auto;max-height:50vh}
 .rel-search-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:10px;flex-wrap:wrap}
-.rel-search-hd h2{font-size:1em;font-weight:600;display:flex;align-items:center;gap:7px}
+.rel-search-hd h2{font-size:1.1429em;font-weight:600;letter-spacing:-.02em;display:flex;align-items:center;gap:7px}
 .rel-search-hd h2 svg{width:14px;height:14px;color:var(--tx3)}
 .rel-search-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .rel-groups{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
@@ -981,8 +983,8 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 .settings-view-wrap{flex:1;overflow-y:auto;background:var(--bg)}
 .settings-view-inner{max-width:820px;margin:0 auto;padding:28px 28px 60px}
 .settings-view-hd{margin-bottom:28px}
-.settings-view-hd h1{font-size:1.4286em;font-weight:600;letter-spacing:-.02em;margin-bottom:4px}
-.settings-view-hd p{font-size:0.8571em;color:var(--tx3)}
+.settings-view-hd h1{font-size:1.1429em;font-weight:600;letter-spacing:-.02em;margin-bottom:4px}
+.settings-view-hd p{font-size:0.7857em;color:var(--tx3)}
 .sv-section{background:var(--sf);border:1px solid var(--br);border-radius:var(--rl);margin-bottom:20px;overflow:hidden}
 .sv-section-hd{padding:14px 20px;border-bottom:1px solid var(--br);display:flex;align-items:center;gap:8px}
 .sv-section-hd h2{font-size:0.9286em;font-weight:600}
@@ -1120,6 +1122,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
   .pr-status-re{ background:#F0FDFA; color:#0F766E; }
   .pr-status-va{ background:#EBF0FB; color:#1B3FA0; }
   .pr-status-su{ background:#FEF2F2; color:#991B1B; }
+  .pr-status-dv{ background:#F0F0F0; color:#52525B; }
 
   /* history timeline */
   .pr-timeline{ display:flex; gap:0; flex-wrap:wrap; row-gap:3pt; align-items:center;
@@ -1154,7 +1157,17 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
   .pr-footer{ position:fixed; bottom:12mm; left:18mm; right:18mm;
     border-top:0.5pt solid #D1DBDB; padding-top:4pt;
     display:flex; justify-content:space-between; font-size:7pt; color:#7A8C8C; }
+
+  /* v0.76.0 — tabela genérica para PDFs de Lista/Detalhado (aba Relatório) */
+  .pr-datatable-page{ page:relLandscape; }
+  .pr-datatable{ width:100%; border-collapse:collapse; font-size:6.5pt; }
+  .pr-datatable th,.pr-datatable td{ border:0.5pt solid #D1DBDB; padding:3pt 4pt; text-align:left; vertical-align:top; }
+  .pr-datatable th{ background:#F0F4F4; color:#059669; font-weight:700; text-transform:uppercase; font-size:6pt; letter-spacing:.03em; }
+  .pr-datatable tr{ page-break-inside:avoid; }
+  .pr-datatable-meta{ font-size:8pt; color:#4A5D5D; margin-bottom:8pt; }
 }
+
+@page relLandscape{ size:A4 landscape; margin:12mm; }
 
 /* print report hidden on screen */
 #printReport{ display:none; }
@@ -1364,8 +1377,8 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 
 /* HEADER */
 .calc-hd{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:2px}
-.calc-title{font-size:1.143em;font-weight:600;letter-spacing:-.02em}
-.calc-sub{font-size:0.786em;color:var(--tx3);margin-top:2px}
+.calc-title{font-size:1.1429em;font-weight:600;letter-spacing:-.02em}
+.calc-sub{font-size:0.7857em;color:var(--tx3);margin-top:2px}
 
 /* BUTTONS */
 .btn{padding:6px 12px;border-radius:var(--r);font-size:0.857em;font-weight:500;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;border:1px solid transparent;white-space:nowrap;line-height:1.4}
@@ -1608,6 +1621,10 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
         Vincular SEI
       </button>
+      <button class="btn btn-ghost btn-sm" onclick="openActivityReportDialog()">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Relatório de atividades
+      </button>
       <button class="btn btn-primary btn-sm" onclick="demOpenNew()">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Nova demanda
@@ -1712,7 +1729,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
     <div class="dem-hd">
       <div>
         <div class="dem-title">Modelos de documentos</div>
-        <div style="font-size:0.8571em;color:var(--tx3);margin-top:2px">Crie e edite modelos com variáveis. Qualquer usuário pode editar. Os modelos ficam disponíveis no botão "Gerar documentos" do card de demanda.</div>
+        <div class="dem-sub">Crie e edite modelos com variáveis. Qualquer usuário pode editar. Os modelos ficam disponíveis no botão "Gerar documentos" do card de demanda.</div>
       </div>
       <button class="btn btn-primary" onclick="ofNewTemplate()">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -2204,6 +2221,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
                 <option>Afastamento Cautelar</option>
                 <option>Licença por Óbito</option>
                 <option>Violência Doméstica</option>
+                <option>Afastamento Militar</option>
               </select>
             </div>
             <div class="rel-fields rg2">
@@ -2250,6 +2268,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
                 <option value="reativada">Reativada</option>
                 <option value="vaga">Vaga Disponibilizada</option>
                 <option value="suspensa">Suspensa</option>
+                <option value="desligamento">Desligamento Voluntário</option>
               </select>
             </div>
             <div class="rel-field">
@@ -2306,7 +2325,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
               <div class="exp-menu-item" onclick="exportRelListXlsx();closeExpMenus()">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Excel (.xlsx)
               </div>
-              <div class="exp-menu-item" onclick="exportRelList();closeExpMenus()">
+              <div class="exp-menu-item" onclick="exportRelListPDF();closeExpMenus()">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15h6M9 11h6M9 7h3"/></svg>PDF
               </div>
             </div>
@@ -2320,7 +2339,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
               <div class="exp-menu-item" onclick="exportRelDetailedXlsx();closeExpMenus()">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Excel (.xlsx)
               </div>
-              <div class="exp-menu-item" onclick="exportRelDetailed();closeExpMenus()">
+              <div class="exp-menu-item" onclick="exportRelDetailedPDF();closeExpMenus()">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15h6M9 11h6M9 7h3"/></svg>PDF
               </div>
             </div>
@@ -3183,7 +3202,7 @@ function showLoginScreen(reason) {
             <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           </div>
           <div class="auth-title">Gestão de Licenças</div>
-          <div class="auth-sub">Programa Mais Médicos · v0.75.1</div>
+          <div class="auth-sub">Programa Mais Médicos · v0.76.0</div>
         </div>
         <div class="auth-body">
           <div id="authAlert" class="auth-alert"></div>
@@ -3341,14 +3360,32 @@ let isCompact    = false;
 let searchDebounceTimer = null;
 
 // Status do profissional: códigos longos vs. abreviados, classes CSS e dots
-const SL = {an:"Analisando",re:"Reativada",va:"Vaga Disp.",su:"Suspensa",ru:"Retorno UBS"};
-const SC = {analisando:"s-an",reativada:"s-re",vaga:"s-va",suspensa:"s-su"};
-const DC = {analisando:"dot-an",reativada:"dot-re",vaga:"dot-va",suspensa:"dot-su"};
-const SK = {analisando:"an",reativada:"re",vaga:"va",suspensa:"su",retorno_ubs:"ru"};
+const SL = {an:"Analisando",re:"Reativada",va:"Vaga Disp.",su:"Suspensa",ru:"Retorno UBS",dv:"Desligamento Voluntário"};
+const SC = {analisando:"s-an",reativada:"s-re",vaga:"s-va",suspensa:"s-su",desligamento:"s-dv"};
+const DC = {analisando:"dot-an",reativada:"dot-re",vaga:"dot-va",suspensa:"dot-su",desligamento:"dot-dv"};
+const SK = {analisando:"an",reativada:"re",vaga:"va",suspensa:"su",retorno_ubs:"ru",desligamento:"dv"};
+
+// v0.76.0: status terminal — nunca sobrescrito pelas transições automáticas
+const STATUS_TERMINAL = new Set(["desligamento"]);
 
 function statusLbl(s){ return SL[SK[s]]||SL[s]||s; }
 function statusCls(s){ return SC[s]||"s-an"; }
 function dotCls(s){    return DC[s]||"dot-an"; }
+
+// v0.76.0: transição automática de status do profissional.
+// Sobrescreve qualquer status manual, exceto status terminais (Desligamento
+// Voluntário), que nunca são alterados automaticamente.
+function autoSetStatus(prof, newKey, customTs){
+  if(!prof) return null;
+  if(STATUS_TERMINAL.has(prof.status)) return null;
+  if(prof.status === newKey) return null;
+  const before = statusLbl(prof.status);
+  const ts = customTs || tsNow();
+  if(!prof.statusHistory) prof.statusHistory = [];
+  prof.statusHistory.push({s:newKey, ts});
+  prof.status = newKey;
+  return { key:newKey, before, after: statusLbl(newKey), ts };
+}
 
 
 // ──────────────────────────────────────────────────────────────────
@@ -3363,6 +3400,14 @@ function dotCls(s){    return DC[s]||"dot-an"; }
 // ── Datas e formatadores ──
 function fmt(d){ return d.toLocaleDateString("pt-BR"); }
 function fmtI(s){ if(!s) return ""; const d = new Date(s+"T00:00:00"); return isNaN(d) ? s : fmt(d); }
+// v0.76.0: soma N meses a uma data "YYYY-MM-DD", retorna no mesmo formato (p/ <input type=date>)
+function addMonthsStr(dateStr, months){
+  if(!dateStr) return "";
+  const d = new Date(dateStr+"T00:00:00");
+  if(isNaN(d)) return "";
+  d.setMonth(d.getMonth()+months);
+  return d.toISOString().slice(0,10);
+}
 function nowStr(){ const n=new Date(); return n.toLocaleDateString("pt-BR")+" "+n.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); }
 function tsNow(){ return new Date().toISOString().slice(0,10); }
 // v66: normaliza string removendo acentos para buscas
@@ -3432,7 +3477,7 @@ function showToast(msg, type="", duration=3000){
   showToast._timer = setTimeout(()=>t.classList.remove("show"), duration);
 }
 
-function closeDialog(){ document.getElementById("overlay").classList.remove("show"); }
+function closeDialog(){ document.getElementById("overlay").classList.remove("show"); const ok=document.getElementById("dlgOk"); if(ok) ok.style.display=""; }
 
 /**
  * Envolve uma ação async de botão em estado visual de loading.
@@ -3469,10 +3514,14 @@ function calcDates(occ){
 function occPendencies(occ){
   const issues=[];
   const isMP = occ.tipoAfasta==="Licença Maternidade"||occ.tipoAfasta==="Licença Paternidade";
+  const isMilitar = occ.tipoAfasta==="Afastamento Militar";
   if(isMP){
     const mp = occ.matPat||{};
     if(!mp.inicioLic)    issues.push("Início da licença");
     if(!mp.statusBolsa)  issues.push("Status da bolsa");
+  } else if(isMilitar){
+    if(!occ.dataInicio)       issues.push("Data de início");
+    if(!occ.dataPrevTermino)  issues.push("Data prevista término");
   } else {
     if(!occ.tipoDoc)                          issues.push("Tipo de documento");
     if(!occ.dataInicio)                       issues.push("Data de início");
@@ -3481,6 +3530,7 @@ function occPendencies(occ){
   }
   return issues;
 }
+
 
 function profPendencies(p){
   return p.occurrences.some(o=>occPendencies(o).length>0);
@@ -3763,8 +3813,8 @@ const OPS_NUM  = ["maior que","maior ou igual a","igual a","menor ou igual a","m
 const OPS_EQ   = ["é igual a","não é"];
 
 const RULE_FIELDS = [
-  {id:"status",         label:"Status do caso",              ops:OPS_EQ,   type:"select", opts:["analisando","suspensa","vaga","reativada"]},
-  {id:"tipoAfasta",     label:"Tipo de afastamento",         ops:OPS_EQ,   type:"select", opts:["Afastamento por Saúde","Licença Maternidade","Licença Paternidade","Cautelar","Óbito","Violência Doméstica"]},
+  {id:"status",         label:"Status do caso",              ops:OPS_EQ,   type:"select", opts:["analisando","suspensa","vaga","reativada","desligamento"]},
+  {id:"tipoAfasta",     label:"Tipo de afastamento",         ops:OPS_EQ,   type:"select", opts:["Afastamento por Saúde","Licença Maternidade","Licença Paternidade","Cautelar","Óbito","Violência Doméstica","Afastamento Militar"]},
   {id:"suspBolsa",      label:"Bolsa suspensa",              ops:OPS_EQ,   type:"select", opts:["sim","não"]},
   {id:"vigente",        label:"Afastamento vigente",         ops:OPS_EQ,   type:"select", opts:["sim","não"]},
   {id:"sobreposicao",   label:"Tem sobreposição",            ops:OPS_EQ,   type:"select", opts:["sim","não"]},
@@ -4175,7 +4225,7 @@ function openTagEditor(id){
   // build responsavel opts
   const respOpts = TEAM.map(t=>`<option>${t.name}</option>`).join("");
   // build status opts for rule selects
-  const statusOpts = ["analisando","suspensa","vaga","reativada"].map(v=>`<option>${v}</option>`).join("");
+  const statusOpts = ["analisando","suspensa","vaga","reativada","desligamento"].map(v=>`<option>${v}</option>`).join("");
 
   const colorDots = TAG_COLORS.map(c=>
     `<div class="tag-color-opt${(tag?.colorId||"blue")===c.id?" active":""}"
@@ -5152,7 +5202,7 @@ function renderVigByTipo(scopeProfs){
   const maxVig=vigSorted.length?vigSorted[0][1]:1;
   const vigColors={"Afastamento por Saúde":"var(--bl)","Licença Maternidade":"var(--pu)",
     "Licença Paternidade":"var(--tl)","Afastamento Cautelar":"var(--am)",
-    "Licença por Óbito":"var(--rd)","Violência Doméstica":"var(--or)"};
+    "Licença por Óbito":"var(--rd)","Violência Doméstica":"var(--or)","Afastamento Militar":"var(--tx3)"};
   document.getElementById("vigByTipo").innerHTML=vigSorted.length
     ? vigSorted.map(([t,v])=>`
         <div class="tipo-row">
@@ -5339,6 +5389,13 @@ let DEM_NEXT_GRP = 1;
 const DEM_STATUS        = ["Novas Demandas","Em Andamento","Pendências","Concluídos"];
 const DEM_ETAPAS_SAUDE  = ["Suspensão","Reativação","Restituição","Pagamento Retroativo"];
 const DEM_ETAPAS_MP     = ["Suspensão da Bolsa","Reativação","Restituição ao Erário","Carta de Concessão","Pagamento Retroativo"];
+const DEM_ETAPAS_MILITAR = ["Suspensão","Reativação"];
+// v0.76.0: centraliza a escolha de etapas por tipo de afastamento
+function etapasFor(tipoAfasta){
+  if(tipoAfasta==="Licença Maternidade"||tipoAfasta==="Licença Paternidade") return DEM_ETAPAS_MP;
+  if(tipoAfasta==="Afastamento Militar") return DEM_ETAPAS_MILITAR;
+  return DEM_ETAPAS_SAUDE;
+}
 
 // ── BOOTSTRAP FROM EXISTING OCCURRENCES ──
 // ── DEM_CARDS HELPERS (v64) ──
@@ -5756,6 +5813,39 @@ async function demBootstrap(){
   }
   // Reconstrói grupos SEI por nº de processo (path legado)
   _demRebuildSeiGroups();
+}
+
+// v0.76.0 (item 5.1.2) — varre ocorrências de Licença Maternidade (não se
+// aplica à Paternidade, cuja licença tem duração diferente) sem "Tipo de
+// Reativação" definido cujo início + 120 dias já passou, e marca
+// "Reativação Automática" + status do profissional "Reativada". Roda em
+// memória (sem leitura extra ao Supabase) a cada carregamento/refresh do
+// app — equivalente ao custo dos alertas de tag. Só grava quando o limite
+// realmente foi cruzado (idempotente: não repete depois de já reativado).
+async function sweepMPReativacaoAutomatica(){
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  for(const prof of DB.getAll()){
+    for(const occ of (prof.occurrences||[])){
+      const isMP = occ.tipoAfasta==="Licença Maternidade";
+      if(!isMP) continue;
+      const mp = occ.matPat||{};
+      if(!mp.inicioLic || mp.tipoReat) continue; // sem início, ou já tem tipo de reativação definido
+      const limite = new Date(mp.inicioLic+"T00:00:00"); limite.setDate(limite.getDate()+120);
+      if(hoje < limite) continue; // ainda não cruzou os 120 dias
+      // Cruzou o limite — grava a transição com a DATA CORRETA (início+120d),
+      // não a data de hoje, para refletir quando o evento realmente ocorreu.
+      const ts = limite.toISOString().slice(0,10);
+      mp.tipoReat = "Reativação Automática";
+      occ.matPat = mp;
+      await DB.saveOcc(prof.id, occ);
+      const change = autoSetStatus(prof, "reativada", ts);
+      if(change){
+        await DB.save(prof);
+        await DB.saveStatusHistory(prof.id, change.key, ts);
+        await addLog("Status (automático)", prof.id, prof.nome, "Status do caso", change.before, change.after);
+      }
+    }
+  }
 }
 
 function demInitData(etapa,occ,isMP){
@@ -6629,15 +6719,17 @@ function demFormMPSusp(dd){
 
 
 function demFormMPReat(dd){
-  // Auto-selecionar "Automático" se licença encerrou e tipoReat vazio e não "Por Indeferimento"
+  // v0.76.0: Auto-selecionar "Reativação Automática" 120 dias após o início
+  // da licença (apenas Maternidade — item 5.1.2), se tipoReat ainda vazio
+  // e não "Por Indeferimento".
   const d = DEM_ENTRIES.find(x=>x.id===demEditId);
-  if(d){
+  if(d && d.tipo==="maternidade"){
     const occ = demGetOcc(d);
-    const terminoLic = occ?.matPat?.terminoLic || d.demData?.mpTerminoLic || "";
-    if(terminoLic && !dd.tipoReat){
+    const inicioLic = occ?.matPat?.inicioLic || d.demData?.mpInicioLic || "";
+    if(inicioLic && !dd.tipoReat){
       const hoje = new Date(); hoje.setHours(0,0,0,0);
-      const term = new Date(terminoLic+"T00:00:00");
-      if(hoje > term) dd.tipoReat = "Automático";
+      const limite = new Date(inicioLic+"T00:00:00"); limite.setDate(limite.getDate()+120);
+      if(hoje >= limite) dd.tipoReat = "Reativação Automática";
     }
   }
   return `<div class="dem-dr-section">
@@ -6646,7 +6738,7 @@ function demFormMPReat(dd){
       <div class="dem-field"><label>Tipo de Reativação</label>
         <select id="df-mpTipoReat" onchange="demFieldSave()">
           <option value="">—</option>
-          <option${dd.tipoReat==="Automático"?" selected":""}>Automático</option>
+          <option${dd.tipoReat==="Reativação Automática"?" selected":""}>Reativação Automática</option>
           <option${dd.tipoReat==="Por Indeferimento"?" selected":""}>Por Indeferimento</option>
         </select></div>
       <div class="dem-field"><label>Nº Processo de Reativação</label><input type="text" id="df-numProcReat" value="${dd.numProcReat||""}" placeholder="NNNNN.NNNNNN/NNNN-NN" style="font-family:'DM Mono',monospace" oninput="procMask(this)" onchange="demFieldSave()"></div>
@@ -6873,18 +6965,34 @@ async function demFieldSave(){
     if(!confirm("Atenção: esta ocorrência já possui dados preenchidos que serão sobrescritos. Deseja continuar?")) return false;
   }
   demSyncToOcc(d);
+  // v0.76.0 — transição automática "Reativada" também via card de Demandas
+  // (o card de Suspensão não grava "Data de início", então só Reativação
+  // é relevante aqui; ver item 5.1 / autoSetStatus).
+  let demAutoStatusChange = null;
+  if(_syncOcc && d.etapa==="Reativação"){
+    const profForAuto = DB.getById(d.profId);
+    if(_syncOcc.matPat){
+      if(_syncOcc.matPat.tipoReat) demAutoStatusChange = autoSetStatus(profForAuto,"reativada");
+    } else {
+      if(_syncOcc.dataReat) demAutoStatusChange = autoSetStatus(profForAuto,"reativada");
+    }
+  }
   // Persistir ocorrência no banco e re-renderizar tela do profissional se estiver aberta
   if(_syncOcc){
     // Aguarda os 2 saves em paralelo para dar feedback real ao usuário
-    const [occRes, cardOk] = await Promise.all([
-      DB.saveOcc(d.profId, _syncOcc),
-      dbSaveDemCard(d)
-    ]);
+    const savePromises = [DB.saveOcc(d.profId, _syncOcc), dbSaveDemCard(d)];
+    if(demAutoStatusChange) savePromises.push(DB.save(DB.getById(d.profId)));
+    const [occRes, cardOk] = await Promise.all(savePromises);
     if(occRes && !occRes.ok){
       showToast("Erro ao salvar ocorrência", "error");
       return false;
     }
     if(!cardOk) return false; // toast de erro já foi mostrado em dbSaveDemCard
+    if(demAutoStatusChange){
+      await DB.saveStatusHistory(d.profId, demAutoStatusChange.key, demAutoStatusChange.ts);
+      const profNome = DB.getById(d.profId)?.nome || "";
+      await addLog("Status (automático)", d.profId, profNome, "Status do caso", demAutoStatusChange.before, demAutoStatusChange.after);
+    }
     if(currentProf && currentProf.id === d.profId) renderOccurrences();
   }
   return true;
@@ -7231,7 +7339,7 @@ function demSelectProf(profId){
   var occsHtml="";
   occs.forEach(function(o){
     const isMP=o.tipoAfasta==="Licença Maternidade"||o.tipoAfasta==="Licença Paternidade";
-    const etapas=isMP?DEM_ETAPAS_MP:DEM_ETAPAS_SAUDE;
+    const etapas=etapasFor(o.tipoAfasta);
     const existingDems=DEM_ENTRIES.filter(function(d){return d.occId===o.id;});
     var chipsHtml="";
     etapas.forEach(function(e){
@@ -7315,6 +7423,7 @@ function demSelectOcc(occId){
       +'<option>Afastamento Cautelar</option>'
       +'<option>Óbito</option>'
       +'<option>Violência Doméstica</option>'
+      +'<option>Afastamento Militar</option>'
       +'</select></div>'
       +'</div>'
       +'<div id="demNPEtapasNovaOcc"></div>'
@@ -7325,7 +7434,7 @@ function demSelectOcc(occId){
 
   const occ=(prof.occurrences||[]).find(o=>o.id===occId); if(!occ) return;
   const isMP=occ.tipoAfasta==="Licença Maternidade"||occ.tipoAfasta==="Licença Paternidade";
-  const etapas=isMP?DEM_ETAPAS_MP:DEM_ETAPAS_SAUDE;
+  const etapas=etapasFor(occ.tipoAfasta);
   const sec=document.getElementById("demNPEtapaSection"); if(!sec) return;
   // Marcar etapas que já têm card criado para esta ocorrência
   const ocupadas = new Set(DEM_ENTRIES.filter(x=>x.occId===occId).map(x=>x.etapa));
@@ -7363,7 +7472,7 @@ function demConfirmNewOcc(){
   const newN=(prof.occurrences||[]).length+1;
   const newOcc={
     id:newOccId,n:newN,tipoDoc:"ATESTADO",tipoAfasta:tipo,cids:[],
-    dataInicio:"",periodo:0,inss:false,beneficioInssAte:"",faltasInjust:"",retornoDias:"",
+    dataInicio:"",periodo:0,dataPrevTermino:"",inss:false,beneficioInssAte:"",faltasInjust:"",retornoDias:"",
     suspBolsa:"",tipoPagSusp:"INTEGRAL",folhaCoapeSupsp:"",numProcSusp:"",
     dataReat:"",tipoPagReat:"",folhaCoapeReat:"",numProcReat:"",
     tipoRest:"",periodoRest:"",numProcRest:"",periodoPagos:"",procPagRetro:"",
@@ -7377,7 +7486,7 @@ function demConfirmNewOcc(){
 
   // Mostrar etapas no container dedicado (dentro do bloco de nova ocorrência)
   const isMP=tipo==="Licença Maternidade"||tipo==="Licença Paternidade";
-  const etapas=isMP?DEM_ETAPAS_MP:DEM_ETAPAS_SAUDE;
+  const etapas=etapasFor(tipo);
   const container=document.getElementById("demNPEtapasNovaOcc")||document.getElementById("demNPEtapaSection");
   if(!container) return;
   container.innerHTML=`
@@ -7511,7 +7620,7 @@ function demCreateRelatedCard(sourceId){
   const prof = DB.getById(src.profId); if(!prof) return;
   const occ  = (prof.occurrences||[]).find(o=>o.id===src.occId); if(!occ) return;
   const isMP = occ.tipoAfasta==="Licença Maternidade"||occ.tipoAfasta==="Licença Paternidade";
-  const etapas = isMP ? DEM_ETAPAS_MP : DEM_ETAPAS_SAUDE;
+  const etapas = etapasFor(occ.tipoAfasta);
 
   // v64: 1 card por etapa — só mostra etapas que ainda não existem
   const existing = new Set(DEM_ENTRIES.filter(x=>x.occId===src.occId).map(x=>x.etapa));
@@ -8260,7 +8369,7 @@ function openStatusDialog(){
   document.getElementById("dlgMsg").textContent   = `Profissional: ${currentProf.nome}`;
   document.getElementById("dlgExtra").innerHTML   = `
     <select class="dlg-select" id="newStatus">
-      ${Object.entries({analisando:"Analisando",reativada:"Reativada",vaga:"Vaga Disp.",suspensa:"Suspensa"})
+      ${Object.entries({analisando:"Analisando",reativada:"Reativada",vaga:"Vaga Disp.",suspensa:"Suspensa",desligamento:"Desligamento Voluntário"})
         .map(([k,v])=>`<option value="${k}"${currentProf.status===k?" selected":""}>${v}</option>`).join("")}
     </select>`;
   document.getElementById("dlgOk").textContent = "Salvar";
@@ -8496,6 +8605,8 @@ function occRemoveRestituicao(occId, idx){
 function buildFormSaude(occ){
   const {dia16,termino} = calcDates(occ);
   const id = occ.id;
+  const isMilitar = occ.tipoAfasta==="Afastamento Militar";
+  const prevTerminoVal = occ.dataPrevTermino || (occ.dataInicio ? addMonthsStr(occ.dataInicio,18) : "");
   return `<div style="padding-top:12px">
   <div class="fs">
     <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M8 5v6"/></svg>Entrada no Núcleo</div>
@@ -8511,12 +8622,12 @@ function buildFormSaude(occ){
     </div>
   </div>
   <div class="fs">
-    <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M8 5v6"/></svg>Afastamento e CID</div>
+    <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M8 5v6"/></svg>${isMilitar?"Afastamento":"Afastamento e CID"}</div>
     <div class="fg-grid g5">
-      <div class="field"><label>Tipo de documento ${req()}</label>
+      ${isMilitar?"":`<div class="field"><label>Tipo de documento ${req()}</label>
         <select id="f${id}-tipoDoc" class="${mis(occ.tipoDoc)}" onchange="onChange(${id})">
           ${["ATESTADO","LAUDO","COMUNICADO DE DECISÃO INSS"].map(v=>`<option${occ.tipoDoc===v?" selected":""}>${v}</option>`).join("")}
-        </select></div>
+        </select></div>`}
       <div class="field"><label>Tipo de afastamento${occ.editadoEm!=="—"?` <span style="font-size:0.75em;color:var(--tx3);font-weight:400">(não editável após salvar)</span>`:""}
         </label>
         ${occ.editadoEm!=="—"
@@ -8526,25 +8637,32 @@ function buildFormSaude(occ){
             </div>`
           : `<select id="f${id}-tipoAfasta" onchange="onChange(${id})">
               <option value="">—</option>
-              ${["Afastamento por Saúde","Afastamento Cautelar","Licença Maternidade","Licença Paternidade","Licença por Óbito","Violência Doméstica"].map(v=>`<option${(occ.tipoAfasta||"")===v?" selected":""}>${v}</option>`).join("")}
+              ${["Afastamento por Saúde","Afastamento Cautelar","Licença Maternidade","Licença Paternidade","Licença por Óbito","Violência Doméstica","Afastamento Militar"].map(v=>`<option${(occ.tipoAfasta||"")===v?" selected":""}>${v}</option>`).join("")}
             </select>`}
         </div>
+      ${isMilitar?"":`
       <div class="field"><label>CID 1</label><input id="f${id}-cid0" value="${occ.cids[0]||""}" oninput="onChange(${id})" placeholder="ex: F32"></div>
       <div class="field"><label>CID 2</label><input id="f${id}-cid1" value="${occ.cids[1]||""}" oninput="onChange(${id})"></div>
-      <div class="field"><label>CID 3</label><input id="f${id}-cid2" value="${occ.cids[2]||""}" oninput="onChange(${id})"></div>
+      <div class="field"><label>CID 3</label><input id="f${id}-cid2" value="${occ.cids[2]||""}" oninput="onChange(${id})"></div>`}
     </div>
+    ${isMilitar?`
+    <div class="fg-grid g5" style="margin-top:8px">
+      <div class="field"><label>Data de Início ${req()}</label><input type="date" id="f${id}-dataInicio" value="${occ.dataInicio||""}" class="${mis(occ.dataInicio)}" oninput="militarPrevTerminoSync(${id});onChange(${id})"></div>
+      <div class="field"><label>Data prevista término</label><input type="date" id="f${id}-dataPrevTermino" value="${prevTerminoVal}" oninput="this.dataset.touched='1';onChange(${id})"></div>
+    </div>`:`
     <div class="fg-grid g5" style="margin-top:8px">
       <div class="field"><label>CID 4</label><input id="f${id}-cid3" value="${occ.cids[3]||""}" oninput="onChange(${id})"></div>
       <div class="field"><label>Data início ${req()}</label><input type="date" id="f${id}-dataInicio" value="${occ.dataInicio||""}" class="${mis(occ.dataInicio)}" oninput="onChange(${id})"></div>
       <div class="field"><label>Período (dias) ${req()}</label><input type="number" id="f${id}-periodo" value="${occ.periodo||""}" class="${(!occ.inss&&!occ.periodo)?"missing":""}" placeholder="INSS=vazio" oninput="onChange(${id})"></div>
       <div class="field"><label>16º dia (auto)</label><div class="computed" id="f${id}-d16">${dia16}</div></div>
       <div class="field"><label>Término (auto)</label><div class="computed" id="f${id}-te">${termino}</div></div>
-    </div>
+    </div>`}
+    ${isMilitar?"":`
     <div class="fg-grid g4" style="margin-top:8px">
       <div class="field"><label>Benefício INSS até</label><input type="date" id="f${id}-inssAte" value="${occ.beneficioInssAte||""}" oninput="onChange(${id})"></div>
       <div class="field"><label>Faltas injustificadas</label><input id="f${id}-faltas" value="${occ.faltasInjust||""}" oninput="onChange(${id})"></div>
       <div class="field sp2"><label>Retorno / dias trabalhados</label><input id="f${id}-retorno" value="${occ.retornoDias||""}" oninput="onChange(${id})"></div>
-    </div>
+    </div>`}
   </div>
   <div class="fs">
     <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>Suspensão da Bolsa</div>
@@ -8626,12 +8744,19 @@ function buildFormMatPat(occ){
   // 6. Retorno UBS = 1 dia após término prorrogação (se houver) ou término licença
   const retornoVal = mp.retornoUbs || (termProrrogVal ? addDays(termProrrogVal,1) : terminoLicVal ? addDays(terminoLicVal,1) : "");
 
-  // 3.2. Auto-reativação Automática: licença encerrou, tipoReat vazio e não "Por Indeferimento"
+  // 3.2. Auto-reativação "Reativação Automática": licença encerrou, tipoReat
+  // vazio e não "Por Indeferimento". Para Maternidade, base fixa = início+120
+  // dias (item 5.1.2); para Paternidade mantém-se a base no término da licença.
   const hoje = new Date(); hoje.setHours(0,0,0,0);
   let tipoReatVal = mp.tipoReat||"";
-  if(!tipoReatVal && mp.tipoReat!=="Por Indeferimento" && terminoLicVal){
-    const termD = new Date(terminoLicVal+"T00:00:00");
-    if(hoje > termD) tipoReatVal = "Automático";
+  if(!tipoReatVal && mp.tipoReat!=="Por Indeferimento"){
+    if(isMat && mp.inicioLic){
+      const limite = new Date(mp.inicioLic+"T00:00:00"); limite.setDate(limite.getDate()+120);
+      if(hoje >= limite) tipoReatVal = "Reativação Automática";
+    } else if(!isMat && terminoLicVal){
+      const termD = new Date(terminoLicVal+"T00:00:00");
+      if(hoje > termD) tipoReatVal = "Reativação Automática";
+    }
   }
 
   return `<div style="padding-top:12px">
@@ -8685,7 +8810,7 @@ function buildFormMatPat(occ){
       <div class="field"><label>Tipo de Reativação</label>
         <select id="f${id}-mpTipoReat" onchange="onChange(${id})">
           <option value="">—</option>
-          <option${tipoReatVal==="Automático"?" selected":""}>Automático</option>
+          <option${tipoReatVal==="Reativação Automática"?" selected":""}>Reativação Automática</option>
           <option${tipoReatVal==="Por Indeferimento"?" selected":""}>Por Indeferimento</option>
         </select></div>
       <div class="field"><label>Nº Processo de Reativação</label>
@@ -8907,6 +9032,16 @@ function mpAutoFill(id){
 // ── FORM LIVE LOGIC ──
 function g(id,k){ return document.getElementById(`f${id}-${k}`)?.value??""; }
 
+// v0.76.0: ao alterar "Data de Início" do Afastamento Militar, recalcula
+// "Data prevista término" (início+18 meses) — só se o campo ainda não foi
+// editado manualmente pelo usuário (controlado via dataset.touched).
+function militarPrevTerminoSync(id){
+  const elPrev = document.getElementById(`f${id}-dataPrevTermino`);
+  if(!elPrev || elPrev.dataset.touched) return;
+  const di = g(id,"dataInicio");
+  elPrev.value = di ? addMonthsStr(di,18) : "";
+}
+
 function onChange(id){
   const di = g(id,"dataInicio");
   const pe = parseInt(g(id,"periodo"));
@@ -8993,7 +9128,7 @@ async function saveOcc(id, ev){
       ["tipoDoc","Tipo de documento"],["tipoAfasta","Tipo de afastamento"],
       ["dtEntradaNucleo","Data entrada núcleo"],["dtCienciaCoord","Data ciência coord."],
       ["metodoEntrada","Método de entrada"],["especEntrada","Especificação entrada"],
-      ["cid0","CID 1"],["cid1","CID 2"],["dataInicio","Data início"],["periodo","Período"],
+      ["cid0","CID 1"],["cid1","CID 2"],["dataInicio","Data início"],["periodo","Período"],["dataPrevTermino","Data prevista término"],
       ["suspBolsa","Data suspensão"],["numProcSusp","Nº proc. suspensão"],
       ["dataReat","Data reativação"],["numProcReat","Nº proc. reativação"],
       ["tipoRest","Tipo restituição"],["obs","Observação"],
@@ -9017,6 +9152,7 @@ async function saveOcc(id, ev){
     occ.cids            = [g(id,"cid0"),g(id,"cid1"),g(id,"cid2"),g(id,"cid3")].filter(Boolean);
     occ.dataInicio      = g(id,"dataInicio");
     occ.periodo         = parseInt(g(id,"periodo"))||null;
+    occ.dataPrevTermino = g(id,"dataPrevTermino");
     occ.inss            = occ.tipoDoc==="COMUNICADO DE DECISÃO INSS";
     occ.beneficioInssAte= g(id,"inssAte");
     occ.faltasInjust    = g(id,"faltas");
@@ -9049,6 +9185,19 @@ async function saveOcc(id, ev){
     occ.lembrete        = {data:g(id,"lembData"), nota:g(id,"lembNota")};
   }
 
+  // v0.76.0 — transições automáticas de status do profissional (item 5.1)
+  // Aplicadas sobre currentProf antes do save; sobrescrevem status manual,
+  // exceto status terminais (Desligamento Voluntário — ver STATUS_TERMINAL).
+  const autoStatusChanges = [];
+  if(isMP){
+    if(newMP.inicioLic){ const c=autoSetStatus(currentProf,"suspensa");  if(c) autoStatusChanges.push(c); }
+    if(newMP.tipoReat){  const c=autoSetStatus(currentProf,"reativada"); if(c) autoStatusChanges.push(c); }
+  } else {
+    const suspendeBolsa = tipo==="Afastamento por Saúde"||tipo==="Afastamento Militar";
+    if(suspendeBolsa && occ.dataInicio){ const c=autoSetStatus(currentProf,"suspensa");  if(c) autoStatusChanges.push(c); }
+    if(suspendeBolsa && occ.dataReat){   const c=autoSetStatus(currentProf,"reativada"); if(c) autoStatusChanges.push(c); }
+  }
+
   // shared — note: editadoPor/editadoEm are set authoritatively inside DB.saveOcc
   // (kept here as a no-op to preserve legacy field access)
 
@@ -9065,6 +9214,13 @@ async function saveOcc(id, ev){
   // save prof to update any denormalized fields (status etc)
   const profRes = await DB.save(currentProf);
   if(!profRes.ok) return;
+
+  if(autoStatusChanges.length){
+    for(const c of autoStatusChanges){
+      await DB.saveStatusHistory(currentProf.id, c.key, c.ts);
+      await addLog("Status (automático)", currentProf.id, currentProf.nome, "Status do caso", c.before, c.after);
+    }
+  }
 
   for(const c of changes) await addLog("Edição",currentProf.id,currentProf.nome,`Oc.${occ.n} — ${c.label}`,c.antes,c.depois);
   if(!changes.length) await addLog("Edição",currentProf.id,currentProf.nome,`Ocorrência nº ${occ.n}`,"","(salvo sem alterações rastreadas)");
@@ -9128,6 +9284,7 @@ function addOccurrence(){
       <option>Afastamento Cautelar</option>
       <option>Licença por Óbito</option>
       <option>Violência Doméstica</option>
+      <option>Afastamento Militar</option>
     </select>`;
   document.getElementById("dlgOk").textContent = "Criar";
   document.getElementById("dlgOk").className   = "btn btn-primary";
@@ -9147,7 +9304,7 @@ async function createOccurrence(tipo){
     _isNew: true,
     tipoAfasta:tipo,
     tipoDoc: isMP ? "" : "ATESTADO",
-    cids:[], dataInicio:"", periodo:null, inss:false,
+    cids:[], dataInicio:"", periodo:null, dataPrevTermino:"", inss:false,
     dtEntradaNucleo:"", dtCienciaCoord:"", metodoEntrada:"", especEntrada:"",
     beneficioInssAte:"", faltasInjust:"", retornoDias:"",
     suspBolsa:"", tipoPagSusp:"INTEGRAL", folhaCoapeSupsp:"", numProcSusp:"",
@@ -9185,7 +9342,7 @@ function exportPDF(){
   if(!currentProf){ showToast("Nenhum profissional selecionado","warn"); return; }
   const p   = currentProf;
   const now = new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric"});
-  const sCls = {analisando:"pr-status-an",reativada:"pr-status-re",vaga:"pr-status-va",suspensa:"pr-status-su"};
+  const sCls = {analisando:"pr-status-an",reativada:"pr-status-re",vaga:"pr-status-va",suspensa:"pr-status-su",desligamento:"pr-status-dv"};
   const sBadge = `<span class="pr-status ${sCls[p.status]||""}">${statusLbl(p.status)}</span>`;
   const hist = (p.statusHistory||[]);
   const histHtml = hist.length ? `<div class="pr-timeline">`+
@@ -9423,6 +9580,7 @@ const TIPOS_AFASTAMENTO = [
   "Licença Paternidade",
   "Licença por Óbito",
   "Violência Doméstica",
+  "Afastamento Militar",
 ];
 
 // column definitions — no checkbox col; expand + open-case handled separately
@@ -10106,33 +10264,86 @@ function getExportProfs(){
   return ids.map(id=>DB.getById(id)).filter(Boolean);
 }
 
-function exportRelList(){
-  const profs=getExportProfs();
-  if(!profs.length){ showToast("Nenhum resultado para exportar","warn"); return; }
-  const rows=[["Nome","CPF","Programa","Ciclo","UF","Município","Status","Responsável","Ocorrências","Último Afastamento","Pendências"]];
+// v0.76.0 (item 3.2): linhas compartilhadas entre CSV/XLSX/PDF — 4 colunas
+// fixas de CID (mesmo nº de campos do formulário de preenchimento).
+function relListRows(profs){
+  const rows=[["Nome","CPF","Programa","Ciclo","UF","Município","Status","Responsável","Ocorrências","Último Afastamento","CID_1","CID_2","CID_3","CID_4","Pendências"]];
   profs.forEach(p=>{
     const pend=p.occurrences.reduce((s,o)=>s+occPendencies(o).length,0);
     const last=[...p.occurrences].sort((a,b)=>(b.dataInicio||"").localeCompare(a.dataInicio||""))[0];
-    rows.push([p.nome,p.cpf,p.programa,p.ciclo,p.uf,p.municipio,statusLbl(p.status),p.responsavel,p.occurrences.length,fmtI(last?.dataInicio||""),pend]);
+    const cids=last?.cids||[];
+    rows.push([p.nome,p.cpf,p.programa,p.ciclo,p.uf,p.municipio,statusLbl(p.status),p.responsavel,p.occurrences.length,fmtI(last?.dataInicio||""),
+      cids[0]||"",cids[1]||"",cids[2]||"",cids[3]||"",pend]);
   });
-  doCSV(rows,`relatorio_lista_${tsNow()}.csv`);
+  return rows;
+}
+
+function relDetailedRows(profs){
+  const rows=[["Nome","CPF","Programa","Ciclo","UF","Município","Status","Responsável","Oc.","Tipo Doc","CID_1","CID_2","CID_3","CID_4","Data Início","Período","16º Dia","Término","Bolsa Suspensa","Data Reativação","Tipo Restituição","INSS até","Observação"]];
+  profs.forEach(p=>{
+    p.occurrences.forEach(o=>{
+      const {dia16,termino}=calcDates(o);
+      const cids=o.cids||[];
+      rows.push([p.nome,p.cpf,p.programa,p.ciclo,p.uf,p.municipio,statusLbl(p.status),p.responsavel,
+        o.n,o.tipoDoc,cids[0]||"",cids[1]||"",cids[2]||"",cids[3]||"",fmtI(o.dataInicio),o.periodo??"",dia16,termino,
+        fmtI(o.suspBolsa),fmtI(o.dataReat),o.tipoRest,fmtI(o.beneficioInssAte),(o.obs||"").replace(/\n/g," ")]);
+    });
+  });
+  return rows;
+}
+
+function exportRelList(){
+  const profs=getExportProfs();
+  if(!profs.length){ showToast("Nenhum resultado para exportar","warn"); return; }
+  doCSV(relListRows(profs),`relatorio_lista_${tsNow()}.csv`);
   showToast(`Lista exportada (${profs.length} profissionais)`,"success");
 }
 
 function exportRelDetailed(){
   const profs=getExportProfs();
   if(!profs.length){ showToast("Nenhum resultado para exportar","warn"); return; }
-  const rows=[["Nome","CPF","Programa","Ciclo","UF","Município","Status","Responsável","Oc.","Tipo Doc","CIDs","Data Início","Período","16º Dia","Término","Bolsa Suspensa","Data Reativação","Tipo Restituição","INSS até","Observação"]];
-  profs.forEach(p=>{
-    p.occurrences.forEach(o=>{
-      const {dia16,termino}=calcDates(o);
-      rows.push([p.nome,p.cpf,p.programa,p.ciclo,p.uf,p.municipio,statusLbl(p.status),p.responsavel,
-        o.n,o.tipoDoc,(o.cids||[]).join(";"),fmtI(o.dataInicio),o.periodo??"",dia16,termino,
-        fmtI(o.suspBolsa),fmtI(o.dataReat),o.tipoRest,fmtI(o.beneficioInssAte),(o.obs||"").replace(/\n/g," ")]);
-    });
-  });
-  doCSV(rows,`relatorio_detalhado_${tsNow()}.csv`);
+  doCSV(relDetailedRows(profs),`relatorio_detalhado_${tsNow()}.csv`);
   showToast(`Detalhado exportado (${profs.length} profissionais)`,"success");
+}
+
+// v0.76.0 (item 3.1) — PDF real via window.print(), corrigindo o botão "PDF"
+// que antes gerava .csv. Reaproveita os mesmos dados de relListRows/
+// relDetailedRows (já com as colunas CID_1..CID_4 — item 3.2).
+function _relTableHTML(rows, title){
+  const esc = s => String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const [header, ...body] = rows;
+  const now = new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric"});
+  return `
+    <div class="pr-page pr-datatable-page">
+      <div class="pr-header">
+        <div>
+          <div class="pr-header-logo">MAIS MÉDICOS</div>
+          <div class="pr-header-sub">Gestão de Licenças — ${title}</div>
+        </div>
+        <div class="pr-header-meta">Emitido em ${now}<br>Responsável: ${esc(ME?.name||"")}</div>
+      </div>
+      <div class="pr-datatable-meta">${body.length} registro${body.length!==1?"s":""}</div>
+      <table class="pr-datatable">
+        <thead><tr>${header.map(h=>`<th>${esc(h)}</th>`).join("")}</tr></thead>
+        <tbody>${body.map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody>
+      </table>
+    </div>`;
+}
+
+function exportRelListPDF(){
+  const profs=getExportProfs();
+  if(!profs.length){ showToast("Nenhum resultado para exportar","warn"); return; }
+  document.getElementById("printReport").innerHTML = _relTableHTML(relListRows(profs), "Relatório de Lista");
+  window.print();
+  showToast("Relatório enviado para impressão","success");
+}
+
+function exportRelDetailedPDF(){
+  const profs=getExportProfs();
+  if(!profs.length){ showToast("Nenhum resultado para exportar","warn"); return; }
+  document.getElementById("printReport").innerHTML = _relTableHTML(relDetailedRows(profs), "Relatório Detalhado");
+  window.print();
+  showToast("Relatório enviado para impressão","success");
 }
 
 function doCSV(rows,filename){
@@ -10265,29 +10476,14 @@ function closeExpMenus(){
 function exportRelListXlsx(){
   const profs=getExportProfs();
   if(!profs.length){ showToast("Nenhum resultado para exportar","warn"); return; }
-  const rows=[["Nome","CPF","Programa","Ciclo","UF","Município","Status","Responsável","Ocorrências","Último Afastamento","Pendências"]];
-  profs.forEach(p=>{
-    const pend=p.occurrences.reduce((s,o)=>s+occPendencies(o).length,0);
-    const last=[...p.occurrences].sort((a,b)=>(b.dataInicio||"").localeCompare(a.dataInicio||""))[0];
-    rows.push([p.nome,p.cpf,p.programa,p.ciclo,p.uf,p.municipio,statusLbl(p.status),p.responsavel,p.occurrences.length,fmtI(last?.dataInicio||""),pend]);
-  });
-  doXlsx(rows,`relatorio_lista_${tsNow()}.xlsx`);
+  doXlsx(relListRows(profs),`relatorio_lista_${tsNow()}.xlsx`);
   showToast(`Lista exportada como Excel (${profs.length} profissionais)`,"success");
 }
 
 function exportRelDetailedXlsx(){
   const profs=getExportProfs();
   if(!profs.length){ showToast("Nenhum resultado para exportar","warn"); return; }
-  const rows=[["Nome","CPF","Programa","Ciclo","UF","Município","Status","Responsável","Oc.","Tipo Doc","CIDs","Data Início","Período","16º Dia","Término","Bolsa Suspensa","Data Reativação","Tipo Restituição","INSS até","Observação"]];
-  profs.forEach(p=>{
-    p.occurrences.forEach(o=>{
-      const {dia16,termino}=calcDates(o);
-      rows.push([p.nome,p.cpf,p.programa,p.ciclo,p.uf,p.municipio,statusLbl(p.status),p.responsavel,
-        o.n,o.tipoDoc,(o.cids||[]).join(";"),fmtI(o.dataInicio),o.periodo??"",dia16,termino,
-        fmtI(o.suspBolsa),fmtI(o.dataReat),o.tipoRest,fmtI(o.beneficioInssAte),(o.obs||"").replace(/\n/g," ")]);
-    });
-  });
-  doXlsx(rows,`relatorio_detalhado_${tsNow()}.xlsx`);
+  doXlsx(relDetailedRows(profs),`relatorio_detalhado_${tsNow()}.xlsx`);
   showToast(`Detalhado exportado como Excel (${profs.length} profissionais)`,"success");
 }
 
@@ -10893,6 +11089,108 @@ function exportLog(){
   showToast(`${rows.length} registros exportados`,"success");
 }
 
+// ──────────────────────────────────────────────────────────────────
+// v0.76.0 (item 6) — RELATÓRIO DE ATIVIDADES (aba Demandas)
+// ──────────────────────────────────────────────────────────────────
+// Mostra, por profissional, toda mudança de "Status do caso" (manual ou
+// automática) ocorrida num período (7/15/30 dias ou intervalo customizado).
+// Fonte: audit_log (já carregado em memória via DB.logGet()) — não exige
+// nenhuma leitura extra ao Supabase. Outra área usa este relatório para
+// atualizar a planilha própria deles (substitui a varredura manual das
+// planilhas de licença médica/maternidade).
+function openActivityReportDialog(){
+  document.getElementById("dlgTitle").textContent = "Relatório de atividades";
+  document.getElementById("dlgMsg").textContent   = "Mudanças de status por profissional, no período selecionado.";
+  document.getElementById("dlgExtra").innerHTML = `
+    <div class="dem-field"><label class="dem-label">Período</label>
+      <select class="dlg-select" id="actRepPeriodo" onchange="actRepTogglePeriodo()">
+        <option value="7">Últimos 7 dias</option>
+        <option value="15">Últimos 15 dias</option>
+        <option value="30" selected>Últimos 30 dias</option>
+        <option value="custom">Personalizado</option>
+      </select>
+    </div>
+    <div id="actRepCustomRange" style="display:none;margin-top:8px;display:flex;gap:8px">
+      <div class="dem-field" style="flex:1"><label class="dem-label">De</label><input type="date" class="dlg-select" id="actRepFrom"></div>
+      <div class="dem-field" style="flex:1"><label class="dem-label">Até</label><input type="date" class="dlg-select" id="actRepTo"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button type="button" class="btn btn-ghost btn-sm" style="flex:1" onclick="generateActivityReport('xlsx')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Excel (.xlsx)
+      </button>
+      <button type="button" class="btn btn-ghost btn-sm" style="flex:1" onclick="generateActivityReport('pdf')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15h6M9 11h6M9 7h3"/></svg>
+        PDF
+      </button>
+    </div>`;
+  document.getElementById("dlgOk").style.display = "none";
+  document.getElementById("overlay").classList.add("show");
+}
+
+function actRepTogglePeriodo(){
+  const isCustom = document.getElementById("actRepPeriodo")?.value === "custom";
+  const el = document.getElementById("actRepCustomRange");
+  if(el) el.style.display = isCustom ? "flex" : "none";
+}
+
+// Devolve {from,to} em "YYYY-MM-DD" (ambos inclusivos) de acordo com a
+// seleção do diálogo.
+function _actRepRange(){
+  const periodo = document.getElementById("actRepPeriodo")?.value || "30";
+  const todayStr = tsNow();
+  if(periodo==="custom"){
+    const from = document.getElementById("actRepFrom")?.value || "";
+    const to   = document.getElementById("actRepTo")?.value   || todayStr;
+    return { from, to };
+  }
+  const d = new Date(); d.setDate(d.getDate()-parseInt(periodo));
+  return { from: d.toISOString().slice(0,10), to: todayStr };
+}
+
+// Linhas do relatório: somente mudanças de "Status do caso" (manuais via
+// diálogo de status, ou automáticas via autoSetStatus — item 5.1), uma
+// linha por mudança, focado no profissional.
+function _activityReportRows(){
+  const { from, to } = _actRepRange();
+  if(!from){ showToast("Selecione a data inicial do período personalizado","warn"); return null; }
+  const entries = DB.logGet().filter(r=>{
+    if(r.campo!=="Status do caso") return false;
+    if(r.acao!=="Status" && r.acao!=="Status (automático)") return false;
+    const parts = r.ts.split(" ")[0].split("/");
+    const d = parts.length===3 ? `${parts[2]}-${parts[1]}-${parts[0]}` : "";
+    if(!d) return false;
+    if(d<from || d>to) return false;
+    return true;
+  }).sort((a,b)=>a.ts.localeCompare(b.ts)); // ordem cronológica
+  const rows = [["Profissional","CPF","Programa","Ciclo","Status anterior","Status novo","Data da alteração","Tipo","Alterado por"]];
+  entries.forEach(r=>{
+    const p = DB.getById(r.profId) || DB.getArchived().find(x=>x.id===r.profId);
+    rows.push([
+      r.profNome, p?.cpf||"", p?.programa||"", p?.ciclo||"",
+      r.antes||"", r.depois||"", r.ts,
+      r.acao==="Status (automático)" ? "Automática" : "Manual",
+      r.usuario||"",
+    ]);
+  });
+  return rows;
+}
+
+function generateActivityReport(format){
+  const rows = _activityReportRows();
+  if(!rows) return; // toast de validação já mostrado
+  if(rows.length<=1){ showToast("Nenhuma mudança de status no período selecionado","info"); return; }
+  if(format==="xlsx"){
+    doXlsx(rows, `relatorio_atividades_${tsNow()}.xlsx`);
+    showToast(`${rows.length-1} mudanças de status exportadas`,"success");
+  } else {
+    document.getElementById("printReport").innerHTML = _relTableHTML(rows, "Relatório de Atividades");
+    window.print();
+    showToast("Relatório enviado para impressão","success");
+  }
+  closeDialog();
+}
+
 // ── SHAREPOINT CONFIG (v67) ──
 function spBaseInit(){
   const saved = localStorage.getItem("spBase") || "";
@@ -11218,6 +11516,7 @@ const TL_COLORS = {
   "Afastamento Cautelar":"#F59E0B",
   "Licença por Óbito":"#EF4444",
   "Violência Doméstica":"#EC4899",
+  "Afastamento Militar":"#6B7280",
 };
 function tlColor(tipo){ return TL_COLORS[tipo]||"#6B7280"; }
 
@@ -11551,6 +11850,7 @@ async function initApp(){
   // Inicializa demandas antecipadamente para que DEM_ENTRIES esteja populado
   // quando o dashboard for a primeira aba aberta
   await demBootstrap();
+  await sweepMPReativacaoAutomatica(); // v0.76.0 — item 5.1.2
   demRealtimeInit();   // v71.1: escuta mudanças em dem_cards em tempo real
   await folhaDeadlineLoad(); // v66
   await ofTemplatesLoad();   // v69
@@ -11688,8 +11988,8 @@ bootstrap();
   <div style="padding:24px;max-width:1200px;margin:0 auto;height:100%;display:flex;flex-direction:column">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-shrink:0">
       <div>
-        <h2 style="margin:0;font-size:1.3em">Gestão de Ciclos</h2>
-        <div style="font-size:0.85em;color:var(--tx3);margin-top:4px">Cadastre, edite e arquive ciclos de PMMB e PMME</div>
+        <h2 style="margin:0;font-size:1.1429em;font-weight:600;letter-spacing:-.02em">Gestão de Ciclos</h2>
+        <div style="font-size:0.7857em;color:var(--tx3);margin-top:2px">Cadastre, edite e arquive ciclos de PMMB e PMME</div>
       </div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-ghost btn-sm" onclick="cyclesRunAutoArchive()">
