@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v0.75.0</title>
+<title>Mais Médicos — Gestão de Licenças v0.75.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -3183,7 +3183,7 @@ function showLoginScreen(reason) {
             <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           </div>
           <div class="auth-title">Gestão de Licenças</div>
-          <div class="auth-sub">Programa Mais Médicos · v0.75.0</div>
+          <div class="auth-sub">Programa Mais Médicos · v0.75.1</div>
         </div>
         <div class="auth-body">
           <div id="authAlert" class="auth-alert"></div>
@@ -10127,8 +10127,8 @@ function exportRelDetailed(){
     p.occurrences.forEach(o=>{
       const {dia16,termino}=calcDates(o);
       rows.push([p.nome,p.cpf,p.programa,p.ciclo,p.uf,p.municipio,statusLbl(p.status),p.responsavel,
-        o.n,o.tipoDoc,o.cids.join(";"),fmtI(o.dataInicio),o.periodo??"",dia16,termino,
-        fmtI(o.suspBolsa),fmtI(o.dataReat),o.tipoRest,fmtI(o.beneficioInssAte),o.obs.replace(/\n/g," ")]);
+        o.n,o.tipoDoc,(o.cids||[]).join(";"),fmtI(o.dataInicio),o.periodo??"",dia16,termino,
+        fmtI(o.suspBolsa),fmtI(o.dataReat),o.tipoRest,fmtI(o.beneficioInssAte),(o.obs||"").replace(/\n/g," ")]);
     });
   });
   doCSV(rows,`relatorio_detalhado_${tsNow()}.csv`);
@@ -10283,8 +10283,8 @@ function exportRelDetailedXlsx(){
     p.occurrences.forEach(o=>{
       const {dia16,termino}=calcDates(o);
       rows.push([p.nome,p.cpf,p.programa,p.ciclo,p.uf,p.municipio,statusLbl(p.status),p.responsavel,
-        o.n,o.tipoDoc,o.cids.join(";"),fmtI(o.dataInicio),o.periodo??"",dia16,termino,
-        fmtI(o.suspBolsa),fmtI(o.dataReat),o.tipoRest,fmtI(o.beneficioInssAte),o.obs.replace(/\n/g," ")]);
+        o.n,o.tipoDoc,(o.cids||[]).join(";"),fmtI(o.dataInicio),o.periodo??"",dia16,termino,
+        fmtI(o.suspBolsa),fmtI(o.dataReat),o.tipoRest,fmtI(o.beneficioInssAte),(o.obs||"").replace(/\n/g," ")]);
     });
   });
   doXlsx(rows,`relatorio_detalhado_${tsNow()}.xlsx`);
@@ -13506,14 +13506,15 @@ async function ofTemplateUpsert(t, silent){
   try{
     const who = (typeof currentUser!=="undefined" && currentUser?.name) ? currentUser.name : (document.getElementById("navUserName")?.textContent||"");
     const payload = {nome:t.nome, etapa:t.etapa, corpo:t.corpo, updated_by:who};
-    // seeds usam id textual; deixe o banco gerar id real
-    if(t.id && !String(t.id).startsWith("seed-")) payload.id = t.id;
+    // seeds e ids provisórios (gerados no navegador) usam prefixo textual;
+    // deixe o banco gerar o id real nesses casos (evita erro de tipo, ex: id bigint)
+    if(t.id && !String(t.id).startsWith("seed-") && !String(t.id).startsWith("tmp-")) payload.id = t.id;
     const {data:row,error} = await _supa.from("oficio_templates").upsert(payload).select().single();
     if(error) throw error;
     if(row){ t.id=String(row.id); const i=OF_TEMPLATES.findIndex(x=>x===t); if(i>=0) OF_TEMPLATES[i]=t; }
   }catch(e){
     console.warn("[ofTemplateUpsert]",e); _ofUsingLocal=true; ofTemplatesPersistLocal();
-    if(!silent) showToast("Salvo localmente (tabela oficio_templates indisponível)","warn");
+    if(!silent) showToast("Salvo apenas localmente: "+(e?.message||e?.hint||e?.code||"tabela oficio_templates indisponível"),"warn",7000);
   }
 }
 
