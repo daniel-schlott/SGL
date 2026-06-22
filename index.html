@@ -4918,14 +4918,12 @@ function renderEntries(scopeDemEntries, now){
     </div>`;
 
   const list = recentes.slice(0,7);
-  // v0.77.1 — diagnóstico temporário: remover após confirmar que o tempo exibido está correto
-  console.table(list.map(d=>({id:d.id, prof:d.profNome, createdAt_raw:d.createdAt, createdAt_parsed:new Date(d.createdAt).toString()})));
   const rowsHtml = list.length ? list.map(d=>{
     const origem = demOrigem(d);
     const origemLbl = origem==="email"?"E-mail":origem==="carga"?"Carga":"Manual";
     const created = new Date(d.createdAt);
-    const horasAtras = Math.floor((Date.now()-created)/3600000);
-    const tempo = isNaN(horasAtras) ? "—" : horasAtras<1 ? "agora" : horasAtras<24 ? `${horasAtras}h` : `${Math.floor(horasAtras/24)}d`;
+    const minAtras = Math.floor((Date.now()-created)/60000);
+    const tempo = isNaN(minAtras) ? "—" : minAtras<1 ? "agora" : minAtras<60 ? `${minAtras}min` : minAtras<1440 ? `${Math.floor(minAtras/60)}h` : `${Math.floor(minAtras/1440)}d`;
     return `<div class="entry-row" onclick="openProfFromDash(${d.profId})">
       <span class="entry-origem ${origem}">${origemLbl}</span>
       <span class="entry-name">${d.profNome} — ${d.etapa}</span>
@@ -11375,12 +11373,21 @@ function renderFolhaDeadlines(){
 }
 
 // v66: retorna a data-limite do mês vigente (folha_deadlines ou último dia do mês)
+// v0.77.1: se a data-limite do mês corrente já passou, avança para a do próximo mês
+// (cadastrada ou calculada) — evita "-10d p/ 12/06/2026" quando a folha do mês já fechou.
 function getFolhaDeadline(refDate){
   const d = refDate || new Date();
   const mes = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
   const entry = _folhaDeadlines.find(x=>x.mes===mes);
-  if(entry) return new Date(entry.data+"T00:00:00");
-  return new Date(d.getFullYear(), d.getMonth()+1, 0);
+  let deadline = entry ? new Date(entry.data+"T00:00:00") : new Date(d.getFullYear(), d.getMonth()+1, 0);
+
+  if(deadline < d){
+    const nm = new Date(d.getFullYear(), d.getMonth()+1, 1);
+    const nmKey = `${nm.getFullYear()}-${String(nm.getMonth()+1).padStart(2,"0")}`;
+    const nmEntry = _folhaDeadlines.find(x=>x.mes===nmKey);
+    deadline = nmEntry ? new Date(nmEntry.data+"T00:00:00") : new Date(nm.getFullYear(), nm.getMonth()+1, 0);
+  }
+  return deadline;
 }
 
 function renderSettingsLog(){
