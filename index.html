@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v0.79.0</title>
+<title>Mais Médicos — Gestão de Licenças v0.79.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -3217,7 +3217,7 @@ function showLoginScreen(reason) {
             <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           </div>
           <div class="auth-title">Gestão de Licenças</div>
-          <div class="auth-sub">Programa Mais Médicos · v0.79.0</div>
+          <div class="auth-sub">Programa Mais Médicos · v0.79.1</div>
         </div>
         <div class="auth-body">
           <div id="authAlert" class="auth-alert"></div>
@@ -11185,7 +11185,9 @@ function sgpColIndex(rowArr, terms){
 
 // --- Profissionais ativos (SGP): 11 colunas necessárias ---
 function sgpParseProfissionais(aoa){
-  const hIdx = sgpFindHeaderRow(aoa, ["cpf","nome do profissional"]);
+  // v0.79.1: a exportação real do SGP usa "Nome do Profisional" (um só "s",
+  // erro de digitação no próprio sistema) — "profis" casa com as duas grafias.
+  const hIdx = sgpFindHeaderRow(aoa, ["cpf","nome do profis"]);
   if(hIdx<0) return {error:"Não foi possível localizar o cabeçalho (CPF / Nome do Profissional) nas primeiras linhas do arquivo."};
   const head = aoa[hIdx];
   const col = {
@@ -11287,12 +11289,29 @@ async function handleUploadSGP(typeId, input){
   reader.onload = async (e) => {
     try{
       const wb = XLSX.read(new Uint8Array(e.target.result), {type:"array"});
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      if(!ws){ showToast("Planilha vazia ou ilegível","warn"); return; }
-      const aoa = XLSX.utils.sheet_to_json(ws, {header:1, defval:"", raw:false});
+      if(!wb.SheetNames.length){ showToast("Planilha vazia ou ilegível","warn"); return; }
 
-      const parsed = kind==="prof" ? sgpParseProfissionais(aoa) : sgpParseMunicipios(aoa);
-      if(parsed.error){ showToast("Erro ao ler planilha: "+parsed.error, "warn", 7000); return; }
+      // v0.79.1: a exportação HTML do SGP costuma vir com 3 <table>
+      // separadas (título, dados, rodapé) — o SheetJS transforma cada
+      // <table> em uma "sheet" própria. A sheet com os dados reais nem
+      // sempre é a primeira (table[0] é o título "Ministério da Saúde...").
+      // Por isso percorremos todas as sheets e usamos a primeira em que
+      // o parser efetivamente reconhece o cabeçalho esperado.
+      let parsed = null;
+      for(const sheetName of wb.SheetNames){
+        const ws = wb.Sheets[sheetName];
+        if(!ws) continue;
+        const aoa = XLSX.utils.sheet_to_json(ws, {header:1, defval:"", raw:false});
+        const attempt = kind==="prof" ? sgpParseProfissionais(aoa) : sgpParseMunicipios(aoa);
+        if(!attempt.error && attempt.rows && attempt.rows.length){
+          parsed = attempt;
+          break;
+        }
+      }
+      if(!parsed){
+        showToast("Erro ao ler planilha: não foi possível localizar a tabela de dados (CPF / Nome do Profissional) em nenhuma aba/seção do arquivo.", "warn", 7000);
+        return;
+      }
       if(!parsed.rows.length){ showToast("Nenhuma linha válida encontrada no arquivo.","warn"); return; }
 
       await sgpRunUpload(typeId, kind, parsed.rows, file.name, parsed.skipped);
