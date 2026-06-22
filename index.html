@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v0.77.1</title>
+<title>Mais Médicos — Gestão de Licenças v0.78.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -3216,7 +3216,7 @@ function showLoginScreen(reason) {
             <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           </div>
           <div class="auth-title">Gestão de Licenças</div>
-          <div class="auth-sub">Programa Mais Médicos · v0.77.1</div>
+          <div class="auth-sub">Programa Mais Médicos · v0.78.1</div>
         </div>
         <div class="auth-body">
           <div id="authAlert" class="auth-alert"></div>
@@ -10755,6 +10755,9 @@ const UPLOAD_TYPES = [
   {id:"saude",       label:"Afastamentos por Saúde",   tipoAfasta:"Afastamento por Saúde",  file:null, loaded:false},
   {id:"maternidade", label:"Licenças Maternidade",      tipoAfasta:"Licença Maternidade",    file:null, loaded:false},
   {id:"paternidade", label:"Licenças Paternidade",      tipoAfasta:"Licença Paternidade",    file:null, loaded:false},
+  // v0.78: cargas diretas dos relatórios brutos do SGP (insere e ATUALIZA — upsert em lote via RPC)
+  {id:"prof_sgp", label:"Profissionais ativos (SGP)", tipoAfasta:"", file:null, loaded:false, raw:true, sgpKind:"prof"},
+  {id:"mun_sgp",  label:"Municípios (SGP)",            tipoAfasta:"", file:null, loaded:false, raw:true, sgpKind:"mun"},
 ];
 
 // CSV template column definitions per type
@@ -10768,7 +10771,36 @@ const CSV_HEADERS = {
 function renderUploadSection(){
   const el = document.getElementById("uploadSection");
   if(!el) return;
-  el.innerHTML = UPLOAD_TYPES.map(t=>`
+  el.innerHTML = UPLOAD_TYPES.map(t=>{
+    // v0.78: tipos "raw" (relatórios SGP) — upsert em lote, restrito a gestor
+    if(t.raw){
+      const disabled = !isGestor();
+      return `
+      <div class="upload-row" id="upload-row-${t.id}">
+        <div class="upload-icon">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="12" y1="18" x2="12" y2="12"/>
+            <polyline points="9 15 12 12 15 15"/>
+          </svg>
+        </div>
+        <div class="upload-row-info">
+          <div class="upload-row-name">${t.label}</div>
+          <div class="upload-row-status${t.loaded?" loaded":""}" id="upload-status-${t.id}">
+            ${t.loaded ? `✓ ${t.file} carregado (insere e atualiza)` : (disabled ? "Restrito ao perfil Gestor" : "Carrega arquivo bruto do SGP — insere e atualiza")}
+          </div>
+        </div>
+        <div class="upload-row-actions">
+          <label class="btn btn-primary btn-sm" style="cursor:${disabled?"not-allowed":"pointer"};opacity:${disabled?0.5:1}" title="Carregar relatório bruto do SGP (.xls/.xlsx)">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>
+            Carregar
+            <input type="file" accept=".xlsx,.xls" class="upload-file-input" ${disabled?"disabled":""} onchange="handleUploadSGP('${t.id}',this)">
+          </label>
+        </div>
+      </div>`;
+    }
+    return `
     <div class="upload-row" id="upload-row-${t.id}">
       <div class="upload-icon">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -10796,7 +10828,8 @@ function renderUploadSection(){
         </label>
         ${t.loaded?`<button class="btn btn-danger btn-sm" onclick="resetUpload('${t.id}')" title="Remover dados carregados">✕</button>`:""}
       </div>
-    </div>`).join("");
+    </div>`;
+  }).join("");
 }
 
 function downloadTemplate(typeId){
@@ -10914,16 +10947,53 @@ function handleUpload(typeId, input){
   input.value = "";
 }
 
-// v68.1: resolve o texto do ciclo da planilha para o cicloId (FK) real.
+// v0.78: converte ordinal por extenso em português ("TRIGÉSIMO PRIMEIRO") em
+// número inteiro (31). Usado porque o relatório do SGP traz a coluna
+// Etapa/Ciclo assim, sem número. Cobre 1–109 (suficiente para qualquer ciclo
+// do programa). Retorna null se não reconhecer.
+const _ORD_TENS = {
+  primeiro:1, segundo:2, terceiro:3, quarto:4, quinto:5, sexto:6, setimo:7,
+  oitavo:8, nono:9, decimo:10, vigesimo:20, trigesimo:30, quadragesimo:40,
+  quinquagesimo:50, sexagesimo:60, septuagesimo:70, septagesimo:70,
+  octogesimo:80, nonagesimo:90, centesimo:100,
+};
+const _ORD_UNITS = {
+  primeiro:1, segundo:2, terceiro:3, quarto:4, quinto:5, sexto:6, setimo:7,
+  oitavo:8, nono:9,
+};
+function ordinalPtToNumber(text){
+  const t = normStr(String(text||"")).trim();
+  if(!t) return null;
+  const tokens = t.split(/\s+/);
+  const base = _ORD_TENS[tokens[0]];
+  if(base==null) return null;
+  if(tokens.length===1) return base;
+  const unit = _ORD_UNITS[tokens[1]];
+  return unit!=null ? base+unit : base;
+}
+
+// v68.1: resolve o texto do ciclo da planilha para o objeto ciclo real.
 // Compara contra o nome do ciclo (principal) e o número (fallback),
-// ignorando acentos/caixa. Retorna null se não encontrar.
-function resolveCicloId(cicloTexto){
+// ignorando acentos/caixa. v0.78: também tenta ler o ciclo por extenso
+// (formato usado pelo relatório bruto do SGP, ex. "TRIGÉSIMO PRIMEIRO").
+// Retorna null se não encontrar.
+function resolveCycle(cicloTexto){
   const raw = String(cicloTexto||"").trim();
   if(!raw) return null;
   const t = normStr(raw);
-  const cy = DB.getCycles().find(c=>
+  let cy = DB.getCycles().find(c=>
     normStr(c.nome||"")===t || String(c.numero||"").trim()===raw
   );
+  if(!cy){
+    const ord = ordinalPtToNumber(raw);
+    if(ord!=null){
+      cy = DB.getCycles().find(c => Number(c.numero)===ord);
+    }
+  }
+  return cy || null;
+}
+function resolveCicloId(cicloTexto){
+  const cy = resolveCycle(cicloTexto);
   return cy ? cy.id : null;
 }
 
@@ -11115,7 +11185,236 @@ function processUploadRows(typeId, rawRows, fileName){
   setTimeout(processChunk,50); // 50ms para o overlay renderizar antes
 }
 
-// v68: gera e persiste o card de demanda de entrada para uma ocorrência recém-criada
+// ============================================================
+// v0.78: Carga em lote a partir dos relatórios BRUTOS do SGP
+// (Profissionais ativos e Municípios). Diferente de processUploadRows:
+//  - lê o arquivo como veio do SGP, sem exigir conversão/recorte manual
+//  - localiza a linha de cabeçalho real (ignora topo do relatório)
+//  - faz INSERE-OU-ATUALIZA (upsert) via RPC em lotes de 500 linhas,
+//    pois o volume (~23k profissionais / ~5,5k municípios) é grande
+//    demais para upsert linha-a-linha no cliente
+//  - célula vazia na planilha NUNCA apaga valor já existente (tratado
+//    na própria RPC, ver carga_sgp_migration.sql)
+// ============================================================
+
+const SGP_BATCH_SIZE = 500;
+
+// Acha a linha de cabeçalho real dentro das primeiras ~20 linhas,
+// procurando uma linha que contenha TODOS os termos-âncora (normalizados).
+function sgpFindHeaderRow(aoa, anchors){
+  const limit = Math.min(aoa.length, 20);
+  for(let r=0; r<limit; r++){
+    const norm = (aoa[r]||[]).map(c=>normStr(String(c==null?"":c)).trim());
+    if(anchors.every(a => norm.some(c => c.includes(a)))) return r;
+  }
+  return -1;
+}
+
+// Acha o índice da coluna cujo cabeçalho (normalizado) contém algum dos termos.
+function sgpColIndex(rowArr, terms){
+  for(let i=0; i<(rowArr||[]).length; i++){
+    const norm = normStr(String(rowArr[i]==null?"":rowArr[i])).trim();
+    if(terms.some(t => norm.includes(t))) return i;
+  }
+  return -1;
+}
+
+// --- Profissionais ativos (SGP): 11 colunas necessárias ---
+function sgpParseProfissionais(aoa){
+  const hIdx = sgpFindHeaderRow(aoa, ["cpf","nome do profissional"]);
+  if(hIdx<0) return {error:"Não foi possível localizar o cabeçalho (CPF / Nome do Profissional) nas primeiras linhas do arquivo."};
+  const head = aoa[hIdx];
+  const col = {
+    cpf:          sgpColIndex(head, ["cpf"]),
+    nome:         sgpColIndex(head, ["nome do profissional","nome do profisional"]),
+    email:        sgpColIndex(head, ["email"]),
+    telefone:     sgpColIndex(head, ["telefone"]),
+    registroProf: sgpColIndex(head, ["registro profissional"]),
+    ciclo:        sgpColIndex(head, ["etapa/ciclo","etapa ciclo","etapa"]),
+    perfil:       sgpColIndex(head, ["perfil do profissional"]),
+    inicioAtiv:   sgpColIndex(head, ["apresentacao"]),
+    uf:           sgpColIndex(head, ["estado de atua"]),
+    municipio:    sgpColIndex(head, ["municipio"]),
+    ibge:         sgpColIndex(head, ["ibge"]),
+  };
+  if(col.cpf<0 || col.nome<0){
+    return {error:"Colunas CPF e/ou Nome do Profissional não encontradas no cabeçalho."};
+  }
+  const rows = [];
+  let skipped = 0;
+  for(let r=hIdx+1; r<aoa.length; r++){
+    const row = aoa[r];
+    if(!row || !row.length) continue;
+    const rawCpf = String(row[col.cpf]==null?"":row[col.cpf]);
+    const cpfDig = rawCpf.replace(/\D/g,"");
+    if(cpfDig.length!==11){ skipped++; continue; } // ignora linhas de totais/rodapé/em branco
+    const get = (idx) => idx>=0 ? String(row[idx]==null?"":row[idx]).trim() : "";
+    rows.push({
+      cpf: rawCpf.trim(),
+      nome: get(col.nome),
+      email: get(col.email),
+      telefone: get(col.telefone),
+      registroProf: get(col.registroProf),
+      ciclo: get(col.ciclo),
+      perfil: get(col.perfil),
+      inicioAtiv: get(col.inicioAtiv),
+      uf: get(col.uf),
+      municipio: get(col.municipio),
+      ibge: get(col.ibge),
+    });
+  }
+  return {rows, skipped, headerRow:hIdx};
+}
+
+// --- Municípios (SGP): cabeçalho em DOIS níveis (grupo "GESTOR" mesclado) ---
+function sgpParseMunicipios(aoa){
+  const hIdx = sgpFindHeaderRow(aoa, ["ibge","municipio"]);
+  if(hIdx<0) return {error:"Não foi possível localizar o cabeçalho (UF / Município / Código IBGE) nas primeiras linhas do arquivo."};
+  const head = aoa[hIdx];
+  const sub  = aoa[hIdx+1] || [];
+  const col = {
+    uf:          sgpColIndex(head, ["uf"]),
+    municipio:   sgpColIndex(head, ["municipio"]),
+    ibge:        sgpColIndex(head, ["ibge"]),
+    // "E-mail" do Gestor fica na sub-linha (segundo nível do cabeçalho mesclado)
+    gestorEmail: sgpColIndex(sub, ["e-mail","email"]),
+  };
+  if(col.ibge<0){
+    return {error:"Coluna Código IBGE não encontrada no cabeçalho."};
+  }
+  if(col.gestorEmail<0){
+    return {error:"Coluna E-mail do Gestor não encontrada na sub-linha do cabeçalho (verifique se o arquivo tem a estrutura padrão do SGP)."};
+  }
+  // Dados começam depois das DUAS linhas de cabeçalho
+  const dataStart = hIdx+2;
+  const rows = [];
+  let skipped = 0;
+  for(let r=dataStart; r<aoa.length; r++){
+    const row = aoa[r];
+    if(!row || !row.length) continue;
+    const get = (idx) => idx>=0 ? String(row[idx]==null?"":row[idx]).trim() : "";
+    const ibge = get(col.ibge).replace(/\D/g,"");
+    if(!ibge || ibge.length<5){ skipped++; continue; } // ignora rodapé/linhas em branco
+    rows.push({
+      ibge,
+      uf: get(col.uf),
+      municipio: get(col.municipio),
+      gestorEmail: get(col.gestorEmail),
+    });
+  }
+  return {rows, skipped, headerRow:hIdx};
+}
+
+function _sgpChunks(arr, size){
+  const out = [];
+  for(let i=0; i<arr.length; i+=size) out.push(arr.slice(i, i+size));
+  return out;
+}
+
+async function handleUploadSGP(typeId, input){
+  const file = input.files[0];
+  if(!file) return;
+  if(!isGestor()){ showToast("Carga restrita ao perfil Gestor.","warn"); input.value=""; return; }
+  if(typeof XLSX==="undefined"){ showToast("Biblioteca XLSX não carregada","warn"); input.value=""; return; }
+  const ut = UPLOAD_TYPES.find(t=>t.id===typeId);
+  const kind = ut?.sgpKind;
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try{
+      const wb = XLSX.read(new Uint8Array(e.target.result), {type:"array"});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      if(!ws){ showToast("Planilha vazia ou ilegível","warn"); return; }
+      const aoa = XLSX.utils.sheet_to_json(ws, {header:1, defval:"", raw:false});
+
+      const parsed = kind==="prof" ? sgpParseProfissionais(aoa) : sgpParseMunicipios(aoa);
+      if(parsed.error){ showToast("Erro ao ler planilha: "+parsed.error, "warn", 7000); return; }
+      if(!parsed.rows.length){ showToast("Nenhuma linha válida encontrada no arquivo.","warn"); return; }
+
+      await sgpRunUpload(typeId, kind, parsed.rows, file.name, parsed.skipped);
+    }catch(err){
+      console.error("[handleUploadSGP]", err);
+      showToast("Erro ao ler a planilha: "+err.message, "warn");
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  input.value = "";
+}
+
+async function sgpRunUpload(typeId, kind, rows, fileName, skippedAtParse){
+  const ovl  = document.getElementById("uploadProgress");
+  const bar  = document.getElementById("uploadProgressBar");
+  const pct  = document.getElementById("uploadProgressPct");
+  const pmsg = document.getElementById("uploadProgressMsg");
+  const pttl = document.getElementById("uploadProgressTitle");
+  if(pttl) pttl.textContent = "Carregando relatório do SGP…";
+  if(ovl) ovl.style.display = "flex";
+
+  // Para profissionais, resolve o ciclo_id (FK) ANTES de enviar — evita
+  // que a RPC precise conhecer a tabela cycles. Também normaliza o texto
+  // do ciclo para o formato canônico do app (ex.: "24º Ciclo"), pois é
+  // ESSA string que a RPC usa como chave de match junto com o CPF — se
+  // mandássemos o texto cru do SGP ("TRIGÉSIMO PRIMEIRO"), nunca bateria
+  // com o registro já existente e geraria duplicata a cada carga.
+  if(kind==="prof"){
+    let unresolved = 0;
+    rows.forEach(r => {
+      const cy = resolveCycle(r.ciclo);
+      r.cicloId = cy ? cy.id : null;
+      if(cy && cy.nome) r.ciclo = cy.nome;
+      else unresolved++;
+    });
+    if(unresolved>0){
+      showToast(`Atenção: ${unresolved} profissionais com Etapa/Ciclo não reconhecido (verifique se o ciclo existe cadastrado).`, "warn", 9000);
+    }
+  }
+
+  const chunks = _sgpChunks(rows, SGP_BATCH_SIZE);
+  let inserted=0, updated=0, errors=0;
+
+  for(let i=0; i<chunks.length; i++){
+    if(pmsg) pmsg.textContent = `Lote ${i+1} de ${chunks.length} (${(i*SGP_BATCH_SIZE).toLocaleString("pt-BR")} de ${rows.length.toLocaleString("pt-BR")} linhas)…`;
+    const p = Math.round(((i)/chunks.length)*100);
+    if(bar) bar.style.width = p+"%";
+    if(pct) pct.textContent = p+"%";
+    try{
+      const fn = kind==="prof" ? "bulk_upsert_professionals" : "bulk_upsert_municipios";
+      const { data, error } = await _supa.rpc(fn, { payload: chunks[i] });
+      if(error){ console.error("[sgpRunUpload]", error); errors += chunks[i].length; }
+      else{ inserted += data?.inserted||0; updated += data?.updated||0; }
+    }catch(err){
+      console.error("[sgpRunUpload]", err);
+      errors += chunks[i].length;
+    }
+  }
+
+  if(bar) bar.style.width = "100%";
+  if(pct) pct.textContent = "100%";
+  if(pmsg) pmsg.textContent = "Atualizando tela…";
+
+  // Recarrega do servidor — necessário pois o upsert foi feito via RPC,
+  // fora do cache local (this._profs)
+  if(kind==="prof"){
+    try{ await DB.load(); }catch(e){ console.warn("[sgpRunUpload] DB.load falhou", e); }
+  }
+
+  const ut = UPLOAD_TYPES.find(t=>t.id===typeId);
+  if(ut){ ut.loaded=true; ut.file=fileName; }
+  renderUploadSection();
+
+  const label = kind==="prof" ? "Profissionais (SGP)" : "Municípios (SGP)";
+  const resumo = `${inserted} novo(s), ${updated} atualizado(s)` + (skippedAtParse?`, ${skippedAtParse} linha(s) ignorada(s)`:"") + (errors?`, ${errors} falha(s)`:"");
+  await addLog("Criação", 0, `[Carga ${label}]`, fileName, "", resumo);
+
+  if(ovl) ovl.style.display = "none";
+  renderInitState();
+  if(document.getElementById("view-dash")?.classList.contains("active")) renderDashboard();
+
+  if(errors>0) showToast(`Carga ${label} concluída com falhas. ${resumo}`, "warn", 8000);
+  else showToast(`Carga ${label} concluída — ${resumo}`, "success", 7000);
+}
+
+
 async function genUploadCard(prof, occ, isMP){
   const etapa = isMP ? "Suspensão da Bolsa" : "Suspensão";
   const tipo  = isMP ? (occ.tipoAfasta==="Licença Maternidade"?"maternidade":"paternidade") : occ.tipoAfasta==="Afastamento Militar" ? "militar" : "saude";
