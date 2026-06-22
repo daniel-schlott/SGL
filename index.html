@@ -3848,7 +3848,7 @@ const RULE_FIELDS = [
   {id:"periodo",        label:"Período (dias)",              ops:OPS_NUM,  type:"number"},
   {id:"totalDias",      label:"Total de dias afastado",      ops:OPS_NUM,  type:"number"},
   {id:"diasSemEdit",    label:"Dias sem edição",             ops:OPS_NUM,  type:"number"},
-  {id:"numOcorrencias", label:"Nº de ocorrências",           ops:OPS_NUM,  type:"number"},
+  {id:"numOcorrencias", label:"Nº de afastamentos",          ops:OPS_NUM,  type:"number"},
 ];
 
 // ── FIXED (SYSTEM) TAGS — EDITÁVEIS EM APARÊNCIA/SEVERIDADE ──
@@ -4918,12 +4918,14 @@ function renderEntries(scopeDemEntries, now){
     </div>`;
 
   const list = recentes.slice(0,7);
+  // v0.77.1 — diagnóstico temporário: remover após confirmar que o tempo exibido está correto
+  console.table(list.map(d=>({id:d.id, prof:d.profNome, createdAt_raw:d.createdAt, createdAt_parsed:new Date(d.createdAt).toString()})));
   const rowsHtml = list.length ? list.map(d=>{
     const origem = demOrigem(d);
     const origemLbl = origem==="email"?"E-mail":origem==="carga"?"Carga":"Manual";
     const created = new Date(d.createdAt);
-    const minAtras = Math.floor((Date.now()-created)/60000);
-    const tempo = isNaN(minAtras) ? "—" : minAtras<1 ? "agora" : minAtras<60 ? `${minAtras}min` : minAtras<1440 ? `${Math.floor(minAtras/60)}h` : `${Math.floor(minAtras/1440)}d`;
+    const horasAtras = Math.floor((Date.now()-created)/3600000);
+    const tempo = isNaN(horasAtras) ? "—" : horasAtras<1 ? "agora" : horasAtras<24 ? `${horasAtras}h` : `${Math.floor(horasAtras/24)}d`;
     return `<div class="entry-row" onclick="openProfFromDash(${d.profId})">
       <span class="entry-origem ${origem}">${origemLbl}</span>
       <span class="entry-name">${d.profNome} — ${d.etapa}</span>
