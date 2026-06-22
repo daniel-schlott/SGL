@@ -10948,16 +10948,50 @@ function handleUpload(typeId, input){
   input.value = "";
 }
 
+// v79.2: converte ordinal por extenso ("TRIGESIMO PRIMEIRO") em número (31).
+// Composicional (dezena + unidade), cobre 20-99 para ciclos futuros.
+// Retorna null se não for um ordinal por extenso reconhecível.
+function ordinalExtensoParaNumero(texto){
+  const t = normStr(String(texto||"")).trim().replace(/\s+/g," ");
+  if(!t) return null;
+  const dezenas = {
+    "decimo":10, "vigesimo":20, "trigesimo":30, "quadragesimo":40,
+    "quinquagesimo":50, "sexagesimo":60, "septuagesimo":70,
+    "octogesimo":80, "nonagesimo":90
+  };
+  const unidades = {
+    "primeiro":1, "segundo":2, "terceiro":3, "quarto":4, "quinto":5,
+    "sexto":6, "setimo":7, "oitavo":8, "nono":9
+  };
+  const partes = t.split(" ");
+  // dezena exata sozinha (ex.: "trigesimo" => 30)
+  if(partes.length===1 && dezenas[partes[0]]!=null) return dezenas[partes[0]];
+  // dezena + unidade (ex.: "trigesimo primeiro" => 31)
+  if(partes.length===2 && dezenas[partes[0]]!=null && unidades[partes[1]]!=null){
+    return dezenas[partes[0]] + unidades[partes[1]];
+  }
+  return null;
+}
+
 // v68.1: resolve o texto do ciclo da planilha para o cicloId (FK) real.
 // Compara contra o nome do ciclo (principal) e o número (fallback),
-// ignorando acentos/caixa. Retorna null se não encontrar.
+// ignorando acentos/caixa. v79.2: se falhar, tenta converter o ciclo
+// escrito por extenso (formato do SGP) em número e casa por `numero`.
+// Retorna null se não encontrar.
 function resolveCicloId(cicloTexto){
   const raw = String(cicloTexto||"").trim();
   if(!raw) return null;
   const t = normStr(raw);
-  const cy = DB.getCycles().find(c=>
+  let cy = DB.getCycles().find(c=>
     normStr(c.nome||"")===t || String(c.numero||"").trim()===raw
   );
+  if(!cy){
+    // v79.2: fallback por extenso (SGP envia "TRIGESIMO PRIMEIRO", etc.)
+    const num = ordinalExtensoParaNumero(raw);
+    if(num!=null){
+      cy = DB.getCycles().find(c=> String(c.numero||"").trim()===String(num));
+    }
+  }
   return cy ? cy.id : null;
 }
 
@@ -11335,8 +11369,18 @@ async function sgpRunUpload(typeId, kind, rows, fileName, skippedAtParse){
 
   // Para profissionais, resolve o ciclo_id (FK) ANTES de enviar — evita
   // que a RPC precise conhecer a tabela cycles.
+  // v79.2: também canoniza o texto do ciclo para o `nome` do ciclo
+  // resolvido ("31º Ciclo", 9 chars). Resolve o overflow em ciclo
+  // varchar(20) (o SGP envia por extenso, "QUADRAGESIMO PRIMEIRO" = 21).
   if(kind==="prof"){
-    rows.forEach(r => { r.cicloId = resolveCicloId(r.ciclo) || null; });
+    rows.forEach(r => {
+      const cid = resolveCicloId(r.ciclo) || null;
+      r.cicloId = cid;
+      if(cid!=null){
+        const cy = DB.getCycles().find(c=> String(c.id)===String(cid));
+        if(cy && cy.nome) r.ciclo = cy.nome;
+      }
+    });
   }
 
   const chunks = _sgpChunks(rows, SGP_BATCH_SIZE);
