@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v0.76.0</title>
+<title>Mais Médicos — Gestão de Licenças v0.77.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -33,6 +33,7 @@ window.__nativeFetch = window.fetch.bind(window);
   --pu:#5B21B6;--pul:#F5F3FF;
   --tl:#0F766E;--tll:#F0FDFA;
   --or:#C2410C;--orl:#FFF7ED;
+  --sl:#475569;--sll:#F1F5F9;
   --r:8px;--rl:12px;
   --sh:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
   --shm:0 4px 14px rgba(0,0,0,.09),0 2px 4px rgba(0,0,0,.05);
@@ -756,6 +757,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 .dem-card.saude{border-left-color:var(--tl)}
 .dem-card.maternidade{border-left-color:var(--pu)}
 .dem-card.paternidade{border-left-color:var(--am)}
+.dem-card.militar{border-left-color:var(--sl)}
 .dem-card.sei-mode{cursor:default}
 .dem-card.sei-mode:hover{border-color:var(--br);box-shadow:none}
 .dem-card.sei-sel{border-color:var(--acm);box-shadow:0 0 0 2px var(--acl)}
@@ -770,6 +772,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 .dem-badge.saude{background:var(--tll);color:var(--tl)}
 .dem-badge.maternidade{background:var(--pul);color:var(--pu)}
 .dem-badge.paternidade{background:var(--aml);color:var(--am)}
+.dem-badge.militar{background:var(--sll);color:var(--sl)}
 .dem-card-meta{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:3px}
 .dem-meta{display:flex;align-items:center;gap:3px;font-size:0.7143em;color:var(--tx3)}
 .dem-meta svg{width:10px;height:10px;flex-shrink:0}
@@ -879,12 +882,14 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 .dem-np-item-nm{font-weight:500;color:var(--tx)}
 .dem-np-item-sub{font-size:0.7143em;color:var(--tx3);margin-top:1px}
 
-/* TOAST */
-.toast{position:fixed;bottom:20px;right:20px;z-index:1000;padding:10px 15px;border-radius:var(--rl);font-size:0.8571em;font-weight:500;background:var(--tx);color:#fff;box-shadow:var(--shm);transform:translateY(80px);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);display:flex;align-items:center;gap:8px}
+/* TOAST — v0.77.0: container fixo + toasts empilháveis individuais */
+.toast-container{position:fixed;bottom:20px;right:20px;z-index:1000;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.toast{position:relative;padding:10px 15px;border-radius:var(--rl);font-size:0.8571em;font-weight:500;background:var(--tx);color:#fff;box-shadow:var(--shm);transform:translateY(80px);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);display:flex;align-items:center;gap:8px}
 .toast.show{transform:translateY(0);opacity:1}
 .toast.success{background:var(--ac)}
 .toast.warn{background:var(--am)}
 .toast.info{background:var(--bl)}
+.toast.error{background:var(--rd)}
 
 /* DIALOG */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:100;opacity:0;pointer-events:none;transition:opacity .2s}
@@ -1390,11 +1395,13 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 .btn-sm{padding:4px 9px;font-size:0.786em}
 
 /* TOAST */
-.toast{position:fixed;bottom:20px;right:20px;z-index:1000;padding:10px 15px;border-radius:var(--rl);font-size:0.857em;font-weight:500;background:var(--tx);color:#fff;box-shadow:var(--shm);transform:translateY(80px);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);display:flex;align-items:center;gap:8px}
+.toast-container{position:fixed;bottom:20px;right:20px;z-index:1000;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.toast{position:relative;padding:10px 15px;border-radius:var(--rl);font-size:0.857em;font-weight:500;background:var(--tx);color:#fff;box-shadow:var(--shm);transform:translateY(80px);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);display:flex;align-items:center;gap:8px}
 .toast.show{transform:translateY(0);opacity:1}
 .toast.success{background:var(--ac)}
 .toast.warn{background:var(--am)}
 .toast.info{background:var(--bl)}
+.toast.error{background:var(--rd)}
 
 /* Mode selector */
 .calc-mode-btn{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r);cursor:pointer;border:1px solid transparent;background:none;font-family:inherit;text-align:left;transition:all .15s}
@@ -1608,13 +1615,13 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
   <div class="dem-hd">
     <div>
       <div class="dem-title">Demandas e processos</div>
-      <div class="dem-sub">Suspensões, reativações e restituições por ocorrência</div>
     </div>
     <div class="dem-toolbar">
       <div class="dem-view-tabs">
         <button class="dem-view-tab active" onclick="demSetView('geral',this)">Geral</button>
         <button class="dem-view-tab" onclick="demSetView('saude',this)">Saúde</button>
         <button class="dem-view-tab" onclick="demSetView('maternidade',this)">Mat / Pat</button>
+        <button class="dem-view-tab" onclick="demSetView('militar',this)">Militar</button>
         <button class="dem-view-tab" onclick="demSetView('responsavel',this)">Por responsável</button>
       </div>
       <button class="btn btn-ghost btn-sm" id="demSeiModeBtn" onclick="demToggleSeiMode()">
@@ -1653,6 +1660,9 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
         </optgroup>
         <optgroup label="Maternidade / Paternidade">
           <option>Suspensão da Bolsa</option><option value="Reativação (Mat/Pat)">Reativação (Mat/Pat)</option><option>Restituição ao Erário</option><option>Carta de Concessão</option><option value="Pagamento Retroativo (Mat/Pat)">Pagamento Retroativo (Mat/Pat)</option>
+        </optgroup>
+        <optgroup label="Afastamento Militar">
+          <option value="militar:Suspensão">Suspensão</option><option value="militar:Reativação">Reativação</option>
         </optgroup>
       </select>
       <select id="demFiltStatus" onchange="renderDemKanban()">
@@ -2508,7 +2518,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 <div id="printReport"></div>
 
 <div class="tl-tooltip" id="tlTooltip"></div>
-<div class="toast" id="toast"></div>
+<div class="toast-container" id="toastContainer"></div>
 
 <!-- Upload progress overlay -->
 <div id="uploadProgress" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:none;align-items:center;justify-content:center">
@@ -3048,7 +3058,11 @@ const DB = {
 
   async saveStatusHistory(profId, status, ts) {
     try {
-      const { error } = await _supa.from("status_history").insert({ prof_id: profId, status, changed_at: ts, changed_by: ME.name });
+      // v0.76.0: "changed_by" não existe na tabela status_history real
+      // (causava erro "Could not find the 'changed_by' column" em toda
+      // chamada) — removido do payload. Quem alterou já fica registrado
+      // no audit_log via addLog(), que tem coluna própria para isso.
+      const { error } = await _supa.from("status_history").insert({ prof_id: profId, status, changed_at: ts });
       if(error) return _dbError("saveStatusHistory", error);
       return { ok:true };
     } catch(err) {
@@ -3202,7 +3216,7 @@ function showLoginScreen(reason) {
             <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           </div>
           <div class="auth-title">Gestão de Licenças</div>
-          <div class="auth-sub">Programa Mais Médicos · v0.76.0</div>
+          <div class="auth-sub">Programa Mais Médicos · v0.77.0</div>
         </div>
         <div class="auth-body">
           <div id="authAlert" class="auth-alert"></div>
@@ -3469,12 +3483,20 @@ function spBtnsHTML(prof){
 }
 
 // ── Toast e dialog ──
-function showToast(msg, type="", duration=3000){
-  const t = document.getElementById("toast");
-  t.textContent = (type==="success"?"✓ ":type==="warn"?"⚠ ":type==="info"?"ℹ ":"") + msg;
-  t.className = `toast ${type} show`;
-  clearTimeout(showToast._timer);
-  showToast._timer = setTimeout(()=>t.classList.remove("show"), duration);
+// v0.77.0: cada chamada cria seu próprio elemento no container — toasts
+// múltiplos empilham (não se sobrepõem) e cada um some no seu próprio timer.
+function showToast(msg, type="", duration=10000){
+  const container = document.getElementById("toastContainer");
+  if(!container) return;
+  const t = document.createElement("div");
+  t.textContent = (type==="success"?"✓ ":type==="warn"?"⚠ ":type==="info"?"ℹ ":type==="error"?"✗ ":"") + msg;
+  t.className = `toast ${type}`;
+  container.appendChild(t);
+  requestAnimationFrame(()=>t.classList.add("show"));
+  setTimeout(()=>{
+    t.classList.remove("show");
+    setTimeout(()=>t.remove(), 320); // aguarda transição antes de remover do DOM
+  }, duration);
 }
 
 function closeDialog(){ document.getElementById("overlay").classList.remove("show"); const ok=document.getElementById("dlgOk"); if(ok) ok.style.display=""; }
@@ -5649,7 +5671,7 @@ async function demReconcile(){
         const occ = (prof.occurrences||[]).find(o=>o.id===c.occ_id);
         if(!occ) return;
         const isMP = occ.tipoAfasta==="Licença Maternidade"||occ.tipoAfasta==="Licença Paternidade";
-        const tipo = isMP ? (occ.tipoAfasta==="Licença Maternidade"?"maternidade":"paternidade") : "saude";
+        const tipo = isMP ? (occ.tipoAfasta==="Licença Maternidade"?"maternidade":"paternidade") : occ.tipoAfasta==="Afastamento Militar" ? "militar" : "saude";
         const base = demInitData(c.etapa, occ, isMP);
         const demData = Object.assign(base, c.dados||{});
         DEM_ENTRIES.push({
@@ -5705,7 +5727,7 @@ async function demBootstrap(){
         const occ = (prof.occurrences||[]).find(o=>o.id===c.occ_id);
         if(!occ) return;
         const isMP = occ.tipoAfasta==="Licença Maternidade"||occ.tipoAfasta==="Licença Paternidade";
-        const tipo = isMP ? (occ.tipoAfasta==="Licença Maternidade"?"maternidade":"paternidade") : "saude";
+        const tipo = isMP ? (occ.tipoAfasta==="Licença Maternidade"?"maternidade":"paternidade") : occ.tipoAfasta==="Afastamento Militar" ? "militar" : "saude";
         // demData: mesclar dados salvos com campos frescos da ocorrência (garante campos novos)
         const base = demInitData(c.etapa, occ, isMP);
         const saved = c.dados||{};
@@ -5745,7 +5767,8 @@ async function demBootstrap(){
     (prof.occurrences||[]).forEach(occ=>{
       const isMP = occ.tipoAfasta==="Licença Maternidade"||occ.tipoAfasta==="Licença Paternidade";
       const tipo = occ.tipoAfasta==="Licença Maternidade"?"maternidade":
-                   occ.tipoAfasta==="Licença Paternidade"?"paternidade":"saude";
+                   occ.tipoAfasta==="Licença Paternidade"?"paternidade":
+                   occ.tipoAfasta==="Afastamento Militar"?"militar":"saude";
       const per = (()=>{
         if(!occ.dataInicio) return "";
         const d=new Date(occ.dataInicio+"T00:00:00");
@@ -5906,7 +5929,15 @@ function demGetFiltered(){
       }
     }
     if(fr && d.responsavel!==fr) return false;
-    if(fe && d.etapa!==fe)       return false;
+    if(fe){
+      // v0.77.0: opções militares vêm qualificadas como "militar:Etapa"
+      // para não colidir com as etapas de Saúde (mesmo texto: Suspensão/Reativação)
+      if(fe.startsWith("militar:")){
+        if(d.tipo!=="militar" || d.etapa!==fe.slice(8)) return false;
+      } else if(d.etapa!==fe || d.tipo==="militar"){
+        return false;
+      }
+    }
     if(fs && d.status!==fs)      return false;
     if(fq){
       const prof=DB.getById(d.profId);
@@ -5917,7 +5948,8 @@ function demGetFiltered(){
       if(!nome.includes(fq)&&!email.includes(fq)&&!(qd&&cpf.includes(qd))) return false;
     }
     if(demViewMode==="saude"       && d.tipo!=="saude") return false;
-    if(demViewMode==="maternidade" && d.tipo==="saude") return false;
+    if(demViewMode==="maternidade" && d.tipo!=="maternidade" && d.tipo!=="paternidade") return false;
+    if(demViewMode==="militar"     && d.tipo!=="militar") return false;
     return true;
   });
 }
@@ -6059,7 +6091,7 @@ function demCardHTML(d){
     ?`<span class="dem-sei-tag linked"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="9" height="9"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>${seiVal}`+unlinkBtn+`</span>`
     :`<span class="dem-sei-tag">SEI pendente</span>`;
   const clickFn=demSeiMode?`demToggleSeiCard(${d.id})`:`demOpenCard(${d.id})`;
-  const tipNm=d.tipo==="saude"?"Saúde":d.tipo==="maternidade"?"Mat.":"Pat.";
+  const tipNm=d.tipo==="saude"?"Saúde":d.tipo==="maternidade"?"Mat.":d.tipo==="militar"?"Militar":"Pat.";
   const linkedCount=d.seiGrupo?DEM_ENTRIES.filter(x=>x.seiGrupo===d.seiGrupo&&x.id!==d.id).length:0;
   const linkedBadge=linkedCount?`<span class="dem-id-badge" title="${linkedCount} card(s) vinculado(s) no mesmo SEI">🔗 G-${d.seiGrupo} · +${linkedCount}</span>`:"";
   const pd=d.demData||{};
@@ -6310,7 +6342,7 @@ function demRenderCardBody(d){
   }).join("");
 
   let etapaForm="";
-  if(d.tipo==="saude"){
+  if(d.tipo==="saude"||d.tipo==="militar"){
     if(d.etapa==="Suspensão")            etapaForm=demFormSuspensao(d.demData);
     else if(d.etapa==="Reativação")      etapaForm=demFormReativacao(d.demData);
     else if(d.etapa==="Restituição")     etapaForm=demFormRestituicao(d.demData);
@@ -6354,6 +6386,8 @@ function demRenderCardBody(d){
   let fixedTop="";
   if(d.tipo==="saude"){
     fixedTop=demFormEntradaNucleo(d.demData)+demFormAfastamentoCID(d.demData);
+  } else if(d.tipo==="militar"){
+    fixedTop=demFormEntradaNucleo(d.demData);
   } else {
     fixedTop=demFormMPStatusFixed(d.demData);
   }
@@ -6905,6 +6939,9 @@ async function demFieldSave(){
     dd.inssAte=g("df-inssAte"); dd.faltasInjust=g("df-faltasInjust");
     const c0=g("df-cid0"),c1=g("df-cid1"),c2=g("df-cid2");
     dd.cids=[c0,c1,c2].filter(Boolean);
+  } else if(d.tipo==="militar"){
+    dd.dtEntradaNucleo=g("df-dtEntradaNucleo"); dd.dtCienciaCoord=g("df-dtCienciaCoord");
+    dd.metodoEntrada=g("df-metodoEntrada"); dd.especEntrada=g("df-especEntrada");
   } else {
     dd.mpStatusBolsa=g("df-mpStatusBolsa"); dd.mpInicioLic=g("df-mpInicioLic");
     dd.mpTerminoLic=g("df-mpTerminoLic"); dd.mpProrrogacao=g("df-mpProrrogacao");
@@ -6917,7 +6954,7 @@ async function demFieldSave(){
     tipoPag:g(`${listId}-${i}-tipo`), periodo:g(`${listId}-${i}-periodo`),
     proc:g(`${listId}-${i}-proc`), valor:g(`${listId}-${i}-valor`)
   }));
-  if(d.tipo==="saude"){
+  if(d.tipo==="saude"||d.tipo==="militar"){
     if(d.etapa==="Suspensão") {
       dd.suspBolsa=g("df-suspBolsa"); dd.folhaCoapeSupsp=g("df-folhaCoapeSupsp");
       dd.numProcSusp=g("df-numProcSusp"); dd.obsSusp=g("df-obsSusp");
@@ -7007,7 +7044,7 @@ function demHasConflict(d, occ){
     const ov = (occVal||"").toString().trim();
     return cv && ov && cv !== ov;
   };
-  if(d.tipo==="saude"){
+  if(d.tipo==="saude"||d.tipo==="militar"){
     if(d.etapa==="Suspensão")
       return diff(dd.suspBolsa, occ.suspBolsa) || diff(dd.numProcSusp, occ.numProcSusp);
     if(d.etapa==="Reativação")
@@ -7535,7 +7572,7 @@ async function demSave(){
   const prof=DB.getById(demNewProfId);
   const occ=(prof.occurrences||[]).find(o=>o.id===demNewOccId);
   const isMP=occ.tipoAfasta==="Licença Maternidade"||occ.tipoAfasta==="Licença Paternidade";
-  const tipo=occ.tipoAfasta==="Licença Maternidade"?"maternidade":occ.tipoAfasta==="Licença Paternidade"?"paternidade":"saude";
+  const tipo=occ.tipoAfasta==="Licença Maternidade"?"maternidade":occ.tipoAfasta==="Licença Paternidade"?"paternidade":occ.tipoAfasta==="Afastamento Militar"?"militar":"saude";
   const resp=document.getElementById("demNPResp")?.value||ME.name;
   const per=(()=>{ if(!occ.dataInicio) return ""; const d=new Date(occ.dataInicio+"T00:00:00"); return isNaN(d)?"":d.toLocaleString("pt-BR",{month:"long",year:"numeric"}); })();
 
@@ -11030,7 +11067,7 @@ function processUploadRows(typeId, rawRows, fileName){
 // v68: gera e persiste o card de demanda de entrada para uma ocorrência recém-criada
 async function genUploadCard(prof, occ, isMP){
   const etapa = isMP ? "Suspensão da Bolsa" : "Suspensão";
-  const tipo  = isMP ? (occ.tipoAfasta==="Licença Maternidade"?"maternidade":"paternidade") : "saude";
+  const tipo  = isMP ? (occ.tipoAfasta==="Licença Maternidade"?"maternidade":"paternidade") : occ.tipoAfasta==="Afastamento Militar" ? "militar" : "saude";
   const per = (()=>{
     if(!occ.dataInicio) return "";
     const d=new Date(occ.dataInicio+"T00:00:00");
@@ -11163,14 +11200,12 @@ function _activityReportRows(){
     if(d<from || d>to) return false;
     return true;
   }).sort((a,b)=>a.ts.localeCompare(b.ts)); // ordem cronológica
-  const rows = [["Profissional","CPF","Programa","Ciclo","Status anterior","Status novo","Data da alteração","Tipo","Alterado por"]];
+  const rows = [["Profissional","CPF","Programa","Ciclo","Status anterior","Status novo","Data da alteração"]];
   entries.forEach(r=>{
     const p = DB.getById(r.profId) || DB.getArchived().find(x=>x.id===r.profId);
     rows.push([
       r.profNome, p?.cpf||"", p?.programa||"", p?.ciclo||"",
       r.antes||"", r.depois||"", r.ts,
-      r.acao==="Status (automático)" ? "Automática" : "Manual",
-      r.usuario||"",
     ]);
   });
   return rows;
@@ -11850,7 +11885,10 @@ async function initApp(){
   // Inicializa demandas antecipadamente para que DEM_ENTRIES esteja populado
   // quando o dashboard for a primeira aba aberta
   await demBootstrap();
-  await sweepMPReativacaoAutomatica(); // v0.76.0 — item 5.1.2
+  // v0.76.0 (item 5.1.2): roda em background — não bloqueia o carregamento
+  // do app, mesmo que haja muitos registros ou a rede esteja lenta. Erros
+  // são apenas logados no console (não-fatais), sem travar o app.
+  sweepMPReativacaoAutomatica().catch(e=>console.warn("[sweepMPReativacaoAutomatica] falhou (não-fatal):", e));
   demRealtimeInit();   // v71.1: escuta mudanças em dem_cards em tempo real
   await folhaDeadlineLoad(); // v66
   await ofTemplatesLoad();   // v69
@@ -12496,14 +12534,8 @@ const calcState = {
 function calcAllPeriods() { return [...CALC_PERIODS, ...CALC_CUSTOM_PERIODS]; }
 function calcFindPeriodById(id) { return calcAllPeriods().find(p => p.id === id) || CALC_PERIODS[0]; }
 
-// ── TOAST ─────────────────────────────────────────────────────────────────────
-function showToast(msg, type="", duration=3000){
-  const t = document.getElementById("toast");
-  t.textContent = (type==="success"?"✓ ":type==="warn"?"⚠ ":type==="info"?"ℹ ":"") + msg;
-  t.className = `toast ${type} show`;
-  clearTimeout(showToast._timer);
-  showToast._timer = setTimeout(()=>t.classList.remove("show"), duration);
-}
+// (showToast definida uma única vez acima — v0.77.0 removeu a duplicata legada
+// que sobrescrevia a versão com suporte a múltiplos toasts empilhados)
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 function calcInitIfNeeded() {
