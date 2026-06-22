@@ -10952,7 +10952,10 @@ function handleUpload(typeId, input){
 // Composicional (dezena + unidade), cobre 20-99 para ciclos futuros.
 // Retorna null se não for um ordinal por extenso reconhecível.
 function ordinalExtensoParaNumero(texto){
-  const t = normStr(String(texto||"")).trim().replace(/\s+/g," ");
+  // v79.2: remove o sufixo "CICLO" que o SGP anexa ("DECIMO OITAVO CICLO")
+  // e o ordinal feminino "CICLA" por segurança, além de normalizar espaços.
+  let t = normStr(String(texto||"")).trim().replace(/\s+/g," ");
+  t = t.replace(/\s+cicl[oa]s?$/,"").trim();
   if(!t) return null;
   const dezenas = {
     "decimo":10, "vigesimo":20, "trigesimo":30, "quadragesimo":40,
