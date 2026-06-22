@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v0.77.0</title>
+<title>Mais Médicos — Gestão de Licenças v0.77.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -3216,7 +3216,7 @@ function showLoginScreen(reason) {
             <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           </div>
           <div class="auth-title">Gestão de Licenças</div>
-          <div class="auth-sub">Programa Mais Médicos · v0.77.0</div>
+          <div class="auth-sub">Programa Mais Médicos · v0.77.1</div>
         </div>
         <div class="auth-body">
           <div id="authAlert" class="auth-alert"></div>
@@ -3887,7 +3887,7 @@ let FIXED_TAGS = [
    desc:"Ocorrência com bolsa suspensa e afastamento já encerrado sem data de reativação · Some ao preencher a data de reativação na ocorrência",
    rule:"Reativação pendente é igual a sim",
    sev:"crit",  iconIdx:1, colorId:"red",    fixed:true},
-  {id:"ft-vagapend",    name:"Vaga pendente",
+  {id:"ft-vagapend",    name:"Vaga Disponibilizada pendente",
    desc:"Alguma ocorrência com período ≥ 15 dias e status do caso não é Vaga Disponível · Some ao mudar o status para 'Vaga Disponível'",
    rule:"Período (dias) maior ou igual a 15  E  Status do caso não é vaga",
    sev:"crit",  iconIdx:1, colorId:"red",    fixed:true},
@@ -4718,7 +4718,7 @@ function renderPrioStrip(scopeProfs, scopeDemEntries, today){
   }).length;
 
   const items = [
-    {lbl:"Vencendo a folha", num:folhaCrit, detail:`${daysToClose}d p/ fim do mês`, action:()=>goToDemandasFolha()},
+    {lbl:"Vencendo a folha", num:folhaCrit, detail:`${daysToClose}d p/ ${fmtI(lastDayMonth.toISOString().slice(0,10))}`, action:()=>goToDemandasFolha()},
     {lbl:"Suspensões Pendentes", num:sem16d, detail:"≥16d ou soma 60d", action:()=>goToLicSem16()},
     {lbl:"Pendências antigas", num:pendStale, detail:"≥7d em 'Pendências'", action:()=>goToDemandasPendStale()},
     {lbl:"Demandas paradas", num:paradas, detail:"≥15d sem mexer", action:()=>goToDemandasParadas()},
@@ -4736,7 +4736,7 @@ function renderPrioStrip(scopeProfs, scopeDemEntries, today){
       </div>
       <div class="prio-strip-empty-msg">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        Nenhum item crítico no momento. ${daysToClose} dia(s) para o fechamento da folha.
+        Nenhum item crítico no momento. ${daysToClose} dia(s) para o fechamento da folha (${fmtI(lastDayMonth.toISOString().slice(0,10))}).
       </div>`;
     return;
   }
@@ -4744,7 +4744,7 @@ function renderPrioStrip(scopeProfs, scopeDemEntries, today){
   strip.innerHTML = `
     <div class="prio-strip-title">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
-      Prioridades — precisa de ação · ${daysToClose}d p/ fim do mês
+      Prioridades — precisa de ação · ${daysToClose}d p/ ${fmtI(lastDayMonth.toISOString().slice(0,10))}
     </div>
     ${items.map((it,i)=>`
       <div class="prio-item${it.num===0?" zero":""}" ${it.num>0?`onclick="dashPrioAction(${i})"`:''}>
@@ -4888,8 +4888,12 @@ function renderEntries(scopeDemEntries, now){
 
   const recentes = scopeDemEntries.filter(d=>{
     if(!d.createdAt) return false;
-    return new Date(d.createdAt) >= cutoff7;
-  }).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+    const t = new Date(d.createdAt).getTime();
+    return !isNaN(t) && t >= cutoff7.getTime();
+  }).sort((a,b)=>{
+    const ta = new Date(a.createdAt).getTime(), tb = new Date(b.createdAt).getTime();
+    return (isNaN(tb)?0:tb) - (isNaN(ta)?0:ta);
+  });
 
   const last24 = recentes.filter(d=>new Date(d.createdAt) >= cutoff24);
   const semResp = recentes.filter(d=>!d.responsavel);
@@ -4914,12 +4918,14 @@ function renderEntries(scopeDemEntries, now){
     </div>`;
 
   const list = recentes.slice(0,7);
+  // v0.77.1 — diagnóstico temporário: remover após confirmar que o tempo exibido está correto
+  console.table(list.map(d=>({id:d.id, prof:d.profNome, createdAt_raw:d.createdAt, createdAt_parsed:new Date(d.createdAt).toString()})));
   const rowsHtml = list.length ? list.map(d=>{
     const origem = demOrigem(d);
     const origemLbl = origem==="email"?"E-mail":origem==="carga"?"Carga":"Manual";
     const created = new Date(d.createdAt);
     const horasAtras = Math.floor((Date.now()-created)/3600000);
-    const tempo = horasAtras<1 ? "agora" : horasAtras<24 ? `${horasAtras}h` : `${Math.floor(horasAtras/24)}d`;
+    const tempo = isNaN(horasAtras) ? "—" : horasAtras<1 ? "agora" : horasAtras<24 ? `${horasAtras}h` : `${Math.floor(horasAtras/24)}d`;
     return `<div class="entry-row" onclick="openProfFromDash(${d.profId})">
       <span class="entry-origem ${origem}">${origemLbl}</span>
       <span class="entry-name">${d.profNome} — ${d.etapa}</span>
@@ -4933,33 +4939,30 @@ function renderEntries(scopeDemEntries, now){
 
 // Atividade recente da equipe
 function renderActivity(scopeProfs){
-  // Usa o log de auditoria se disponível, caso contrário usa "editadoEm" das ocorrências
-  const events = [];
-  scopeProfs.forEach(p=>{
-    p.occurrences.forEach(o=>{
-      if(o.editadoEm){
-        // parsing dd/mm/yyyy hh:mm
-        try{
-          const [datePart, timePart] = o.editadoEm.split(" ");
-          if(datePart){
-            const [d,m,y] = datePart.split("/");
-            const ts = new Date(`${y}-${m}-${d}T${(timePart||"00:00")}:00`);
-            if(!isNaN(ts)){
-              events.push({
-                profId: p.id,
-                prof: p.nome,
-                resp: p.responsavel,
-                etapa: o.tipoAfasta || `Ocorrência #${o.n}`,
-                ts: ts
-              });
-            }
-          }
-        }catch(e){}
-      }
-    });
-  });
+  // v0.77.1: usa audit_log (autor real da alteração) em vez de editadoEm/responsável do card
+  const scopeIds = new Set(scopeProfs.map(p=>p.id));
+  const parseTs = (ts)=>{
+    try{
+      const [datePart, timePart] = (ts||"").split(" ");
+      const [d,m,y] = datePart.split("/");
+      const t = new Date(`${y}-${m}-${d}T${(timePart||"00:00")}:00`);
+      return isNaN(t) ? null : t;
+    }catch(e){ return null; }
+  };
 
-  events.sort((a,b)=>b.ts-a.ts);
+  const events = (DB.logGet()||[])
+    .filter(l=>l.acao!=="Backup" && scopeIds.has(l.profId))
+    .map(l=>({
+      profId: l.profId,
+      prof:   l.profNome,
+      usuario:l.usuario,
+      acao:   l.acao,
+      campo:  l.campo,
+      ts:     parseTs(l.ts),
+    }))
+    .filter(e=>e.ts)
+    .sort((a,b)=>b.ts-a.ts);
+
   const list = events.slice(0,8);
 
   document.getElementById("activityLbl").textContent =
@@ -4976,10 +4979,11 @@ function renderActivity(scopeProfs){
 
   document.getElementById("activityList").innerHTML = list.length
     ? list.map(e=>{
-        const tm = teamBy(e.resp);
+        const tm = teamBy(e.usuario);
+        const descCampo = e.campo ? ` · ${e.campo}` : "";
         return `<div class="act-row" onclick="openProfFromDash(${e.profId})">
           <div class="act-ini" style="background:${tm.color}">${tm.ini}</div>
-          <div class="act-text"><b>${e.resp||"—"}</b> editou <b>${e.prof}</b> · ${e.etapa}</div>
+          <div class="act-text"><b>${e.usuario||"—"}</b> ${e.acao.toLowerCase()} <b>${e.prof}</b>${descCampo}</div>
           <div class="act-time">${fmtTime(e.ts)}</div>
         </div>`;
       }).join("")
@@ -5170,69 +5174,110 @@ function renderWeekMov(scopeProfs, today){
     : `<div style="font-size:0.7857em;color:var(--tx3);padding:10px 0">Nenhuma movimentação prevista</div>`;
 }
 
-// Funil por etapa
+// Funil por etapa — v0.77.1: breakdown por tipo de afastamento dentro de cada etapa
 function renderFunil(scopeDemEntries){
-  // Conta por etapa (ativas) — unifica Saúde e Mat/Pat por similaridade
-  const etapaMap = {};
+  const tipoColors = {
+    saude:       "var(--bl)",
+    maternidade: "var(--pu)",
+    paternidade: "var(--tl)",
+    militar:     "var(--tx3)",
+  };
+  const tipoLbls = {
+    saude:       "Saúde",
+    maternidade: "Maternidade",
+    paternidade: "Paternidade",
+    militar:     "Militar",
+  };
+
+  // Conta por etapa (ativas) — unifica Saúde e Mat/Pat por similaridade, mantém tipo p/ breakdown
+  const etapaMap = {}; // etapa -> {tipo: count}
   scopeDemEntries.forEach(d=>{
     if(d.status==="Concluídos") return;
-    // Normalizar nomes
     let key = d.etapa;
     if(key==="Suspensão da Bolsa") key = "Suspensão";
     if(key==="Restituição ao Erário") key = "Restituição";
-    etapaMap[key] = (etapaMap[key]||0)+1;
+    const tipo = d.tipo || "saude";
+    if(!etapaMap[key]) etapaMap[key] = {};
+    etapaMap[key][tipo] = (etapaMap[key][tipo]||0)+1;
   });
-  const order = ["Suspensão","Reativação","Restituição","Carta de Concessão","Pagamento Retroativo"];
-  const entries = order.filter(e=>etapaMap[e]).map(e=>[e, etapaMap[e]]);
-  // Adicionar outros (não previstos)
-  Object.keys(etapaMap).forEach(k=>{ if(!order.includes(k)) entries.push([k, etapaMap[k]]); });
 
-  const max = Math.max(...entries.map(([,v])=>v), 1);
-  const total = entries.reduce((s,[,v])=>s+v, 0);
+  const order = ["Suspensão","Reativação","Restituição","Carta de Concessão","Pagamento Retroativo"];
+  const etapaKeys = [...order.filter(e=>etapaMap[e]), ...Object.keys(etapaMap).filter(k=>!order.includes(k))];
+
+  const etapaTotais = etapaKeys.map(k=>Object.values(etapaMap[k]).reduce((a,b)=>a+b,0));
+  const max = Math.max(...etapaTotais, 1);
+  const total = etapaTotais.reduce((a,b)=>a+b,0);
   document.getElementById("funilLbl").textContent = `(${total} ativos)`;
 
-  const colors = {
-    "Suspensão":"var(--am)",
-    "Reativação":"var(--tl)",
-    "Restituição":"var(--bl)",
-    "Carta de Concessão":"var(--pu)",
-    "Pagamento Retroativo":"var(--ac)"
-  };
+  const tiposUsados = [...new Set(etapaKeys.flatMap(k=>Object.keys(etapaMap[k])))];
+  const legendHtml = (etapaKeys.length && tiposUsados.length>1) ? `
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;font-size:0.7143em;color:var(--tx3)">
+      ${tiposUsados.map(t=>`<span style="display:inline-flex;align-items:center;gap:4px">
+        <span style="width:8px;height:8px;border-radius:2px;background:${tipoColors[t]||'var(--ac)'};display:inline-block"></span>${tipoLbls[t]||t}</span>`).join("")}
+    </div>` : "";
 
-  document.getElementById("funilList").innerHTML = entries.length
-    ? entries.map(([k,v])=>{
+  const rowsHtml = etapaKeys.length
+    ? etapaKeys.map(k=>{
+        const breakdown = etapaMap[k];
+        const v = Object.values(breakdown).reduce((a,b)=>a+b,0);
         const pct = Math.round(v/max*100);
+        const segs = Object.entries(breakdown).map(([t,c])=>{
+          const segPct = Math.round(c/v*100);
+          return `<div style="width:${segPct}%;background:${tipoColors[t]||'var(--ac)'};height:100%;flex-shrink:0" title="${tipoLbls[t]||t}: ${c}"></div>`;
+        }).join("");
         return `<div class="funil-row">
           <div class="funil-lbl">${k}</div>
-          <div class="funil-track"><div class="funil-fill" style="width:${pct}%;background:${colors[k]||'var(--tx3)'}">${pct>=20?v:''}</div></div>
-          <div class="funil-val">${pct<20?v:''}</div>
+          <div class="funil-track"><div class="funil-fill" style="width:${pct}%;background:none;padding:0;display:flex">${segs}</div></div>
+          <div class="funil-val">${v}</div>
         </div>`;
       }).join("")
     : `<div style="font-size:0.7857em;color:var(--tx3);padding:10px 0">Sem cards ativos</div>`;
+
+  document.getElementById("funilList").innerHTML = legendHtml + rowsHtml;
 }
 
-// Vigentes por tipo (mantido do v64)
+// Vigentes por tipo (mantido do v64) — v0.77.1: clique lista os profissionais
 function renderVigByTipo(scopeProfs){
   const vigByTipo={};
   scopeProfs.forEach(p=>p.occurrences.forEach(o=>{
     if(typeof occStatus==="function" && occStatus(o)==="vigente"){
       const t=o.tipoAfasta||"Outros";
-      vigByTipo[t]=(vigByTipo[t]||0)+1;
+      if(!vigByTipo[t]) vigByTipo[t]=[];
+      vigByTipo[t].push({id:p.id, nome:p.nome});
     }
   }));
-  const vigSorted=Object.entries(vigByTipo).sort((a,b)=>b[1]-a[1]);
+  window._vigByTipoProfs = vigByTipo;
+  const vigSorted=Object.entries(vigByTipo).map(([t,arr])=>[t,arr.length]).sort((a,b)=>b[1]-a[1]);
   const maxVig=vigSorted.length?vigSorted[0][1]:1;
   const vigColors={"Afastamento por Saúde":"var(--bl)","Licença Maternidade":"var(--pu)",
     "Licença Paternidade":"var(--tl)","Afastamento Cautelar":"var(--am)",
     "Licença por Óbito":"var(--rd)","Violência Doméstica":"var(--or)","Afastamento Militar":"var(--tx3)"};
   document.getElementById("vigByTipo").innerHTML=vigSorted.length
     ? vigSorted.map(([t,v])=>`
-        <div class="tipo-row">
+        <div class="tipo-row" style="cursor:pointer" onclick="dashShowTipoList('${t.replace(/'/g,"\\'")}')">
           <div class="tipo-label" title="${t}">${t}</div>
           <div class="tipo-track"><div class="tipo-fill" style="width:${Math.round(v/maxVig*100)}%;background:${vigColors[t]||"var(--ac)"}"></div></div>
           <div class="tipo-val">${v}</div>
         </div>`).join("")
     : `<div style="font-size:0.7857em;color:var(--tx3);padding:10px 0">Nenhuma ocorrência vigente</div>`;
+}
+
+// v0.77.1: dialog com a lista de profissionais de um tipo de afastamento (ex.: "Outros")
+function dashShowTipoList(tipo){
+  const list = (window._vigByTipoProfs && window._vigByTipoProfs[tipo]) || [];
+  document.getElementById("dlgTitle").textContent = `${tipo} — ${list.length} ocorrência(s) vigente(s)`;
+  document.getElementById("dlgMsg").textContent = tipo==="Outros"
+    ? "Ocorrências vigentes sem tipo de afastamento preenchido."
+    : "";
+  document.getElementById("dlgExtra").innerHTML = list.length
+    ? `<div style="display:flex;flex-direction:column;gap:4px;max-height:300px;overflow:auto">
+        ${list.map(p=>`<div style="padding:6px 8px;border:1px solid var(--br);border-radius:var(--r);cursor:pointer" onclick="closeDialog();openProfFromDash(${p.id})">${p.nome}</div>`).join("")}
+      </div>`
+    : `<div style="color:var(--tx3);font-size:0.85em">Nenhum registro</div>`;
+  document.getElementById("dlgOk").textContent = "Fechar";
+  document.getElementById("dlgOk").className   = "btn btn-ghost";
+  document.getElementById("dlgOk").onclick = closeDialog;
+  document.getElementById("overlay").classList.add("show");
 }
 
 // Rodapé com ciclo vigente
@@ -7778,8 +7823,14 @@ function demToggleExpand(){
 // ── HELPER: OPEN PROF FROM DEMANDAS ──
 function openProfFromDash(profId){
   demCloseDrawer();
+  calcCloseFloatModal();
   switchTab("lic");
-  setTimeout(()=>{ openProf(profId); }, 80);
+  setTimeout(()=>{
+    openProf(profId);
+    // relScreen2 é ocultado por switchTab('lic') — precisamos mostrá-lo
+    document.getElementById("relScreen1").style.display = "none";
+    document.getElementById("relScreen2").style.display = "flex";
+  }, 80);
 }
 
 function openProfFromDashOcc(profId, occId){
