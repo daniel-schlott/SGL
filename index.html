@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v0.79.1</title>
+<title>Mais Médicos — Gestão de Licenças v0.79.3</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -2658,15 +2658,26 @@ const DB = {
       // v0.79: CPF criptografado — load via RPC (rpc_get_professionals) em vez
       // de select direto na tabela. A RPC já decifra o CPF e embute
       // occurrences/status_history como JSON aninhado (ver GUIA_CPF_CRIPTOGRAFIA.md).
+      // v0.79.3: paginação por KEYSET composto (nome, id) em vez de OFFSET.
+      // OFFSET reprocessa todas as linhas até o offset a cada página (O(n²)) —
+      // com 23k+ profs, as últimas páginas custavam ~9s cada e o load chegava a
+      // ~100s. Keyset toca apenas as 1000 linhas da própria página. O cursor é
+      // composto porque `nome` não é único; `id` (uuid) garante ordem total
+      // estável e preserva exatamente a ordem alfabética anterior (ORDER BY nome, id).
       let allProfs = [];
-      let from = 0;
+      let afterNome = null, afterId = null;
       const pageSize = 1000;
       while (true) {
-        const res = await _supa.rpc("rpc_get_professionals", { p_limit: pageSize, p_offset: from });
+        const res = await _supa.rpc("rpc_get_professionals", {
+          p_limit: pageSize, p_after_nome: afterNome, p_after_id: afterId
+        });
         if (res.error) return _dbError("load.professionals", res.error);
-        allProfs = allProfs.concat(res.data || []);
-        if ((res.data || []).length < pageSize) break;
-        from += pageSize;
+        const page = res.data || [];
+        allProfs = allProfs.concat(page);
+        if (page.length < pageSize) break;
+        const last = page[page.length - 1];
+        afterNome = last.nome;
+        afterId = last.id;
       }
       const profsRes = { data: allProfs };
 
@@ -3217,7 +3228,7 @@ function showLoginScreen(reason) {
             <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           </div>
           <div class="auth-title">Gestão de Licenças</div>
-          <div class="auth-sub">Programa Mais Médicos · v0.79.1</div>
+          <div class="auth-sub">Programa Mais Médicos · v0.79.3</div>
         </div>
         <div class="auth-body">
           <div id="authAlert" class="auth-alert"></div>
@@ -10952,10 +10963,7 @@ function handleUpload(typeId, input){
 // Composicional (dezena + unidade), cobre 20-99 para ciclos futuros.
 // Retorna null se não for um ordinal por extenso reconhecível.
 function ordinalExtensoParaNumero(texto){
-  // v79.2: remove o sufixo "CICLO" que o SGP anexa ("DECIMO OITAVO CICLO")
-  // e o ordinal feminino "CICLA" por segurança, além de normalizar espaços.
-  let t = normStr(String(texto||"")).trim().replace(/\s+/g," ");
-  t = t.replace(/\s+cicl[oa]s?$/,"").trim();
+  const t = normStr(String(texto||"")).trim().replace(/\s+/g," ");
   if(!t) return null;
   const dezenas = {
     "decimo":10, "vigesimo":20, "trigesimo":30, "quadragesimo":40,
