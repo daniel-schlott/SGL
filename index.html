@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v0.78.1</title>
+<title>Mais Médicos — Gestão de Licenças v0.79.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -2655,15 +2655,14 @@ const DB = {
         }));
       }
 
+      // v0.79: CPF criptografado — load via RPC (rpc_get_professionals) em vez
+      // de select direto na tabela. A RPC já decifra o CPF e embute
+      // occurrences/status_history como JSON aninhado (ver GUIA_CPF_CRIPTOGRAFIA.md).
       let allProfs = [];
       let from = 0;
       const pageSize = 1000;
       while (true) {
-        const res = await _supa
-          .from("professionals")
-          .select("*, occurrences(*), status_history(*)")
-          .order("nome")
-          .range(from, from + pageSize - 1);
+        const res = await _supa.rpc("rpc_get_professionals", { p_limit: pageSize, p_offset: from });
         if (res.error) return _dbError("load.professionals", res.error);
         allProfs = allProfs.concat(res.data || []);
         if ((res.data || []).length < pageSize) break;
@@ -2768,15 +2767,13 @@ const DB = {
     try {
       // Carregar professionals_archive e occurrences_archive separadamente
       // (não há FK entre as tabelas archive no schema, então JOIN automático falha)
+      // v0.79: CPF criptografado também no arquivo morto — load via RPC
+      // (rpc_get_professionals_archive) em vez de select direto.
       let allProfs = [];
       let from = 0;
       const pageSize = 1000;
       while (true) {
-        const res = await _supa
-          .from("professionals_archive")
-          .select("*")
-          .order("nome")
-          .range(from, from + pageSize - 1);
+        const res = await _supa.rpc("rpc_get_professionals_archive", { p_limit: pageSize, p_offset: from });
         if (res.error) return _dbError("loadArchive", res.error);
         allProfs = allProfs.concat(res.data || []);
         if ((res.data || []).length < pageSize) break;
@@ -2899,7 +2896,7 @@ const DB = {
    */
   async save(prof) {
     const row = {
-      id:           prof.id || undefined,
+      id:           prof.id || null,
       ciclo_id:     prof.cicloId || null,  // v52
       nome:         prof.nome,
       cpf:          prof.cpf,
@@ -2916,7 +2913,11 @@ const DB = {
       dismissed_alerts: prof.dismissedAlerts || [],
     };
     try {
-      const { data, error } = await _supa.from("professionals").upsert(row).select().single();
+      // v0.79: CPF criptografado — escrita via RPC (rpc_save_professional).
+      // A função cifra cpf_enc/calcula cpf_hmac no servidor e preserva
+      // telefone/registro_prof/perfil/ibge (campos só preenchidos pela carga
+      // SGP) quando este form não os envia.
+      const { data, error } = await _supa.rpc("rpc_save_professional", { p_data: row });
       if(error) return _dbError("save", error);
       prof.id = data.id;
       this._localSave(prof);
@@ -3216,7 +3217,7 @@ function showLoginScreen(reason) {
             <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           </div>
           <div class="auth-title">Gestão de Licenças</div>
-          <div class="auth-sub">Programa Mais Médicos · v0.78.1</div>
+          <div class="auth-sub">Programa Mais Médicos · v0.79.0</div>
         </div>
         <div class="auth-body">
           <div id="authAlert" class="auth-alert"></div>
@@ -10947,53 +10948,16 @@ function handleUpload(typeId, input){
   input.value = "";
 }
 
-// v0.78: converte ordinal por extenso em português ("TRIGÉSIMO PRIMEIRO") em
-// número inteiro (31). Usado porque o relatório do SGP traz a coluna
-// Etapa/Ciclo assim, sem número. Cobre 1–109 (suficiente para qualquer ciclo
-// do programa). Retorna null se não reconhecer.
-const _ORD_TENS = {
-  primeiro:1, segundo:2, terceiro:3, quarto:4, quinto:5, sexto:6, setimo:7,
-  oitavo:8, nono:9, decimo:10, vigesimo:20, trigesimo:30, quadragesimo:40,
-  quinquagesimo:50, sexagesimo:60, septuagesimo:70, septagesimo:70,
-  octogesimo:80, nonagesimo:90, centesimo:100,
-};
-const _ORD_UNITS = {
-  primeiro:1, segundo:2, terceiro:3, quarto:4, quinto:5, sexto:6, setimo:7,
-  oitavo:8, nono:9,
-};
-function ordinalPtToNumber(text){
-  const t = normStr(String(text||"")).trim();
-  if(!t) return null;
-  const tokens = t.split(/\s+/);
-  const base = _ORD_TENS[tokens[0]];
-  if(base==null) return null;
-  if(tokens.length===1) return base;
-  const unit = _ORD_UNITS[tokens[1]];
-  return unit!=null ? base+unit : base;
-}
-
-// v68.1: resolve o texto do ciclo da planilha para o objeto ciclo real.
+// v68.1: resolve o texto do ciclo da planilha para o cicloId (FK) real.
 // Compara contra o nome do ciclo (principal) e o número (fallback),
-// ignorando acentos/caixa. v0.78: também tenta ler o ciclo por extenso
-// (formato usado pelo relatório bruto do SGP, ex. "TRIGÉSIMO PRIMEIRO").
-// Retorna null se não encontrar.
-function resolveCycle(cicloTexto){
+// ignorando acentos/caixa. Retorna null se não encontrar.
+function resolveCicloId(cicloTexto){
   const raw = String(cicloTexto||"").trim();
   if(!raw) return null;
   const t = normStr(raw);
-  let cy = DB.getCycles().find(c=>
+  const cy = DB.getCycles().find(c=>
     normStr(c.nome||"")===t || String(c.numero||"").trim()===raw
   );
-  if(!cy){
-    const ord = ordinalPtToNumber(raw);
-    if(ord!=null){
-      cy = DB.getCycles().find(c => Number(c.numero)===ord);
-    }
-  }
-  return cy || null;
-}
-function resolveCicloId(cicloTexto){
-  const cy = resolveCycle(cicloTexto);
   return cy ? cy.id : null;
 }
 
@@ -11351,22 +11315,9 @@ async function sgpRunUpload(typeId, kind, rows, fileName, skippedAtParse){
   if(ovl) ovl.style.display = "flex";
 
   // Para profissionais, resolve o ciclo_id (FK) ANTES de enviar — evita
-  // que a RPC precise conhecer a tabela cycles. Também normaliza o texto
-  // do ciclo para o formato canônico do app (ex.: "24º Ciclo"), pois é
-  // ESSA string que a RPC usa como chave de match junto com o CPF — se
-  // mandássemos o texto cru do SGP ("TRIGÉSIMO PRIMEIRO"), nunca bateria
-  // com o registro já existente e geraria duplicata a cada carga.
+  // que a RPC precise conhecer a tabela cycles.
   if(kind==="prof"){
-    let unresolved = 0;
-    rows.forEach(r => {
-      const cy = resolveCycle(r.ciclo);
-      r.cicloId = cy ? cy.id : null;
-      if(cy && cy.nome) r.ciclo = cy.nome;
-      else unresolved++;
-    });
-    if(unresolved>0){
-      showToast(`Atenção: ${unresolved} profissionais com Etapa/Ciclo não reconhecido (verifique se o ciclo existe cadastrado).`, "warn", 9000);
-    }
+    rows.forEach(r => { r.cicloId = resolveCicloId(r.ciclo) || null; });
   }
 
   const chunks = _sgpChunks(rows, SGP_BATCH_SIZE);
