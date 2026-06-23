@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v0.79.3</title>
+<title>Mais Médicos — Gestão de Licenças v0.79.4</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -3228,7 +3228,7 @@ function showLoginScreen(reason) {
             <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           </div>
           <div class="auth-title">Gestão de Licenças</div>
-          <div class="auth-sub">Programa Mais Médicos · v0.79.3</div>
+          <div class="auth-sub">Programa Mais Médicos · v0.79.4</div>
         </div>
         <div class="auth-body">
           <div id="authAlert" class="auth-alert"></div>
@@ -6389,6 +6389,9 @@ function demOpenCard(id){
 
 function demRenderCardBody(d){
   const occ=demGetOcc(d);
+  // v0.79.4: pré-preenche os campos base do card a partir da ocorrência (relatório),
+  // sem sobrescrever valores já digitados/não-commitados no card.
+  demSeedBaseFromOcc(d, occ);
   // v63: apenas usuários ativos; preserva seleção atual mesmo se usuário foi desativado
   const activeTeam = TEAM.filter(u=>u.active!==false);
   const respOpts=activeTeam.map(u=>`<option${d.responsavel===u.name?" selected":""}>${u.name}</option>`).join("")+
@@ -6984,7 +6987,8 @@ function demFieldChange(id,field,val){
   d[field]=val; renderDemKanban();
 }
 
-async function demFieldSave(){
+async function demFieldSave(opts){
+  opts = opts || {};
   const d=DEM_ENTRIES.find(x=>x.id===demEditId); if(!d) return false;
   const dd=d.demData;
   const g=id=>{ const el=document.getElementById(id); return el?el.value:""; };
@@ -7058,7 +7062,13 @@ async function demFieldSave(){
   if(_syncOcc && demHasConflict(d, _syncOcc)){
     if(!confirm("Atenção: esta ocorrência já possui dados preenchidos que serão sobrescritos. Deseja continuar?")) return false;
   }
-  demSyncToOcc(d);
+  // v0.79.4: conflito de campos base (Entrada no Núcleo / Afastamento / CID) só é
+  // checado ao salvar pelo botão "Salvar Demanda" (opts.fromButton). Os onchange de
+  // campo gravam no card, mas só propagam para a ocorrência no salvar pelo botão.
+  if(_syncOcc && opts.fromButton && demHasBaseConflict(d, _syncOcc)){
+    if(!confirm("A tela do profissional já possui dados (entrada no núcleo, afastamento ou CID) diferentes dos deste card. Salvar vai sobrescrevê-los. Continuar?")) return false;
+  }
+  demSyncToOcc(d, opts.fromButton);
   // v0.76.0 — transição automática "Reativada" também via card de Demandas
   // (o card de Suspensão não grava "Data de início", então só Reativação
   // é relevante aqui; ver item 5.1 / autoSetStatus).
@@ -7126,9 +7136,29 @@ function demHasConflict(d, occ){
   return false;
 }
 
-function demSyncToOcc(d){
+function demSyncToOcc(d, includeBase=false){
   const occ=demGetOcc(d); if(!occ) return;
   const dd=d.demData;
+  // v0.79.4: campos base (Entrada no Núcleo / Afastamento e CID) só são gravados
+  // na ocorrência quando includeBase=true (salvar pelo botão "Salvar Demanda").
+  // Guard `!==undefined`: campo nunca tocado no card preserva a ocorrência;
+  // campo limpo de propósito ("") limpa a ocorrência.
+  if(includeBase){
+    if(d.tipo==="saude" || d.tipo==="militar"){
+      if(dd.dtEntradaNucleo!==undefined) occ.dtEntradaNucleo = dd.dtEntradaNucleo;
+      if(dd.dtCienciaCoord !==undefined) occ.dtCienciaCoord  = dd.dtCienciaCoord;
+      if(dd.metodoEntrada  !==undefined) occ.metodoEntrada   = dd.metodoEntrada;
+      if(dd.especEntrada   !==undefined) occ.especEntrada    = dd.especEntrada;
+    }
+    if(d.tipo==="saude"){
+      if(dd.tipoDoc      !==undefined) occ.tipoDoc         = dd.tipoDoc;
+      if(dd.dataInicio   !==undefined) occ.dataInicio      = dd.dataInicio;
+      if(dd.periodo      !==undefined) occ.periodo         = (dd.periodo==="" ? null : (parseInt(dd.periodo,10)||null));
+      if(dd.inssAte      !==undefined) occ.beneficioInssAte= dd.inssAte;
+      if(dd.faltasInjust !==undefined) occ.faltasInjust    = dd.faltasInjust;
+      if(Array.isArray(dd.cids))       occ.cids            = [...dd.cids];
+    }
+  }
   if(d.etapa==="Suspensão") {
     if(dd.suspBolsa) occ.suspBolsa=dd.suspBolsa;
     if(dd.numProcSusp) occ.numProcSusp=dd.numProcSusp;
@@ -7208,6 +7238,48 @@ function demSyncToOcc(d){
 function demGetOcc(d){
   const p=DB.getById(d.profId); if(!p) return null;
   return (p.occurrences||[]).find(o=>o.id===d.occId)||null;
+}
+
+// v0.79.4: pré-preenche os campos base do card a partir da ocorrência (relatório).
+// Só seeda campos AINDA NÃO definidos no card (=== undefined), para não apagar
+// o que já foi digitado e ainda não commitado pelo botão.
+function demSeedBaseFromOcc(d, occ){
+  if(!occ) return;
+  const dd=d.demData; if(!dd) return;
+  const seed=(k,v)=>{ if(dd[k]===undefined) dd[k]=v; };
+  if(d.tipo==="saude" || d.tipo==="militar"){
+    seed("dtEntradaNucleo", occ.dtEntradaNucleo||"");
+    seed("dtCienciaCoord",  occ.dtCienciaCoord||"");
+    seed("metodoEntrada",   occ.metodoEntrada||"");
+    seed("especEntrada",    occ.especEntrada||"");
+  }
+  if(d.tipo==="saude"){
+    seed("tipoDoc",      occ.tipoDoc||"");
+    seed("dataInicio",   occ.dataInicio||"");
+    seed("periodo",      (occ.periodo===null||occ.periodo===undefined) ? "" : String(occ.periodo));
+    seed("inssAte",      occ.beneficioInssAte||"");
+    seed("faltasInjust", occ.faltasInjust||"");
+    seed("cids",         Array.isArray(occ.cids) ? [...occ.cids] : []);
+  }
+}
+
+// v0.79.4: conflito de campos base = card preenchido E ocorrência preenchida E diferentes.
+// Usado só no salvar pelo botão para pedir confirmação antes de sobrescrever a ocorrência.
+function demHasBaseConflict(d, occ){
+  if(!occ) return false;
+  const dd=d.demData;
+  const diff=(a,b)=>{ const cv=(a==null?"":String(a)).trim(); const ov=(b==null?"":String(b)).trim(); return !!cv && !!ov && cv!==ov; };
+  if(d.tipo==="saude" || d.tipo==="militar"){
+    if(diff(dd.dtEntradaNucleo,occ.dtEntradaNucleo) || diff(dd.dtCienciaCoord,occ.dtCienciaCoord) ||
+       diff(dd.metodoEntrada,occ.metodoEntrada)     || diff(dd.especEntrada,occ.especEntrada)) return true;
+  }
+  if(d.tipo==="saude"){
+    if(diff(dd.tipoDoc,occ.tipoDoc)           || diff(dd.dataInicio,occ.dataInicio) ||
+       diff(dd.periodo,occ.periodo)           || diff(dd.inssAte,occ.beneficioInssAte) ||
+       diff(dd.faltasInjust,occ.faltasInjust) ||
+       diff((dd.cids||[]).join(","),(occ.cids||[]).join(","))) return true;
+  }
+  return false;
 }
 
 // ── GARANTE QUE OCC.RESTITUICOES EXISTE, MIGRANDO CAMPOS LEGADOS SE NECESSÁRIO ──
@@ -7602,7 +7674,7 @@ async function demSave(){
       saveBtn.disabled = true;
       saveBtn.innerHTML = `<span class="dsb-spinner" style="border-color:#fff;border-top-color:transparent;width:12px;height:12px"></span> Salvando…`;
     }
-    const ok = await demFieldSave();
+    const ok = await demFieldSave({fromButton:true});
     if(saveBtn){ saveBtn.disabled = false; saveBtn.innerHTML = originalHtml; }
     if(ok){
       demCloseDrawer();
