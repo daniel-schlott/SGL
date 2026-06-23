@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v0.79.4</title>
+<title>Mais Médicos — Gestão de Licenças v0.79.5</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -3228,7 +3228,7 @@ function showLoginScreen(reason) {
             <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           </div>
           <div class="auth-title">Gestão de Licenças</div>
-          <div class="auth-sub">Programa Mais Médicos · v0.79.4</div>
+          <div class="auth-sub">Programa Mais Médicos · v0.79.5</div>
         </div>
         <div class="auth-body">
           <div id="authAlert" class="auth-alert"></div>
@@ -6447,7 +6447,7 @@ function demRenderCardBody(d){
   if(d.tipo==="saude"){
     fixedTop=demFormEntradaNucleo(d.demData)+demFormAfastamentoCID(d.demData);
   } else if(d.tipo==="militar"){
-    fixedTop=demFormEntradaNucleo(d.demData);
+    fixedTop=demFormEntradaNucleo(d.demData)+demFormAfastamentoMilitar(d.demData);
   } else {
     fixedTop=demFormMPStatusFixed(d.demData);
   }
@@ -6546,6 +6546,28 @@ function demFormAfastamentoCID(dd){
     </div>
     <div class="dem-field"><label>Faltas injustificadas</label><input id="df-faltasInjust" value="${dd.faltasInjust||""}" onchange="demFieldSave()"></div>
   </div>`;
+}
+
+// v0.79.5: seção "Afastamento" para Afastamento Militar — sem CID/período,
+// com término auto = início+18 meses (mesma regra do editor de ocorrência),
+// só se o término não tiver sido editado manualmente no card (dd._prevTerminoTouched).
+function demFormAfastamentoMilitar(dd){
+  return `<div class="dem-dr-section">
+    <div class="dem-dr-section-hd"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Afastamento</div>
+    <div class="dem-2col">
+      <div class="dem-field"><label>Data de início</label><input type="date" id="df-dataInicio" value="${dd.dataInicio||""}" onchange="demMilitarPrevTerminoSync();demFieldSave()"></div>
+      <div class="dem-field"><label>Data prevista término</label><input type="date" id="df-dataPrevTermino" value="${dd.dataPrevTermino||""}" oninput="this.dataset.touched='1'" onchange="demFieldSave()"></div>
+    </div>
+  </div>`;
+}
+
+// Recalcula "Data prevista término" (início+18m) ao mudar "Data de início",
+// só se o usuário ainda não editou o término manualmente (dataset.touched).
+function demMilitarPrevTerminoSync(){
+  const elPrev = document.getElementById("df-dataPrevTermino");
+  if(!elPrev || elPrev.dataset.touched) return;
+  const di = document.getElementById("df-dataInicio")?.value || "";
+  elPrev.value = di ? addMonthsStr(di,18) : "";
 }
 
 function demFormMPStatusFixed(dd){
@@ -7003,6 +7025,7 @@ async function demFieldSave(opts){
   } else if(d.tipo==="militar"){
     dd.dtEntradaNucleo=g("df-dtEntradaNucleo"); dd.dtCienciaCoord=g("df-dtCienciaCoord");
     dd.metodoEntrada=g("df-metodoEntrada"); dd.especEntrada=g("df-especEntrada");
+    dd.dataInicio=g("df-dataInicio"); dd.dataPrevTermino=g("df-dataPrevTermino");
   } else {
     dd.mpStatusBolsa=g("df-mpStatusBolsa"); dd.mpInicioLic=g("df-mpInicioLic");
     dd.mpTerminoLic=g("df-mpTerminoLic"); dd.mpProrrogacao=g("df-mpProrrogacao");
@@ -7150,6 +7173,10 @@ function demSyncToOcc(d, includeBase=false){
       if(dd.metodoEntrada  !==undefined) occ.metodoEntrada   = dd.metodoEntrada;
       if(dd.especEntrada   !==undefined) occ.especEntrada    = dd.especEntrada;
     }
+    if(d.tipo==="militar"){
+      if(dd.dataInicio     !==undefined) occ.dataInicio      = dd.dataInicio;
+      if(dd.dataPrevTermino!==undefined) occ.dataPrevTermino = dd.dataPrevTermino;
+    }
     if(d.tipo==="saude"){
       if(dd.tipoDoc      !==undefined) occ.tipoDoc         = dd.tipoDoc;
       if(dd.dataInicio   !==undefined) occ.dataInicio      = dd.dataInicio;
@@ -7253,6 +7280,10 @@ function demSeedBaseFromOcc(d, occ){
     seed("metodoEntrada",   occ.metodoEntrada||"");
     seed("especEntrada",    occ.especEntrada||"");
   }
+  if(d.tipo==="militar"){
+    seed("dataInicio", occ.dataInicio||"");
+    seed("dataPrevTermino", occ.dataPrevTermino || (occ.dataInicio ? addMonthsStr(occ.dataInicio,18) : ""));
+  }
   if(d.tipo==="saude"){
     seed("tipoDoc",      occ.tipoDoc||"");
     seed("dataInicio",   occ.dataInicio||"");
@@ -7272,6 +7303,9 @@ function demHasBaseConflict(d, occ){
   if(d.tipo==="saude" || d.tipo==="militar"){
     if(diff(dd.dtEntradaNucleo,occ.dtEntradaNucleo) || diff(dd.dtCienciaCoord,occ.dtCienciaCoord) ||
        diff(dd.metodoEntrada,occ.metodoEntrada)     || diff(dd.especEntrada,occ.especEntrada)) return true;
+  }
+  if(d.tipo==="militar"){
+    if(diff(dd.dataInicio,occ.dataInicio) || diff(dd.dataPrevTermino,occ.dataPrevTermino)) return true;
   }
   if(d.tipo==="saude"){
     if(diff(dd.tipoDoc,occ.tipoDoc)           || diff(dd.dataInicio,occ.dataInicio) ||
