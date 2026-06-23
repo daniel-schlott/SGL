@@ -11122,14 +11122,19 @@ function resolveCicloId(cicloTexto){
   return cy ? cy.id : null;
 }
 
-// v68: Carga incremental — só insere registros NOVOS.
-//  - Profissional já existe se houver mesmo CPF (só dígitos) + ciclo.
-//  - Ocorrência já existe se, no mesmo profissional, houver mesmo
-//    tipoAfasta + dataInicio.
-//  - Cada ocorrência nova gera um card de demanda de entrada
-//    ("Suspensão" para saúde, "Suspensão da Bolsa" para mat/pat).
+// v0.79.7: Carga incremental com MATCH SERVER-SIDE por chave estável.
+//  Substitui o índice local frágil (CPF+texto-do-ciclo) que falhava no
+//  match e DUPLICAVA profissionais. Agora:
+//  - cicloId é resolvido no cliente (resolveCicloId: número/nome/extenso SGP).
+//  - rpc_resolve_profs casa em lote por (cpf_hmac, ciclo_id) em ativos+arquivo.
+//  - Profissional novo herda cicloId (bigint) + label real do ciclo.
+//  - Ocorrência via rpc_upsert_occurrence_natural (chave natural) → 2ª carga
+//    ATUALIZA em vez de duplicar.
+//  - Roteamento ativo/arquivo segue o STATUS do ciclo (vigente → tabelas
+//    principais; arquivado → *_archive).
+//  - Card de demanda só p/ ocorrência NOVA (acao==="insert") em ciclo vigente.
 //  - typeId "professores": só cadastra/dedup profissionais, sem ocorrências.
-function processUploadRows(typeId, rawRows, fileName){
+async function processUploadRows(typeId, rawRows, fileName){
   // Normaliza chaves/valores para string aparada e descarta linhas sem nome
   const rows = (rawRows||[]).map(r=>{
     const o={};
@@ -11143,171 +11148,236 @@ function processUploadRows(typeId, rawRows, fileName){
   const expectedTipo = UPLOAD_TYPES.find(t=>t.id===typeId)?.tipoAfasta || "";
   const profsOnly = typeId==="professores"; // carga de cadastro: não cria ocorrências
 
-  // Índice de profissionais existentes por CPF+ciclo
-  const profKey = (cpf, ciclo)=> String(cpf||"").replace(/\D/g,"") + "|" + String(ciclo||"").trim();
-  const existingIdx = new Map();
-  DB.getAll().forEach(p=> existingIdx.set(profKey(p.cpf, p.ciclo), p));
-  const batchIdx = new Map(); // profissionais criados nesta carga
-
-  const newProfs = [];        // profissionais novos (precisam de DB.save)
-  const newOccs  = [];        // {prof, occ} ocorrências novas a persistir
-  let profsNew=0, profsExist=0, occsNew=0, occsSkip=0, noCpf=0;
-
-  function findOrCreateProf(row){
-    const key = profKey(row.cpf, row.ciclo);
-    if(batchIdx.has(key)) return batchIdx.get(key);
-    if(existingIdx.has(key)){ if(profsOnly) profsExist++; return existingIdx.get(key); }
-    const prof = {
-      // sem id — o servidor gera ao salvar (evita colisão com ids reais)
-      nome:row.nome, cpf:row.cpf||"", siape:row.siape||"",
-      programa:row.programa||"PMMB", ciclo:row.ciclo||"",
-      cicloId: resolveCicloId(row.ciclo),   // v68.1: vincula ao ciclo de verdade
-      uf:row.uf||"", municipio:row.municipio||"",
-      email:row.email||"", inicioAtiv:row.inicioAtiv||"",
-      metodEntrada:row.metodEntrada||"",
-      status:"analisando", responsavel:ME.name,
-      statusHistory:[{s:"analisando",ts:tsNow()}], occurrences:[],
-      _isNewProf:true,
-    };
-    batchIdx.set(key, prof);
-    newProfs.push(prof);
-    profsNew++;
-    return prof;
-  }
-
-  function occDup(prof, tipoAfasta, dataInicio){
-    return (prof.occurrences||[]).some(o=>
-      (o.tipoAfasta||"")===tipoAfasta && (o.dataInicio||"")===(dataInicio||""));
-  }
-
   // Overlay de progresso
   const ovl=document.getElementById("uploadProgress");
   const bar=document.getElementById("uploadProgressBar");
   const pct=document.getElementById("uploadProgressPct");
   const pmsg=document.getElementById("uploadProgressMsg");
   const pttl=document.getElementById("uploadProgressTitle");
-  if(ovl){ ovl.style.display="flex"; if(pttl) pttl.textContent=`Carregando ${fileName}`; if(bar) bar.style.width="0%"; }
+  const setProg=(p,msg)=>{ if(bar)bar.style.width=p+"%"; if(pct)pct.textContent=p+"%"; if(pmsg&&msg)pmsg.textContent=msg; };
+  if(ovl){ ovl.style.display="flex"; if(pttl) pttl.textContent=`Carregando ${fileName}`; setProg(0,"Analisando linhas…"); }
 
-  const CHUNK=200;
-  let idx=0;
+  // Índice de ciclos por id → status/label (decide ativo vs arquivado)
+  const cycleById = new Map(DB.getCycles().map(c=>[c.id, c]));
+  const isVigente = (cicloId)=> (cycleById.get(cicloId)?.status||"vigente")==="vigente";
+  // Índice de profissionais ATIVOS em cache por id (atualização in-memory pós-carga)
+  const activeById = new Map(DB.getAll().map(p=>[p.id, p]));
 
-  function processChunk(){
-    const end=Math.min(idx+CHUNK,total);
-    for(let i=idx;i<end;i++){
-      const row=rows[i];
-      // v68.1: CPF é obrigatório — sem ele não há como deduplicar com segurança
-      if(!String(row.cpf||"").replace(/\D/g,"")){ noCpf++; continue; }
-      const prof = findOrCreateProf(row);
-      // Carga de cadastro: apenas cria/dedup o profissional, sem ocorrência
-      if(profsOnly) continue;
-      const tipoAfasta = ((row.tipoAfasta||"").trim()===expectedTipo) ? row.tipoAfasta.trim() : expectedTipo;
-      const dataInicio = row.dataInicio || row.inicioLic || "";
-      if(occDup(prof, tipoAfasta, dataInicio)){ occsSkip++; continue; }
-
-      const occ={
-        id:++nextOccId, n:prof.occurrences.length+1,
-        _isNew:true,
-        tipoAfasta,
-        tipoDoc:row.tipoDoc||"ATESTADO",
-        cids:[row.cid1,row.cid2,row.cid3,row.cid4].filter(Boolean),
-        dataInicio,
-        periodo:parseInt(row.periodo)||null,
-        inss:row.tipoDoc==="COMUNICADO DE DECISÃO INSS",
-        beneficioInssAte:row.beneficioInssAte||"",
-        dtEntradaNucleo:row.dtEntradaNucleo||"",
-        dtCienciaCoord:row.dtCienciaCoord||"",
-        metodoEntrada:row.metodoEntrada||"",
-        especEntrada:row.especEntrada||"",
-        faltasInjust:row.faltasInjust||"",
-        retornoDias:row.retornoDias||"",
-        suspBolsa:row.suspBolsa||"",
-        tipoPagSusp:row.tipoPagSusp||"",
-        folhaCoapeSupsp:row.folhaCoapeSupsp||"",
-        numProcSusp:row.numProcSusp||"",
-        dataReat:row.dataReat||"",
-        tipoPagReat:row.tipoPagReat||"",
-        folhaCoapeReat:row.folhaCoapeReat||"",
-        numProcReat:row.numProcReat||"",
-        tipoRest:row.tipoRest||"",
-        periodoRest:row.periodoRest||"",
-        numProcRest:row.numProcRest||"",
-        periodoPagos:row.periodoPagos||"",
-        procPagRetro:row.procPagRetro||"",
-        matPat:isMP?{
-          statusBolsa:row.statusBolsa||"",inicioLic:row.inicioLic||"",
-          terminoLic:row.terminoLic||"",prorrogacao:row.prorrogacao||"",
-          inicioProrrog:row.inicioProrrog||"",terminoProrrog:row.terminoProrrog||"",
-          retornoUbs:row.retornoUbs||"",numProcSusp:row.numProcSusp||"",
-          mesAnoSusp:row.mesAnoSusp||"",tipoReat:row.tipoReat||"",
-          numProcReat:row.numProcReat||"",mesAnoReat:row.mesAnoReat||"",
-          tipoPag:row.tipoPag||"",periodoRest:row.periodoRest||"",
-          gruDesconto:row.gruDesconto||"",procRest:row.procRest||"",
-          mesAnoRest:row.mesAnoRest||"",procPagRetro:row.procPagRetro||"",
-          periodoPagRetro:row.periodoPagRetro||"",procPagExAnter:row.procPagExAnter||"",
-          periodoPagExAnter:row.periodoPagExAnter||"",procComp120:row.procComp120||"",
-        }:{},
-        obs:row.obs||"",
-        lembrete:{data:row.lembrete_data||"",nota:row.lembrete_nota||""},
-        editadoPor:ME.name, editadoEm:nowStr()
-      };
-      prof.occurrences.push(occ);
-      newOccs.push({prof, occ});
-      occsNew++;
-    }
-    idx=end;
-    const p=Math.round(idx/total*100);
-    if(bar) bar.style.width=p+"%";
-    if(pct) pct.textContent=p+"%";
-    if(pmsg) pmsg.textContent=`${idx.toLocaleString("pt-BR")} de ${total.toLocaleString("pt-BR")} linhas analisadas`;
-    if(idx<total){ setTimeout(processChunk,0); }
-    else { finalize(); }
-  }
-
-  async function finalize(){
-    if(pmsg) pmsg.textContent="Salvando no servidor…";
-    let errors=0, cardsCreated=0;
-
-    // 1) Profissionais novos primeiro (servidor gera id; _localSave adiciona ao cache)
-    for(const prof of newProfs){
-      const pRes = await DB.save(prof);
-      if(!pRes.ok){ errors++; }
-      delete prof._isNewProf;
-    }
-    // 2) Ocorrências novas + card de demanda de entrada
-    for(const {prof, occ} of newOccs){
-      if(!prof.id){ errors++; continue; } // profissional não salvou
-      const oRes = await DB.saveOcc(prof.id, occ, {skipLock:true});
-      if(!oRes.ok){ errors++; continue; }
-      try{
-        const ok = await genUploadCard(prof, occ, isMP);
-        if(ok) cardsCreated++;
-      }catch(e){ console.warn("[upload card]", e); }
-    }
-
-    DB._reindex();
-    if(typeof _logIdxRebuild==="function") _logIdxRebuild();
-    const ut2=UPLOAD_TYPES.find(t=>t.id===typeId);
-    if(ut2){ ut2.loaded=true; ut2.file=fileName; }
-    renderUploadSection();
-    const logDetalhe = profsOnly
-      ? `${profsNew} prof novos · ${profsExist} já existentes · ${noCpf} sem CPF`
-      : `${profsNew} prof novos · ${occsNew} ocorrências novas · ${occsSkip} ignoradas · ${noCpf} sem CPF`;
-    await addLog("Criação",0,`[Carga ${typeId}]`,fileName,"",logDetalhe);
+  // ── Fase A: análise síncrona — normaliza, resolve cicloId, monta pares ──
+  // items[i] espelha rows[i] (ou null se a linha foi descartada).
+  let noCpf=0, noCiclo=0;
+  const items = rows.map(row=>{
+    const cpfDig = String(row.cpf||"").replace(/\D/g,"");
+    if(!cpfDig){ noCpf++; return null; }                 // CPF obrigatório
+    const cicloId = resolveCicloId(row.ciclo);
+    if(cicloId==null){ noCiclo++; return null; }          // ciclo não-resolvível
+    return { row, cpf:row.cpf, cpfDig, cicloId, ciclo:row.ciclo };
+  });
+  const valid = items.filter(Boolean);
+  if(!valid.length){
     if(ovl) ovl.style.display="none";
-    renderInitState();
-    if(document.getElementById("view-dash")?.classList.contains("active")) renderDashboard();
-    if(currentTab==="dem" && typeof renderDemKanban==="function") renderDemKanban();
-
-    const partes = profsOnly
-      ? [`${profsNew} profissionais novos`, `${profsExist} já existentes ignorados`]
-      : [`${profsNew} prof novos`, `${occsNew} ocorrências novas (${cardsCreated} cards)`, `${occsSkip} ignoradas`];
-    if(noCpf>0) partes.push(`${noCpf} sem CPF ignoradas`);
-    const resumo = partes.join(", ");
-    if(errors>0) showToast(`Carga concluída com ${errors} falha(s). ${resumo}`,"warn",7000);
-    else showToast(`Carga concluída — ${resumo}`,"success",6000);
+    showToast(`Nenhuma linha válida (${noCpf} sem CPF, ${noCiclo} sem ciclo)`,"warn",7000);
+    return;
   }
 
-  setTimeout(processChunk,50); // 50ms para o overlay renderizar antes
+  // ── Fase B: match em lote via rpc_resolve_profs (lotes de 500) ──
+  setProg(5,"Localizando profissionais no servidor…");
+  const resolved = new Array(valid.length); // mesmo índice de `valid`
+  const RB=500;
+  for(let i=0;i<valid.length;i+=RB){
+    const slice = valid.slice(i,i+RB);
+    const pairs = slice.map(v=>({ cpf:v.cpf, ciclo_id:v.cicloId }));
+    try{
+      const { data, error } = await _supa.rpc("rpc_resolve_profs", { pairs });
+      if(error){ console.error("[carga] rpc_resolve_profs", error); }
+      const arr = Array.isArray(data) ? data : [];
+      for(let j=0;j<slice.length;j++) resolved[i+j] = arr[j] || null;
+    }catch(e){
+      console.error("[carga] rpc_resolve_profs", e);
+    }
+  }
+
+  // ── Fase C: persistência por linha ──
+  let profsNew=0, profsExist=0, occsNew=0, occsUpd=0, occsErr=0, cardsCreated=0, errors=0;
+  // Dedup de profissionais NOVOS criados nesta mesma carga (cpfDig|cicloId → prof_id)
+  const newByKey = new Map();
+  const seen = new Set(); // profissionais já contados como "existentes"
+
+  for(let i=0;i<valid.length;i++){
+    const v = valid[i];
+    const res = resolved[i] || {};
+    const arquivo = !isVigente(v.cicloId);
+    const dupKey = v.cpfDig + "|" + v.cicloId;
+
+    // 1) Resolver prof_id (existente, criado nesta carga, ou novo)
+    let profId = null, profCache = null;
+    if(res.encontrado && res.prof_id){
+      profId = res.prof_id;
+      if(!seen.has(dupKey)){ profsExist++; seen.add(dupKey); }
+      profCache = activeById.get(profId) || null; // só ativos estão no cache
+    } else if(newByKey.has(dupKey)){
+      profId = newByKey.get(dupKey);
+      profCache = activeById.get(profId) || null;
+    } else {
+      // Criar profissional novo, herdando cicloId (bigint) + label real
+      const cy = cycleById.get(v.cicloId);
+      const prof = {
+        nome:v.row.nome, cpf:v.cpf, siape:v.row.siape||"",
+        programa:v.row.programa||"PMMB",
+        ciclo: cy?.nome || v.ciclo || "",     // label real, não "38" cru
+        cicloId: v.cicloId,
+        uf:v.row.uf||"", municipio:v.row.municipio||"",
+        email:v.row.email||"", inicioAtiv:v.row.inicioAtiv||"",
+        metodEntrada:v.row.metodEntrada||"",
+        status:"analisando", responsavel:ME.name,
+        statusHistory:[{s:"analisando",ts:tsNow()}], occurrences:[],
+      };
+      if(arquivo){
+        // Profissional novo em ciclo arquivado → professionals_archive
+        const pdata = {
+          ciclo_id:prof.cicloId, nome:prof.nome, cpf:prof.cpf, siape:prof.siape,
+          programa:prof.programa, ciclo:prof.ciclo, uf:prof.uf, municipio:prof.municipio,
+          email:prof.email, inicio_ativ:prof.inicioAtiv, metod_entrada:prof.metodEntrada,
+          status:prof.status, responsavel:prof.responsavel, archived_by:ME.name,
+        };
+        try{
+          const { data, error } = await _supa.rpc("rpc_save_professional_archive", { p_data: pdata });
+          if(error||!data?.id){ errors++; continue; }
+          profId = data.id;
+        }catch(e){ console.error("[carga] save_professional_archive", e); errors++; continue; }
+      } else {
+        const pRes = await DB.save(prof); // grava em professionals + _localSave (cache)
+        if(!pRes.ok || !prof.id){ errors++; continue; }
+        profId = prof.id;
+        prof.occurrences = prof.occurrences || [];
+        activeById.set(profId, prof);
+        profCache = prof;
+      }
+      newByKey.set(dupKey, profId);
+      profsNew++;
+    }
+
+    // Carga de cadastro (professores): não cria ocorrência
+    if(profsOnly) continue;
+    if(!profId){ occsErr++; continue; }
+
+    // 2) Upsert da ocorrência por CHAVE NATURAL
+    const tipoAfasta = ((v.row.tipoAfasta||"").trim()===expectedTipo) ? v.row.tipoAfasta.trim() : expectedTipo;
+    const dataInicio = v.row.dataInicio || v.row.inicioLic || "";
+    const periodo = parseInt(v.row.periodo)||null;
+    const occData = {
+      prof_id: profId,
+      tipo_afasta: tipoAfasta,
+      tipo_doc: v.row.tipoDoc||"ATESTADO",
+      cids: [v.row.cid1,v.row.cid2,v.row.cid3,v.row.cid4].filter(Boolean),
+      data_inicio: dataInicio || null,
+      periodo,
+      inss: v.row.tipoDoc==="COMUNICADO DE DECISÃO INSS",
+      beneficio_inss_ate: v.row.beneficioInssAte||null,
+      dt_entrada_nucleo: v.row.dtEntradaNucleo||null,
+      dt_ciencia_coord: v.row.dtCienciaCoord||null,
+      metodo_entrada: v.row.metodoEntrada||"",
+      espec_entrada: v.row.especEntrada||"",
+      faltas_injust: v.row.faltasInjust||"",
+      retorno_dias: v.row.retornoDias||"",
+      susp_bolsa: v.row.suspBolsa||null,
+      tipo_pag_susp: v.row.tipoPagSusp||"",
+      folha_coape_susp: v.row.folhaCoapeSupsp||null,
+      num_proc_susp: v.row.numProcSusp||"",
+      data_reat: v.row.dataReat||null,
+      tipo_pag_reat: v.row.tipoPagReat||"",
+      folha_coape_reat: v.row.folhaCoapeReat||null,
+      num_proc_reat: v.row.numProcReat||"",
+      tipo_rest: v.row.tipoRest||"",
+      periodo_rest: v.row.periodoRest||"",
+      num_proc_rest: v.row.numProcRest||"",
+      periodo_pagos: v.row.periodoPagos||"",
+      proc_pag_retro: v.row.procPagRetro||"",
+      mat_pat_data: isMP?{
+        statusBolsa:v.row.statusBolsa||"",inicioLic:v.row.inicioLic||"",
+        terminoLic:v.row.terminoLic||"",prorrogacao:v.row.prorrogacao||"",
+        inicioProrrog:v.row.inicioProrrog||"",terminoProrrog:v.row.terminoProrrog||"",
+        retornoUbs:v.row.retornoUbs||"",numProcSusp:v.row.numProcSusp||"",
+        mesAnoSusp:v.row.mesAnoSusp||"",tipoReat:v.row.tipoReat||"",
+        numProcReat:v.row.numProcReat||"",mesAnoReat:v.row.mesAnoReat||"",
+        tipoPag:v.row.tipoPag||"",periodoRest:v.row.periodoRest||"",
+        gruDesconto:v.row.gruDesconto||"",procRest:v.row.procRest||"",
+        mesAnoRest:v.row.mesAnoRest||"",procPagRetro:v.row.procPagRetro||"",
+        periodoPagRetro:v.row.periodoPagRetro||"",procPagExAnter:v.row.procPagExAnter||"",
+        periodoPagExAnter:v.row.periodoPagExAnter||"",procComp120:v.row.procComp120||"",
+      }:null,
+      obs: v.row.obs||"",
+      lembrete_data: v.row.lembrete_data||null,
+      lembrete_nota: v.row.lembrete_nota||"",
+      editado_por: ME.name,
+      editado_em: nowStr(),
+    };
+
+    let occRes;
+    try{
+      const { data, error } = await _supa.rpc("rpc_upsert_occurrence_natural",
+        { p_data: occData, p_arquivo: arquivo });
+      if(error||!data?.id){ console.error("[carga] upsert_occurrence_natural", error); occsErr++; continue; }
+      occRes = data;
+    }catch(e){ console.error("[carga] upsert_occurrence_natural", e); occsErr++; continue; }
+
+    const inserted = occRes.acao==="insert";
+    if(inserted) occsNew++; else occsUpd++;
+
+    // 3) Atualização in-memory (só ativos) + card de demanda
+    const occObj = {
+      id:occRes.id, n:occRes.n, tipoAfasta, tipoDoc:occData.tipo_doc,
+      cids:occData.cids, dataInicio, periodo,
+      inss:occData.inss, beneficioInssAte:occData.beneficio_inss_ate||"",
+      matPat:occData.mat_pat_data||{}, obs:occData.obs,
+      editadoPor:ME.name, editadoEm:occData.editado_em,
+    };
+    if(!arquivo && profCache){
+      profCache.occurrences = profCache.occurrences || [];
+      const ix = profCache.occurrences.findIndex(o=>o.id===occObj.id);
+      if(ix>=0) profCache.occurrences[ix] = { ...profCache.occurrences[ix], ...occObj };
+      else profCache.occurrences.push(occObj);
+    }
+    // Card só para ocorrência NOVA em ciclo VIGENTE
+    if(inserted && !arquivo){
+      try{
+        const prof = profCache || { id:profId, nome:v.row.nome, responsavel:ME.name };
+        const ok = await genUploadCard(prof, occObj, isMP);
+        if(ok) cardsCreated++;
+      }catch(e){ console.warn("[carga] card", e); }
+    }
+
+    if((i & 7)===0){
+      const p=5+Math.round((i+1)/valid.length*90);
+      setProg(p, `${(i+1).toLocaleString("pt-BR")} de ${valid.length.toLocaleString("pt-BR")} linhas salvas`);
+    }
+  }
+
+  // ── Fase D: pós-carga ──
+  setProg(98,"Reindexando…");
+  DB._reindex();
+  if(typeof _logIdxRebuild==="function") _logIdxRebuild();
+  const ut2=UPLOAD_TYPES.find(t=>t.id===typeId);
+  if(ut2){ ut2.loaded=true; ut2.file=fileName; }
+  renderUploadSection();
+  const logDetalhe = profsOnly
+    ? `${profsNew} prof novos · ${profsExist} já existentes · ${noCpf} sem CPF · ${noCiclo} sem ciclo`
+    : `${profsNew} prof novos · ${occsNew} occ novas · ${occsUpd} atualizadas · ${occsErr} falhas · ${noCpf} sem CPF · ${noCiclo} sem ciclo`;
+  await addLog("Criação",0,`[Carga ${typeId}]`,fileName,"",logDetalhe);
+  if(ovl) ovl.style.display="none";
+  renderInitState();
+  if(document.getElementById("view-dash")?.classList.contains("active")) renderDashboard();
+  if(currentTab==="dem" && typeof renderDemKanban==="function") renderDemKanban();
+
+  const partes = profsOnly
+    ? [`${profsNew} profissionais novos`, `${profsExist} já existentes`]
+    : [`${profsNew} prof novos`, `${occsNew} occ novas (${cardsCreated} cards)`, `${occsUpd} atualizadas`];
+  if(occsErr>0) partes.push(`${occsErr} falhas`);
+  if(noCpf>0) partes.push(`${noCpf} sem CPF`);
+  if(noCiclo>0) partes.push(`${noCiclo} sem ciclo`);
+  const resumo = partes.join(", ");
+  if(errors>0||occsErr>0) showToast(`Carga concluída com falhas. ${resumo}`,"warn",7000);
+  else showToast(`Carga concluída — ${resumo}`,"success",6000);
 }
 
 // ============================================================
