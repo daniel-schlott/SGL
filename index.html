@@ -1348,6 +1348,13 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 .np-foot-note{font-size:0.7143em;color:var(--tx3)}
 .np-dup-warn{background:var(--aml);border:1px solid var(--am);border-radius:var(--r);padding:8px 12px;font-size:0.8em;color:var(--am);display:flex;align-items:flex-start;gap:8px}
 .np-dup-warn svg{flex-shrink:0;margin-top:1px}
+.roster-trigger{align-self:flex-start;gap:6px}
+.roster-results{display:flex;flex-direction:column;gap:6px;max-height:46vh;overflow-y:auto}
+.roster-item{padding:8px 10px;border:1px solid var(--br);border-radius:var(--r);cursor:pointer;transition:background .12s,border-color .12s}
+.roster-item:hover{background:var(--sf2);border-color:var(--br2)}
+.roster-item-nm{font-size:0.85em;font-weight:600;color:var(--tx)}
+.roster-item-sub{font-size:0.75em;color:var(--tx3);margin-top:2px}
+.roster-empty{font-size:0.8em;color:var(--tx3);padding:10px 4px;text-align:center}
 
 @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
@@ -3752,44 +3759,99 @@ function npValidateField(id){
   return !msg;
 }
 
-// Verificar duplicata por CPF ou SIAPE
-// v0.79.9: dedup server-side (carga parcial não tem os 23k em memória).
-// Busca no roster completo via rpc_lookup_roster; debounce + token anti-race.
-let _npDupTimer = null, _npDupSeq = 0, _npDupMatchId = null;
-function npCheckDup(){
-  clearTimeout(_npDupTimer);
-  _npDupTimer = setTimeout(npCheckDupRun, 350);
+// ── v0.79.9: Buscar profissional existente no roster e reaproveitar dados ──
+// Usado pelo modal "Novo profissional" (np-*) e pelo form de novo prof da
+// demanda (cp-*). Não cria duplicata: pré-preenche o form (inclusive ciclo,
+// editável). Ao salvar, a guarda (CPF, ciclo) abre o existente ou cria nova
+// linha se o ciclo for diferente.
+let _rosterTarget = null, _rosterTimer = null, _rosterSeq = 0;
+function _rSet(id, val){ const el=document.getElementById(id); if(el && val!=null) el.value = val; }
+
+function openRosterSearch(target){
+  _rosterTarget = target; // 'np' | 'cp'
+  const inp = document.getElementById("rosterSearchInput");
+  const res = document.getElementById("rosterResults");
+  if(inp) inp.value = "";
+  if(res) res.innerHTML = '<div class="roster-empty">Digite nome ou CPF para buscar.</div>';
+  document.getElementById("rosterOverlay").classList.add("open");
+  setTimeout(()=>inp?.focus(), 60);
 }
-async function npCheckDupRun(){
-  const cpf   = (document.getElementById("np-cpf")?.value||"").replace(/\D/g,"");
-  const nome  = (document.getElementById("np-nome")?.value||"").trim();
-  const warn  = document.getElementById("npDupWarn");
-  const msg   = document.getElementById("npDupMsg");
-  const btn   = document.getElementById("npDupOpen");
-  if(!warn||!msg) return;
-  // termo: CPF completo (11) tem prioridade; senão nome com 5+ chars
-  const termo = (cpf.length===11) ? cpf : (nome.length>4 ? nome : "");
-  if(!termo){ warn.style.display="none"; if(btn) btn.style.display="none"; _npDupMatchId=null; return; }
-  const seq = ++_npDupSeq;
-  const res = await _supa.rpc("rpc_lookup_roster", { p_termo: termo });
-  if(seq !== _npDupSeq) return;                 // resposta obsoleta → descarta
-  if(res.error){ console.warn("[npCheckDup]", res.error); return; }
-  const rows = res.data || [];
-  if(rows.length === 0){ warn.style.display="none"; if(btn) btn.style.display="none"; _npDupMatchId=null; return; }
-  const first = rows[0];
-  _npDupMatchId = first.id;
-  const extra = rows.length>1 ? ` (+${rows.length-1} outro${rows.length>2?"s":""})` : "";
-  warn.style.display="flex";
-  msg.textContent = `Já existe no cadastro: "${first.nome}" — ${first.ciclo||"—"}, ${first.municipio||""}/${first.uf||""} · CPF ${first.cpf_mask||""}${extra}. Confira antes de criar.`;
-  if(btn) btn.style.display = "";
+function closeRosterSearch(){
+  document.getElementById("rosterOverlay").classList.remove("open");
+  _rosterTarget = null;
 }
-// Abre o profissional existente (carrega sob demanda) em vez de duplicar.
-async function npOpenExisting(){
-  if(!_npDupMatchId) return;
-  const r = await DB.loadOne(_npDupMatchId);
-  if(!r.ok){ showToast("Não foi possível abrir o profissional","warn"); return; }
-  closeNewProf();
-  openProf(_npDupMatchId);
+function rosterOverlayClick(e){
+  if(e.target === document.getElementById("rosterOverlay")) closeRosterSearch();
+}
+function rosterSearchInput(){
+  clearTimeout(_rosterTimer);
+  _rosterTimer = setTimeout(rosterSearchRun, 350);
+}
+async function rosterSearchRun(){
+  const termo = (document.getElementById("rosterSearchInput")?.value||"").trim();
+  const res = document.getElementById("rosterResults");
+  if(!res) return;
+  const digits = termo.replace(/\D/g,"");
+  if(digits.length !== 11 && termo.length < 3){
+    res.innerHTML = '<div class="roster-empty">Digite ao menos 3 letras ou um CPF completo.</div>';
+    return;
+  }
+  const seq = ++_rosterSeq;
+  res.innerHTML = '<div class="roster-empty">Buscando…</div>';
+  const r = await _supa.rpc("rpc_lookup_roster", { p_termo: termo });
+  if(seq !== _rosterSeq) return;  // resposta obsoleta
+  if(r.error){ res.innerHTML='<div class="roster-empty">Erro na busca.</div>'; console.warn("[roster]", r.error); return; }
+  const rows = r.data || [];
+  if(rows.length === 0){ res.innerHTML='<div class="roster-empty">Nenhum profissional encontrado.</div>'; return; }
+  res.innerHTML = rows.map(p =>
+    '<div class="roster-item" onclick="rosterSelect('+p.id+')">'
+    + '<div class="roster-item-nm">'+(p.nome||"")+'</div>'
+    + '<div class="roster-item-sub">'+(p.ciclo||"—")+' · '+(p.municipio||"")+'/'+(p.uf||"")+' · CPF '+(p.cpf_mask||"")+'</div>'
+    + '</div>'
+  ).join("");
+}
+// Carrega os dados completos do selecionado e pré-preenche o form alvo.
+async function rosterSelect(id){
+  const r = await _supa.rpc("rpc_get_professional_by_id", { p_id: id });
+  if(r.error || !r.data){ showToast("Não foi possível carregar os dados","warn"); return; }
+  const p = r.data;
+  const nome     = p.nome || "";
+  const cpfDig   = String(p.cpf || "").replace(/\D/g,"");
+  const siape    = p.siape || "";
+  const programa = p.programa || "";
+  const cicloId  = p.ciclo_id || p.cicloId || "";
+  const uf       = p.uf || "";
+  const municipio= p.municipio || "";
+  const email    = p.email || "";
+  const metodo   = p.metod_entrada || p.metodEntrada || "";
+  const inicio   = p.inicio_ativ || p.inicioAtiv || "";
+
+  if(_rosterTarget === "np"){
+    _rSet("np-nome", nome);
+    const cpfEl=document.getElementById("np-cpf"); if(cpfEl){ cpfEl.value=cpfDig; npMaskCPF(cpfEl); }
+    _rSet("np-siape", siape);
+    _rSet("np-programa", programa);
+    _rSet("np-uf", uf);
+    _rSet("np-municipio", municipio);
+    _rSet("np-metodo", metodo);
+    _rSet("np-email", email);
+    _rSet("np-inicio", inicio);
+    _rSet("np-ciclo", String(cicloId));
+  } else if(_rosterTarget === "cp"){
+    _rSet("cpNome", nome);
+    const cpfEl=document.getElementById("cpCpf"); if(cpfEl){ cpfEl.value=cpfDig; npMaskCPF(cpfEl); }
+    _rSet("cpSiape", siape);
+    _rSet("cpPrograma", programa);
+    if(typeof cpOnProgramaChange === "function") cpOnProgramaChange(); // repovoa cpCiclo
+    _rSet("cpCiclo", String(cicloId));
+    _rSet("cpUf", uf);
+    _rSet("cpMunicipio", municipio);
+    _rSet("cpMetodo", metodo);
+    _rSet("cpEmail", email);
+    _rSet("cpInicioAtiv", inicio);
+  }
+  closeRosterSearch();
+  showToast('Dados de "'+nome+'" carregados — confira e ajuste o ciclo se for novo ingresso.', "success");
 }
 
 // Validar todos os campos obrigatórios
@@ -3819,7 +3881,11 @@ async function saveNewProf(){
         showToast("Já existe profissional com este CPF neste ciclo — abrindo o registro existente.","warn");
         const r = await DB.loadOne(existId);
         closeNewProf();
-        if(r.ok) openProf(existId);
+        if(r.ok){
+          if(!relResults.find(p=>p.id===existId)){ relResults = DB.getAll(); relPage = 0; sortRelResults(); }
+          switchTab("lic");
+          openRelProf(existId);
+        }
         return; // aborta criação duplicada
       }
     }
@@ -7460,20 +7526,19 @@ function demOpenCreateProf(nome){
   document.getElementById("demDrBody").innerHTML=`
     <div class="dem-dr-section">
       <div class="dem-dr-section-hd"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Novo profissional</div>
-      <div id="cpDupWarn" style="display:none;padding:8px 10px;background:var(--aml);border:1px solid var(--am);border-radius:var(--r);font-size:0.8em;color:var(--tx);margin-bottom:8px;margin-top:6px;display:flex;align-items:center;gap:6px">
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        <span id="cpDupMsg"></span>
-        <button id="cpDupOpen" type="button" class="btn btn-primary btn-sm" style="display:none;margin-left:auto" onclick="cpOpenExisting()">Selecionar existente</button>
-      </div>
+      <button type="button" class="btn btn-ghost btn-sm roster-trigger" style="margin:6px 0" onclick="openRosterSearch('cp')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Buscar profissional existente
+      </button>
       <!-- Identificação -->
       <div class="dem-field" style="margin-top:8px">
         <label class="dem-label">Nome completo <span style="color:var(--er)">*</span></label>
-        <input class="dem-input" id="cpNome" value="${nome||""}" oninput="cpCheckDup()">
+        <input class="dem-input" id="cpNome" value="${nome||""}">
       </div>
       <div class="dem-2col">
         <div class="dem-field">
           <label class="dem-label">CPF <span style="color:var(--er)">*</span></label>
-          <input class="dem-input" id="cpCpf" placeholder="000.000.000-00" maxlength="14" oninput="npMaskCPF(this);cpCheckDup()">
+          <input class="dem-input" id="cpCpf" placeholder="000.000.000-00" maxlength="14" oninput="npMaskCPF(this)">
         </div>
         <div class="dem-field">
           <label class="dem-label">SIAPE <span style="color:var(--er)">*</span></label>
@@ -7530,40 +7595,8 @@ function demOpenCreateProf(nome){
     </div>`;
 }
 
-// v64: verificar duplicata de CPF no form de nova demanda
-// v0.79.9: dedup server-side no form da demanda (carga parcial).
-let _cpDupTimer=null, _cpDupSeq=0, _cpDupMatchId=null;
-function cpCheckDup(){
-  clearTimeout(_cpDupTimer);
-  _cpDupTimer=setTimeout(cpCheckDupRun,350);
-}
-async function cpCheckDupRun(){
-  const cpf=(document.getElementById("cpCpf")?.value||"").replace(/\D/g,"");
-  const nome=(document.getElementById("cpNome")?.value||"").trim();
-  const warn=document.getElementById("cpDupWarn");
-  const msg=document.getElementById("cpDupMsg");
-  const btn=document.getElementById("cpDupOpen");
-  if(!warn||!msg) return;
-  const termo=(cpf.length===11)?cpf:(nome.length>4?nome:"");
-  if(!termo){ warn.style.display="none"; if(btn) btn.style.display="none"; _cpDupMatchId=null; msg.textContent=""; return; }
-  const seq=++_cpDupSeq;
-  const res=await _supa.rpc("rpc_lookup_roster",{ p_termo:termo });
-  if(seq!==_cpDupSeq) return;
-  if(res.error){ console.warn("[cpCheckDup]",res.error); return; }
-  const rows=res.data||[];
-  if(rows.length===0){ warn.style.display="none"; if(btn) btn.style.display="none"; _cpDupMatchId=null; msg.textContent=""; return; }
-  const first=rows[0]; _cpDupMatchId=first.id;
-  const extra=rows.length>1?` (+${rows.length-1})`:"";
-  warn.style.display="flex";
-  msg.textContent=`Já existe: "${first.nome}" — ${first.ciclo||"—"} · CPF ${first.cpf_mask||""}${extra}`;
-  if(btn) btn.style.display="";
-}
-async function cpOpenExisting(){
-  if(!_cpDupMatchId) return;
-  const r=await DB.loadOne(_cpDupMatchId);
-  if(!r.ok){ showToast("Não foi possível carregar o profissional","warn"); return; }
-  demSelectProf(_cpDupMatchId);
-}
+// v0.79.9: dedup por digitação removido — uso do botão "Buscar profissional
+// existente" (openRosterSearch('cp')) + guarda (CPF, ciclo) no salvar.
 
 // v64: filtrar ciclos por programa selecionado
 function cpOnProgramaChange(){
@@ -12581,24 +12614,28 @@ bootstrap();
       </button>
     </div>
     <div class="np-body">
+      <!-- v0.79.9: buscar profissional existente no roster e reaproveitar dados -->
+      <button type="button" class="btn btn-ghost btn-sm roster-trigger" onclick="openRosterSearch('np')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Buscar profissional existente
+      </button>
       <!-- aviso duplicata -->
       <div id="npDupWarn" class="np-dup-warn" style="display:none">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         <span id="npDupMsg"></span>
-        <button id="npDupOpen" type="button" class="btn btn-primary btn-sm" style="display:none;margin-left:auto" onclick="npOpenExisting()">Abrir existente</button>
       </div>
 
       <!-- identificação -->
       <div class="np-field">
         <label>Nome completo<span class="req">*</span></label>
-        <input id="np-nome" type="text" placeholder="Ex.: Maria da Silva Santos" oninput="npValidateField('np-nome');npCheckDup()">
+        <input id="np-nome" type="text" placeholder="Ex.: Maria da Silva Santos" oninput="npValidateField('np-nome')">
         <span class="np-errmsg" id="np-nome-err"></span>
       </div>
 
       <div class="np-2col">
         <div class="np-field">
           <label>CPF<span class="req">*</span></label>
-          <input id="np-cpf" type="text" placeholder="000.000.000-00" maxlength="14" oninput="npMaskCPF(this);npCheckDup()">
+          <input id="np-cpf" type="text" placeholder="000.000.000-00" maxlength="14" oninput="npMaskCPF(this)">
           <span class="np-errmsg" id="np-cpf-err"></span>
         </div>
         <div class="np-field">
@@ -12682,6 +12719,28 @@ bootstrap();
           Salvar e abrir caso
         </button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── v0.79.9: Overlay de busca de profissional existente (np + cp) ── -->
+<div class="np-overlay" id="rosterOverlay" onclick="rosterOverlayClick(event)">
+  <div class="np-modal" id="rosterModal" style="max-width:520px">
+    <div class="np-head">
+      <h3>
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="15" height="15" style="color:var(--ac);margin-right:4px;vertical-align:-2px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Buscar profissional existente
+      </h3>
+      <button class="np-close" onclick="closeRosterSearch()">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="np-body" style="gap:10px">
+      <div class="np-field">
+        <input id="rosterSearchInput" type="text" placeholder="Nome ou CPF…" oninput="rosterSearchInput()" autocomplete="off">
+      </div>
+      <div id="rosterResults" class="roster-results"></div>
+      <div class="np-foot-note">Selecione para preencher o cadastro. O ciclo vem preenchido — altere se for um novo ingresso.</div>
     </div>
   </div>
 </div>
