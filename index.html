@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v0.79.6</title>
+<title>Mais Médicos — Gestão de Licenças v0.79.9</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -2630,61 +2630,9 @@ const DB = {
    * e audit_log. Chamado uma vez em initApp.
    * @returns {Promise<{ok: boolean, error?: string}>}
    */
-  async load() {
-    try {
-      // team: fallback hardcoded se a tabela não existir ou RLS bloquear
-      const teamRes = await _supa.from("team").select("*").order("name");
-      if(teamRes.error) {
-        console.warn("[DB.load.team] non-fatal, using hardcoded TEAM:", teamRes.error);
-      } else if(teamRes.data?.length) {
-        TEAM.length = 0;
-        teamRes.data.forEach(t => TEAM.push({ id: t.id, auth_id: t.auth_id, name: t.name, ini: t.initials, color: t.color, role: t.role, active: t.active !== false }));
-        // ME será setado por initApp após authCheck — não sobrescrever aqui
-      }
-
-      // v52: Carregar ciclos do programa
-      const cyclesRes = await _supa.from("cycles").select("*").order("numero", { ascending: false });
-      if(cyclesRes.error) {
-        console.warn("[DB.load.cycles] non-fatal:", cyclesRes.error);
-        this._cycles = [];
-      } else {
-        this._cycles = (cyclesRes.data || []).map(c => ({
-          id: c.id, programa: c.programa, numero: c.numero, nome: c.nome,
-          dataInicio: c.data_inicio, dataTermino: c.data_termino,
-          status: c.status, arquivadoEm: c.arquivado_em
-        }));
-      }
-
-      // v0.79: CPF criptografado — load via RPC (rpc_get_professionals) em vez
-      // de select direto na tabela. A RPC já decifra o CPF e embute
-      // occurrences/status_history como JSON aninhado (ver GUIA_CPF_CRIPTOGRAFIA.md).
-      // v0.79.3: paginação por KEYSET composto (nome, id) em vez de OFFSET.
-      // OFFSET reprocessa todas as linhas até o offset a cada página (O(n²)) —
-      // com 23k+ profs, as últimas páginas custavam ~9s cada e o load chegava a
-      // ~100s. Keyset toca apenas as 1000 linhas da própria página. O cursor é
-      // composto porque `nome` não é único; `id` (uuid) garante ordem total
-      // estável e preserva exatamente a ordem alfabética anterior (ORDER BY nome, id).
-      let allProfs = [];
-      let afterNome = null, afterId = null;
-      const pageSize = 1000;
-      while (true) {
-        const res = await _supa.rpc("rpc_get_professionals", {
-          p_limit: pageSize, p_after_nome: afterNome, p_after_id: afterId
-        });
-        if (res.error) return _dbError("load.professionals", res.error);
-        const page = res.data || [];
-        allProfs = allProfs.concat(page);
-        if (page.length < pageSize) break;
-        const last = page[page.length - 1];
-        afterNome = last.nome;
-        afterId = last.id;
-      }
-      const profsRes = { data: allProfs };
-
-      // Normaliza shape DB → shape esperado pela UI (snake_case → camelCase,
-      // colunas JSONB para subcampos, flag _isNew para distinguir registros
-      // já persistidos de novos em memória).
-      this._profs = (profsRes.data || []).map(p => ({
+  // v0.79.9: normalização prof DB→UI extraída de load() para reuso em loadOne().
+  _normalizeProf(p) {
+    return {
         ...p,
         // snake_case → camelCase (profissional)
         inicioAtiv:   p.inicioAtiv   || p.inicio_ativ   || "",
@@ -2739,7 +2687,83 @@ const DB = {
             demCardsStatus: o.dem_cards_status || o.demCardsStatus || {},
             _isNew: false,
           })),
-      }));
+    };
+  },
+
+  // v0.79.9: carrega 1 profissional sob demanda (lookup do roster completo).
+  // Usado quando o prof não está em memória por não ter ocorrência (carga parcial).
+  async loadOne(id) {
+    try {
+      const res = await _supa.rpc("rpc_get_professional_by_id", { p_id: id });
+      if (res.error) return _dbError("loadOne", res.error);
+      if (!res.data) return { ok:false, error:"Profissional não encontrado" };
+      const prof = this._normalizeProf(res.data);
+      const idx = this._profs.findIndex(p => String(p.id) === String(prof.id));
+      if (idx >= 0) this._profs[idx] = prof; else this._profs.push(prof);
+      this._reindex();
+      return { ok:true, prof };
+    } catch (err) {
+      return _dbError("loadOne", err);
+    }
+  },
+
+  async load() {
+    try {
+      // team: fallback hardcoded se a tabela não existir ou RLS bloquear
+      const teamRes = await _supa.from("team").select("*").order("name");
+      if(teamRes.error) {
+        console.warn("[DB.load.team] non-fatal, using hardcoded TEAM:", teamRes.error);
+      } else if(teamRes.data?.length) {
+        TEAM.length = 0;
+        teamRes.data.forEach(t => TEAM.push({ id: t.id, auth_id: t.auth_id, name: t.name, ini: t.initials, color: t.color, role: t.role, active: t.active !== false }));
+        // ME será setado por initApp após authCheck — não sobrescrever aqui
+      }
+
+      // v52: Carregar ciclos do programa
+      const cyclesRes = await _supa.from("cycles").select("*").order("numero", { ascending: false });
+      if(cyclesRes.error) {
+        console.warn("[DB.load.cycles] non-fatal:", cyclesRes.error);
+        this._cycles = [];
+      } else {
+        this._cycles = (cyclesRes.data || []).map(c => ({
+          id: c.id, programa: c.programa, numero: c.numero, nome: c.nome,
+          dataInicio: c.data_inicio, dataTermino: c.data_termino,
+          status: c.status, arquivadoEm: c.arquivado_em
+        }));
+      }
+
+      // v0.79: CPF criptografado — load via RPC (rpc_get_professionals) em vez
+      // de select direto na tabela. A RPC já decifra o CPF e embute
+      // occurrences/status_history como JSON aninhado (ver GUIA_CPF_CRIPTOGRAFIA.md).
+      // v0.79.3: paginação por KEYSET composto (nome, id) em vez de OFFSET.
+      // OFFSET reprocessa todas as linhas até o offset a cada página (O(n²)) —
+      // com 23k+ profs, as últimas páginas custavam ~9s cada e o load chegava a
+      // ~100s. Keyset toca apenas as 1000 linhas da própria página. O cursor é
+      // composto porque `nome` não é único; `id` (uuid) garante ordem total
+      // estável e preserva exatamente a ordem alfabética anterior (ORDER BY nome, id).
+      let allProfs = [];
+      let afterNome = null, afterId = null;
+      const pageSize = 1000;
+      while (true) {
+        const res = await _supa.rpc("rpc_get_professionals", {
+          p_limit: pageSize, p_after_nome: afterNome, p_after_id: afterId,
+          p_only_with_occ: true  // v0.79.9: carga parcial — só profs com ocorrência
+        });
+        if (res.error) return _dbError("load.professionals", res.error);
+        const page = res.data || [];
+        allProfs = allProfs.concat(page);
+        if (page.length < pageSize) break;
+        const last = page[page.length - 1];
+        afterNome = last.nome;
+        afterId = last.id;
+      }
+      const profsRes = { data: allProfs };
+
+      // Normaliza shape DB → shape esperado pela UI (snake_case → camelCase,
+      // colunas JSONB para subcampos, flag _isNew para distinguir registros
+      // já persistidos de novos em memória).
+      // v0.79.9: lógica extraída para DB._normalizeProf(p) (reusada por loadOne).
+      this._profs = (profsRes.data || []).map(p => this._normalizeProf(p));
       // v52: Filtrar apenas profs cujo ciclo está vigente
       // Se cycles não carregou, não filtra (evita tela vazia)
       if(this._cycles.length > 0){
@@ -3228,7 +3252,7 @@ function showLoginScreen(reason) {
             <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           </div>
           <div class="auth-title">Gestão de Licenças</div>
-          <div class="auth-sub">Programa Mais Médicos · v0.79.6</div>
+          <div class="auth-sub">Programa Mais Médicos · v0.79.9</div>
         </div>
         <div class="auth-body">
           <div id="authAlert" class="auth-alert"></div>
@@ -3729,23 +3753,43 @@ function npValidateField(id){
 }
 
 // Verificar duplicata por CPF ou SIAPE
+// v0.79.9: dedup server-side (carga parcial não tem os 23k em memória).
+// Busca no roster completo via rpc_lookup_roster; debounce + token anti-race.
+let _npDupTimer = null, _npDupSeq = 0, _npDupMatchId = null;
 function npCheckDup(){
-  const cpf   = document.getElementById("np-cpf")?.value.replace(/\D/g,"");
-  const nome  = normStr(document.getElementById("np-nome")?.value.trim());
+  clearTimeout(_npDupTimer);
+  _npDupTimer = setTimeout(npCheckDupRun, 350);
+}
+async function npCheckDupRun(){
+  const cpf   = (document.getElementById("np-cpf")?.value||"").replace(/\D/g,"");
+  const nome  = (document.getElementById("np-nome")?.value||"").trim();
   const warn  = document.getElementById("npDupWarn");
   const msg   = document.getElementById("npDupMsg");
+  const btn   = document.getElementById("npDupOpen");
   if(!warn||!msg) return;
-  if(!cpf && !nome){ warn.style.display="none"; return; }
-  const dup = DB.getAll().find(p=>{
-    const pCpf = p.cpf.replace(/\D/g,"");
-    return (cpf.length===11 && pCpf===cpf) || (nome.length>4 && normStr(p.nome)===normStr(nome));
-  });
-  if(dup){
-    warn.style.display="flex";
-    msg.textContent = `Possível duplicata: "${dup.nome}" já existe no sistema (CPF ${dup.cpf}). Verifique antes de salvar.`;
-  } else {
-    warn.style.display="none";
-  }
+  // termo: CPF completo (11) tem prioridade; senão nome com 5+ chars
+  const termo = (cpf.length===11) ? cpf : (nome.length>4 ? nome : "");
+  if(!termo){ warn.style.display="none"; if(btn) btn.style.display="none"; _npDupMatchId=null; return; }
+  const seq = ++_npDupSeq;
+  const res = await _supa.rpc("rpc_lookup_roster", { p_termo: termo });
+  if(seq !== _npDupSeq) return;                 // resposta obsoleta → descarta
+  if(res.error){ console.warn("[npCheckDup]", res.error); return; }
+  const rows = res.data || [];
+  if(rows.length === 0){ warn.style.display="none"; if(btn) btn.style.display="none"; _npDupMatchId=null; return; }
+  const first = rows[0];
+  _npDupMatchId = first.id;
+  const extra = rows.length>1 ? ` (+${rows.length-1} outro${rows.length>2?"s":""})` : "";
+  warn.style.display="flex";
+  msg.textContent = `Já existe no cadastro: "${first.nome}" — ${first.ciclo||"—"}, ${first.municipio||""}/${first.uf||""} · CPF ${first.cpf_mask||""}${extra}. Confira antes de criar.`;
+  if(btn) btn.style.display = "";
+}
+// Abre o profissional existente (carrega sob demanda) em vez de duplicar.
+async function npOpenExisting(){
+  if(!_npDupMatchId) return;
+  const r = await DB.loadOne(_npDupMatchId);
+  if(!r.ok){ showToast("Não foi possível abrir o profissional","warn"); return; }
+  closeNewProf();
+  openProf(_npDupMatchId);
 }
 
 // Validar todos os campos obrigatórios
@@ -3763,6 +3807,22 @@ async function saveNewProf(){
   await withLoading(btn, async () => {
     const nome = document.getElementById("np-nome").value.trim();
     const cpf  = document.getElementById("np-cpf").value.trim();
+
+    // v0.79.9: guarda dura server-side — bloqueia colisão exata (CPF, ciclo).
+    // Não bloqueia mesmo CPF em ciclo diferente (linhas distintas no modelo).
+    const _cpfDigits = cpf.replace(/\D/g,"");
+    const _cicloId   = document.getElementById("np-ciclo").value || null;
+    if(_cpfDigits.length===11 && _cicloId){
+      const chk = await _supa.rpc("rpc_resolve_profs", { pairs:[{ cpf:_cpfDigits, ciclo_id:Number(_cicloId) }] });
+      if(!chk.error && Array.isArray(chk.data) && chk.data[0]?.encontrado){
+        const existId = chk.data[0].prof_id;
+        showToast("Já existe profissional com este CPF neste ciclo — abrindo o registro existente.","warn");
+        const r = await DB.loadOne(existId);
+        closeNewProf();
+        if(r.ok) openProf(existId);
+        return; // aborta criação duplicada
+      }
+    }
 
     const ts    = tsNow();
     const tsDisplay = new Date().toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}).replace(",","");
@@ -7403,6 +7463,7 @@ function demOpenCreateProf(nome){
       <div id="cpDupWarn" style="display:none;padding:8px 10px;background:var(--aml);border:1px solid var(--am);border-radius:var(--r);font-size:0.8em;color:var(--tx);margin-bottom:8px;margin-top:6px;display:flex;align-items:center;gap:6px">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         <span id="cpDupMsg"></span>
+        <button id="cpDupOpen" type="button" class="btn btn-primary btn-sm" style="display:none;margin-left:auto" onclick="cpOpenExisting()">Selecionar existente</button>
       </div>
       <!-- Identificação -->
       <div class="dem-field" style="margin-top:8px">
@@ -7470,17 +7531,38 @@ function demOpenCreateProf(nome){
 }
 
 // v64: verificar duplicata de CPF no form de nova demanda
+// v0.79.9: dedup server-side no form da demanda (carga parcial).
+let _cpDupTimer=null, _cpDupSeq=0, _cpDupMatchId=null;
 function cpCheckDup(){
+  clearTimeout(_cpDupTimer);
+  _cpDupTimer=setTimeout(cpCheckDupRun,350);
+}
+async function cpCheckDupRun(){
   const cpf=(document.getElementById("cpCpf")?.value||"").replace(/\D/g,"");
-  const nome=normStr((document.getElementById("cpNome")?.value||"").trim());
+  const nome=(document.getElementById("cpNome")?.value||"").trim();
   const warn=document.getElementById("cpDupWarn");
   const msg=document.getElementById("cpDupMsg");
+  const btn=document.getElementById("cpDupOpen");
   if(!warn||!msg) return;
-  if(cpf.length===11){
-    const found=DB.getAll().find(p=>p.cpf&&p.cpf.replace(/\D/g,"")===cpf);
-    if(found){ warn.style.display="flex"; msg.textContent=`CPF já cadastrado: ${found.nome}`; return; }
-  }
-  warn.style.display="none"; msg.textContent="";
+  const termo=(cpf.length===11)?cpf:(nome.length>4?nome:"");
+  if(!termo){ warn.style.display="none"; if(btn) btn.style.display="none"; _cpDupMatchId=null; msg.textContent=""; return; }
+  const seq=++_cpDupSeq;
+  const res=await _supa.rpc("rpc_lookup_roster",{ p_termo:termo });
+  if(seq!==_cpDupSeq) return;
+  if(res.error){ console.warn("[cpCheckDup]",res.error); return; }
+  const rows=res.data||[];
+  if(rows.length===0){ warn.style.display="none"; if(btn) btn.style.display="none"; _cpDupMatchId=null; msg.textContent=""; return; }
+  const first=rows[0]; _cpDupMatchId=first.id;
+  const extra=rows.length>1?` (+${rows.length-1})`:"";
+  warn.style.display="flex";
+  msg.textContent=`Já existe: "${first.nome}" — ${first.ciclo||"—"} · CPF ${first.cpf_mask||""}${extra}`;
+  if(btn) btn.style.display="";
+}
+async function cpOpenExisting(){
+  if(!_cpDupMatchId) return;
+  const r=await DB.loadOne(_cpDupMatchId);
+  if(!r.ok){ showToast("Não foi possível carregar o profissional","warn"); return; }
+  demSelectProf(_cpDupMatchId);
 }
 
 // v64: filtrar ciclos por programa selecionado
@@ -7504,6 +7586,18 @@ async function demSaveNewProf(ev){
   if(!municipio){showToast("Informe o Município","warn");return;}
   const btn = ev?.currentTarget || ev?.target?.closest("button");
   await withLoading(btn, async () => {
+    // v0.79.9: guarda dura server-side — colisão exata (CPF, ciclo).
+    const _cpfDigits=(document.getElementById("cpCpf")?.value||"").replace(/\D/g,"");
+    if(_cpfDigits.length===11 && cicloId){
+      const chk=await _supa.rpc("rpc_resolve_profs",{ pairs:[{ cpf:_cpfDigits, ciclo_id:Number(cicloId) }] });
+      if(!chk.error && Array.isArray(chk.data) && chk.data[0]?.encontrado){
+        const existId=chk.data[0].prof_id;
+        showToast("CPF já cadastrado neste ciclo — selecionando o existente.","warn");
+        const r=await DB.loadOne(existId);
+        if(r.ok) demSelectProf(existId);
+        return;
+      }
+    }
     const ciclo=DB.getCycles().find(c=>String(c.id)===String(cicloId));
     const prof={
       id:null,
@@ -12491,6 +12585,7 @@ bootstrap();
       <div id="npDupWarn" class="np-dup-warn" style="display:none">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         <span id="npDupMsg"></span>
+        <button id="npDupOpen" type="button" class="btn btn-primary btn-sm" style="display:none;margin-left:auto" onclick="npOpenExisting()">Abrir existente</button>
       </div>
 
       <!-- identificação -->
