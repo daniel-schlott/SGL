@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v0.79.9</title>
+<title>Mais Médicos — Gestão de Licenças v0.79.10</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -3259,7 +3259,7 @@ function showLoginScreen(reason) {
             <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           </div>
           <div class="auth-title">Gestão de Licenças</div>
-          <div class="auth-sub">Programa Mais Médicos · v0.79.9</div>
+          <div class="auth-sub">Programa Mais Médicos · v0.79.10</div>
         </div>
         <div class="auth-body">
           <div id="authAlert" class="auth-alert"></div>
@@ -11261,15 +11261,69 @@ function resolveCicloId(cicloTexto){
 //    principais; arquivado → *_archive).
 //  - Card de demanda só p/ ocorrência NOVA (acao==="insert") em ciclo vigente.
 //  - typeId "professores": só cadastra/dedup profissionais, sem ocorrências.
+// v0.79.10: gera e baixa um XLSX com as linhas rejeitadas de uma carga.
+// `rejeitados` é um array de objetos — cada objeto são as colunas ORIGINAIS
+// da linha (união de todas as chaves vistas) + uma coluna `motivo` (sempre
+// por último). Retorna o nome do arquivo gerado (ou null se nada a gerar).
+function downloadRejectedXLSX(rejeitados, typeId){
+  if(!rejeitados || !rejeitados.length) return null;
+  if(typeof XLSX==="undefined"){ console.warn("[rejeitados] XLSX indisponível"); return null; }
+
+  // União de todas as chaves, na ordem de primeira aparição, com "motivo" sempre por último.
+  const keys = []; const seen = new Set();
+  rejeitados.forEach(r=>{
+    Object.keys(r||{}).forEach(k=>{
+      if(k==="motivo") return;
+      if(!seen.has(k)){ seen.add(k); keys.push(k); }
+    });
+  });
+  keys.push("motivo");
+
+  const aoa = [keys];
+  rejeitados.forEach(r=>{
+    aoa.push(keys.map(k=>{
+      const v = r?.[k];
+      return v==null ? "" : String(v);
+    }));
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws["!cols"] = keys.map(k=>({wch: k==="motivo" ? 40 : 16}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Rejeitados");
+
+  const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g,"-");
+  const fname = `rejeitados_${typeId}_${ts}.xlsx`;
+  XLSX.writeFile(wb, fname);
+  return fname;
+}
+
 async function processUploadRows(typeId, rawRows, fileName){
-  // Normaliza chaves/valores para string aparada e descarta linhas sem nome
-  const rows = (rawRows||[]).map(r=>{
+  // v0.79.10: acumula TODA linha rejeitada (linha original + motivo) para
+  // gerar um log XLSX baixável ao final da carga — nenhuma rejeição fica muda.
+  const rejeitados = [];
+  const rejeita = (rowOriginal, linha, motivo) => {
+    rejeitados.push({ linha, ...(rowOriginal||{}), motivo });
+  };
+
+  // Normaliza chaves/valores para string aparada. `linha` = nº da linha na
+  // planilha (considerando o cabeçalho como linha 1, dados a partir da 2).
+  const normalized = (rawRows||[]).map((r,idx)=>{
     const o={};
     Object.keys(r).forEach(k=>{ o[String(k).trim()] = (r[k]==null?"":String(r[k])).trim(); });
-    return o;
-  }).filter(r=>r.nome);
+    return { row:o, linha: idx+2 };
+  });
+  const rows = [];
+  normalized.forEach(({row,linha})=>{
+    if(!row.nome){ rejeita(row, linha, "Sem nome"); return; }
+    rows.push({ row, linha });
+  });
   const total = rows.length;
-  if(!total){ showToast("Planilha sem dados","warn"); return; }
+  if(!total){
+    downloadRejectedXLSX(rejeitados, typeId);
+    showToast("Planilha sem dados válidos"+(rejeitados.length?` — ${rejeitados.length} linha(s) rejeitada(s), log baixado`:""),"warn",7000);
+    return;
+  }
 
   const isMP = typeId==="maternidade" || typeId==="paternidade";
   const expectedTipo = UPLOAD_TYPES.find(t=>t.id===typeId)?.tipoAfasta || "";
@@ -11293,17 +11347,18 @@ async function processUploadRows(typeId, rawRows, fileName){
   // ── Fase A: análise síncrona — normaliza, resolve cicloId, monta pares ──
   // items[i] espelha rows[i] (ou null se a linha foi descartada).
   let noCpf=0, noCiclo=0;
-  const items = rows.map(row=>{
+  const items = rows.map(({row,linha})=>{
     const cpfDig = String(row.cpf||"").replace(/\D/g,"");
-    if(!cpfDig){ noCpf++; return null; }                 // CPF obrigatório
+    if(!cpfDig){ noCpf++; rejeita(row, linha, "CPF ausente ou inválido"); return null; }
     const cicloId = resolveCicloId(row.ciclo);
-    if(cicloId==null){ noCiclo++; return null; }          // ciclo não-resolvível
-    return { row, cpf:row.cpf, cpfDig, cicloId, ciclo:row.ciclo };
+    if(cicloId==null){ noCiclo++; rejeita(row, linha, `Ciclo não reconhecido: "${row.ciclo||""}"`); return null; }
+    return { row, linha, cpf:row.cpf, cpfDig, cicloId, ciclo:row.ciclo };
   });
   const valid = items.filter(Boolean);
   if(!valid.length){
     if(ovl) ovl.style.display="none";
-    showToast(`Nenhuma linha válida (${noCpf} sem CPF, ${noCiclo} sem ciclo)`,"warn",7000);
+    downloadRejectedXLSX(rejeitados, typeId);
+    showToast(`Nenhuma linha válida (${noCpf} sem CPF, ${noCiclo} sem ciclo) — log de rejeitados baixado`,"warn",7000);
     return;
   }
 
@@ -11369,12 +11424,24 @@ async function processUploadRows(typeId, rawRows, fileName){
         };
         try{
           const { data, error } = await _supa.rpc("rpc_save_professional_archive", { p_data: pdata });
-          if(error||!data?.id){ errors++; continue; }
+          if(error||!data?.id){
+            errors++;
+            rejeita(v.row, v.linha, `Erro ao salvar profissional (arquivado): ${error?.message||"sem id retornado"}`);
+            continue;
+          }
           profId = data.id;
-        }catch(e){ console.error("[carga] save_professional_archive", e); errors++; continue; }
+        }catch(e){
+          console.error("[carga] save_professional_archive", e); errors++;
+          rejeita(v.row, v.linha, `Erro ao salvar profissional (arquivado): ${e.message||e}`);
+          continue;
+        }
       } else {
         const pRes = await DB.save(prof); // grava em professionals + _localSave (cache)
-        if(!pRes.ok || !prof.id){ errors++; continue; }
+        if(!pRes.ok || !prof.id){
+          errors++;
+          rejeita(v.row, v.linha, `Erro ao salvar profissional: ${pRes.error||pRes.message||"falha desconhecida"}`);
+          continue;
+        }
         profId = prof.id;
         prof.occurrences = prof.occurrences || [];
         activeById.set(profId, prof);
@@ -11386,7 +11453,7 @@ async function processUploadRows(typeId, rawRows, fileName){
 
     // Carga de cadastro (professores): não cria ocorrência
     if(profsOnly) continue;
-    if(!profId){ occsErr++; continue; }
+    if(!profId){ occsErr++; rejeita(v.row, v.linha, "Erro ao salvar ocorrência: profissional sem ID"); continue; }
 
     // 2) Upsert da ocorrência por CHAVE NATURAL
     const tipoAfasta = ((v.row.tipoAfasta||"").trim()===expectedTipo) ? v.row.tipoAfasta.trim() : expectedTipo;
@@ -11444,9 +11511,17 @@ async function processUploadRows(typeId, rawRows, fileName){
     try{
       const { data, error } = await _supa.rpc("rpc_upsert_occurrence_natural",
         { p_data: occData, p_arquivo: arquivo });
-      if(error||!data?.id){ console.error("[carga] upsert_occurrence_natural", error); occsErr++; continue; }
+      if(error||!data?.id){
+        console.error("[carga] upsert_occurrence_natural", error); occsErr++;
+        rejeita(v.row, v.linha, `Erro ao salvar ocorrência: ${error?.message||"sem id retornado"}`);
+        continue;
+      }
       occRes = data;
-    }catch(e){ console.error("[carga] upsert_occurrence_natural", e); occsErr++; continue; }
+    }catch(e){
+      console.error("[carga] upsert_occurrence_natural", e); occsErr++;
+      rejeita(v.row, v.linha, `Erro ao salvar ocorrência: ${e.message||e}`);
+      continue;
+    }
 
     const inserted = occRes.acao==="insert";
     if(inserted) occsNew++; else occsUpd++;
@@ -11487,10 +11562,14 @@ async function processUploadRows(typeId, rawRows, fileName){
   const ut2=UPLOAD_TYPES.find(t=>t.id===typeId);
   if(ut2){ ut2.loaded=true; ut2.file=fileName; }
   renderUploadSection();
+
+  // v0.79.10: baixa log de rejeitados (se houver) — todas as colunas originais + motivo.
+  const rejFile = downloadRejectedXLSX(rejeitados, typeId);
+
   const logDetalhe = profsOnly
-    ? `${profsNew} prof novos · ${profsExist} já existentes · ${noCpf} sem CPF · ${noCiclo} sem ciclo`
-    : `${profsNew} prof novos · ${occsNew} occ novas · ${occsUpd} atualizadas · ${occsErr} falhas · ${noCpf} sem CPF · ${noCiclo} sem ciclo`;
-  await addLog("Criação",0,`[Carga ${typeId}]`,fileName,"",logDetalhe);
+    ? `${profsNew} prof novos · ${profsExist} já existentes · ${rejeitados.length} rejeitados (${noCpf} sem CPF, ${noCiclo} sem ciclo)`
+    : `${profsNew} prof novos · ${occsNew} occ novas · ${occsUpd} atualizadas · ${rejeitados.length} rejeitados (${noCpf} sem CPF, ${noCiclo} sem ciclo, ${occsErr} falhas)`;
+  await addLog("Criação",0,`[Carga ${typeId}]`,fileName,"",logDetalhe + (rejFile?` · log: ${rejFile}`:""));
   if(ovl) ovl.style.display="none";
   renderInitState();
   if(document.getElementById("view-dash")?.classList.contains("active")) renderDashboard();
@@ -11502,8 +11581,9 @@ async function processUploadRows(typeId, rawRows, fileName){
   if(occsErr>0) partes.push(`${occsErr} falhas`);
   if(noCpf>0) partes.push(`${noCpf} sem CPF`);
   if(noCiclo>0) partes.push(`${noCiclo} sem ciclo`);
+  if(rejeitados.length>0) partes.push(`${rejeitados.length} rejeitadas (log baixado)`);
   const resumo = partes.join(", ");
-  if(errors>0||occsErr>0) showToast(`Carga concluída com falhas. ${resumo}`,"warn",7000);
+  if(errors>0||occsErr>0||rejeitados.length>0) showToast(`Carga concluída com pendências. ${resumo}`,"warn",8000);
   else showToast(`Carga concluída — ${resumo}`,"success",6000);
 }
 
@@ -11565,13 +11645,22 @@ function sgpParseProfissionais(aoa){
     return {error:"Colunas CPF e/ou Nome do Profissional não encontradas no cabeçalho."};
   }
   const rows = [];
+  const rejeitados = [];
   let skipped = 0;
   for(let r=hIdx+1; r<aoa.length; r++){
     const row = aoa[r];
     if(!row || !row.length) continue;
     const rawCpf = String(row[col.cpf]==null?"":row[col.cpf]);
     const cpfDig = rawCpf.replace(/\D/g,"");
-    if(cpfDig.length!==11){ skipped++; continue; } // ignora linhas de totais/rodapé/em branco
+    if(cpfDig.length!==11){
+      // ignora linhas de totais/rodapé/em branco — mas registra com TODAS
+      // as colunas originais da linha (usando o cabeçalho real) + motivo.
+      skipped++;
+      const orig = {};
+      head.forEach((h,i)=>{ orig[String(h||`col${i}`).trim()||`col${i}`] = row[i]==null?"":String(row[i]); });
+      rejeitados.push({ linha:r+1, ...orig, motivo:"CPF ausente ou inválido (não tem 11 dígitos)" });
+      continue;
+    }
     const get = (idx) => idx>=0 ? String(row[idx]==null?"":row[idx]).trim() : "";
     rows.push({
       cpf: rawCpf.trim(),
@@ -11587,7 +11676,7 @@ function sgpParseProfissionais(aoa){
       ibge: get(col.ibge),
     });
   }
-  return {rows, skipped, headerRow:hIdx};
+  return {rows, skipped, rejeitados, headerRow:hIdx};
 }
 
 // --- Municípios (SGP): cabeçalho em DOIS níveis (grupo "GESTOR" mesclado) ---
@@ -11612,13 +11701,21 @@ function sgpParseMunicipios(aoa){
   // Dados começam depois das DUAS linhas de cabeçalho
   const dataStart = hIdx+2;
   const rows = [];
+  const rejeitados = [];
   let skipped = 0;
   for(let r=dataStart; r<aoa.length; r++){
     const row = aoa[r];
     if(!row || !row.length) continue;
     const get = (idx) => idx>=0 ? String(row[idx]==null?"":row[idx]).trim() : "";
     const ibge = get(col.ibge).replace(/\D/g,"");
-    if(!ibge || ibge.length<5){ skipped++; continue; } // ignora rodapé/linhas em branco
+    if(!ibge || ibge.length<5){
+      // ignora rodapé/linhas em branco — registra com todas as colunas originais
+      skipped++;
+      const orig = {};
+      head.forEach((h,i)=>{ orig[String(h||`col${i}`).trim()||`col${i}`] = row[i]==null?"":String(row[i]); });
+      rejeitados.push({ linha:r+1, ...orig, motivo:"Código IBGE ausente ou inválido (menos de 5 dígitos)" });
+      continue;
+    }
     rows.push({
       ibge,
       uf: get(col.uf),
@@ -11626,7 +11723,7 @@ function sgpParseMunicipios(aoa){
       gestorEmail: get(col.gestorEmail),
     });
   }
-  return {rows, skipped, headerRow:hIdx};
+  return {rows, skipped, rejeitados, headerRow:hIdx};
 }
 
 function _sgpChunks(arr, size){
@@ -11670,9 +11767,13 @@ async function handleUploadSGP(typeId, input){
         showToast("Erro ao ler planilha: não foi possível localizar a tabela de dados (CPF / Nome do Profissional) em nenhuma aba/seção do arquivo.", "warn", 7000);
         return;
       }
-      if(!parsed.rows.length){ showToast("Nenhuma linha válida encontrada no arquivo.","warn"); return; }
+      if(!parsed.rows.length){
+        downloadRejectedXLSX(parsed.rejeitados, typeId);
+        showToast("Nenhuma linha válida encontrada no arquivo"+(parsed.rejeitados?.length?` — ${parsed.rejeitados.length} rejeitada(s), log baixado`:"")+".","warn",7000);
+        return;
+      }
 
-      await sgpRunUpload(typeId, kind, parsed.rows, file.name, parsed.skipped);
+      await sgpRunUpload(typeId, kind, parsed.rows, file.name, parsed.skipped, parsed.rejeitados);
     }catch(err){
       console.error("[handleUploadSGP]", err);
       showToast("Erro ao ler a planilha: "+err.message, "warn");
@@ -11682,7 +11783,7 @@ async function handleUploadSGP(typeId, input){
   input.value = "";
 }
 
-async function sgpRunUpload(typeId, kind, rows, fileName, skippedAtParse){
+async function sgpRunUpload(typeId, kind, rows, fileName, skippedAtParse, rejeitadosAtParse){
   const ovl  = document.getElementById("uploadProgress");
   const bar  = document.getElementById("uploadProgressBar");
   const pct  = document.getElementById("uploadProgressPct");
@@ -11690,6 +11791,9 @@ async function sgpRunUpload(typeId, kind, rows, fileName, skippedAtParse){
   const pttl = document.getElementById("uploadProgressTitle");
   if(pttl) pttl.textContent = "Carregando relatório do SGP…";
   if(ovl) ovl.style.display = "flex";
+
+  // v0.79.10: acumula rejeições de parse (já vêm prontas) + rejeições de lote.
+  const rejeitados = Array.isArray(rejeitadosAtParse) ? rejeitadosAtParse.slice() : [];
 
   // Para profissionais, resolve o ciclo_id (FK) ANTES de enviar — evita
   // que a RPC precise conhecer a tabela cycles.
@@ -11718,11 +11822,21 @@ async function sgpRunUpload(typeId, kind, rows, fileName, skippedAtParse){
     try{
       const fn = kind==="prof" ? "bulk_upsert_professionals" : "bulk_upsert_municipios";
       const { data, error } = await _supa.rpc(fn, { payload: chunks[i] });
-      if(error){ console.error("[sgpRunUpload]", error); errors += chunks[i].length; }
+      if(error){
+        console.error("[sgpRunUpload]", error);
+        errors += chunks[i].length;
+        // v0.79.10: lote inteiro falhou — não há como isolar a linha exata
+        // (a RPC processa o lote como uma unidade), então marca todas as
+        // linhas do lote com a mensagem real de erro do Supabase/Postgres.
+        const motivo = `Falha no lote ${i+1} (RPC ${fn}): ${error.message||"erro desconhecido"}`;
+        chunks[i].forEach(r => rejeitados.push({ ...r, motivo }));
+      }
       else{ inserted += data?.inserted||0; updated += data?.updated||0; }
     }catch(err){
       console.error("[sgpRunUpload]", err);
       errors += chunks[i].length;
+      const motivo = `Falha no lote ${i+1} (exceção): ${err.message||err}`;
+      chunks[i].forEach(r => rejeitados.push({ ...r, motivo }));
     }
   }
 
@@ -11740,15 +11854,18 @@ async function sgpRunUpload(typeId, kind, rows, fileName, skippedAtParse){
   if(ut){ ut.loaded=true; ut.file=fileName; }
   renderUploadSection();
 
+  // v0.79.10: baixa log de rejeitados (parse + lote) — todas as colunas originais + motivo.
+  const rejFile = downloadRejectedXLSX(rejeitados, typeId);
+
   const label = kind==="prof" ? "Profissionais (SGP)" : "Municípios (SGP)";
-  const resumo = `${inserted} novo(s), ${updated} atualizado(s)` + (skippedAtParse?`, ${skippedAtParse} linha(s) ignorada(s)`:"") + (errors?`, ${errors} falha(s)`:"");
-  await addLog("Criação", 0, `[Carga ${label}]`, fileName, "", resumo);
+  const resumo = `${inserted} novo(s), ${updated} atualizado(s)` + (rejeitados.length?`, ${rejeitados.length} rejeitado(s)`:"") + (errors?`, ${errors} falha(s)`:"");
+  await addLog("Criação", 0, `[Carga ${label}]`, fileName, "", resumo + (rejFile?` · log: ${rejFile}`:""));
 
   if(ovl) ovl.style.display = "none";
   renderInitState();
   if(document.getElementById("view-dash")?.classList.contains("active")) renderDashboard();
 
-  if(errors>0) showToast(`Carga ${label} concluída com falhas. ${resumo}`, "warn", 8000);
+  if(errors>0||rejeitados.length>0) showToast(`Carga ${label} concluída com pendências. ${resumo}${rejFile?" — log baixado":""}`, "warn", 8000);
   else showToast(`Carga ${label} concluída — ${resumo}`, "success", 7000);
 }
 
