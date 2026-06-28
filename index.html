@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mais Médicos — Gestão de Licenças v0.79.10</title>
+<title>Mais Médicos — Gestão de Licenças v1.1.3</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -25,6 +25,7 @@ window.__nativeFetch = window.fetch.bind(window);
   --br:#C5CDD8;--br2:#8FA3C0;
   --tx:#071D41;--tx2:#3D5680;--tx3:#6B7C99;
   --ac:#1351B4;--acl:#D4E5FF;--acm:#0C326F;
+  --gn:#15803D;--gnl:#F0FDF4;
   /* font size scale — updated by applySize() */
   --fs-base:16px;--fs-sm:14px;--fs-xs:12px;--fs-nav:13px;--fs-label:12px;
   --bl:#1B3FA0;--bll:#EBF0FB;
@@ -460,6 +461,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 .g3{grid-template-columns:repeat(3,1fr)}
 .g4{grid-template-columns:repeat(4,1fr)}
 .g5{grid-template-columns:repeat(5,1fr)}
+.g6{grid-template-columns:repeat(6,1fr)}
 .sp2{grid-column:span 2}
 .sp3{grid-column:span 3}
 .field{display:flex;flex-direction:column;gap:3px}
@@ -494,11 +496,20 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 .s-va{background:var(--bll);color:var(--bl)}
 .s-su{background:var(--rdl);color:var(--rd)}
 .s-dv{background:var(--sf3);color:var(--tx3)}
+.s-nh{background:var(--orl);color:var(--or)}
+.s-ra{background:var(--pul);color:var(--pu)}
+.s-at{background:var(--gnl);color:var(--gn)}
 .dot-an{background:var(--am)}
+.dot-ra{background:var(--pu)}
+.dot-at{background:var(--gn)}
+.occ-demlink{display:inline-flex;align-items:center;gap:3px;padding:1px 8px;margin-left:8px;border:1px solid var(--ac);border-radius:14px;background:var(--acl);color:var(--ac);font-size:0.68em;font-weight:600;cursor:pointer;vertical-align:middle;letter-spacing:.02em}
+.occ-demlink:hover{background:var(--ac);color:#fff}
+.occ-demlink.disabled{border-color:var(--br);background:transparent;color:var(--tx3);cursor:not-allowed;opacity:.55}
 .dot-re{background:var(--tl)}
 .dot-va{background:var(--bl)}
 .dot-su{background:var(--rd)}
 .dot-dv{background:var(--tx3)}
+.dot-nh{background:var(--or)}
 
 /* ── RELATÓRIO VIEW ── */
 /* Tela 1 — Busca + Resultados */
@@ -1241,6 +1252,7 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 
 /* ── BADGE VIGENTE NO CARD ── */
 .occ-vig-badge{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:20px;font-size:9px;font-weight:700;background:#DCFCE7;color:#15803D;margin-left:6px;vertical-align:middle;letter-spacing:.02em}
+.occ-ativo-badge{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:20px;font-size:9px;font-weight:700;background:#D1FAE5;color:#047857;margin-left:6px;vertical-align:middle;letter-spacing:.02em}
 /* badge sobreposição */
 .occ-overlap-badge{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:20px;font-size:9px;font-weight:600;background:var(--aml);color:var(--am);margin-left:6px;vertical-align:middle}
 
@@ -1368,6 +1380,9 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 .auth-logo svg{width:22px;height:22px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round}
 .auth-title{font-size:1.1em;font-weight:600;color:#fff;margin-bottom:4px}
 .auth-sub{font-size:0.8em;color:rgba(255,255,255,.55)}
+#versionBanner{position:fixed;left:0;right:0;bottom:0;z-index:10000;background:var(--ac,#1351B4);color:#fff;display:flex;align-items:center;justify-content:center;gap:14px;padding:10px 16px;font-size:0.85em;box-shadow:0 -2px 10px rgba(0,0,0,.2)}
+#versionBanner button{background:#fff;color:var(--ac,#1351B4);border:none;border-radius:6px;padding:6px 14px;font-size:0.95em;font-weight:600;cursor:pointer}
+#versionBanner button:hover{opacity:.9}
 .auth-body{padding:28px 32px}
 .auth-field{display:flex;flex-direction:column;gap:5px;margin-bottom:16px}
 .auth-field label{font-size:0.8em;font-weight:500;color:var(--tx2)}
@@ -1563,6 +1578,36 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
   .calc-mode-grid{grid-template-columns:1fr}
 }
 
+/* ── Documentos recebidos por ocorrência (v1.0.0) ── */
+.occ-docs{margin-top:14px;border-top:1px solid var(--br);padding-top:12px}
+.occ-docs-hd{font-size:0.7857em;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.occ-docs-empty{font-size:0.8571em;color:var(--tx3);font-style:italic}
+.occ-docs-list{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
+.occ-docs-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.occ-doc-chip{display:inline-flex;align-items:center;gap:7px;background:var(--sf2);border:0.5px solid var(--br);border-radius:999px;padding:3px 6px 3px 11px;font-size:0.8571em;color:var(--tx)}
+.occ-doc-chip .ch-tipo{font-weight:600}
+.occ-doc-chip .ch-data{color:var(--tx2);font-family:'DM Mono',monospace;font-size:0.9em}
+.occ-doc-chip .occ-doc-rm{padding:0 2px}
+.occ-doc-item{display:grid;grid-template-columns:minmax(120px,1fr) 90px 2fr 24px;align-items:center;gap:10px;background:var(--sf2);border:0.5px solid var(--br);border-radius:var(--r);padding:6px 10px;font-size:0.8571em}
+.occ-doc-tipo{font-weight:600;color:var(--tx)}
+.occ-doc-data{color:var(--tx2);font-family:'DM Mono',monospace;font-size:0.9em}
+.occ-doc-obs{color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.occ-doc-rm{border:none;background:none;color:var(--tx3);cursor:pointer;font-size:1em;line-height:1;padding:2px}
+.occ-doc-rm:hover{color:#dc2626}
+.occ-docs-add{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.occ-docs-add select,.occ-docs-add input{font-size:0.8571em;padding:5px 8px;border:1px solid var(--br);border-radius:var(--r);background:var(--sf)}
+.occ-docs-add input[type=text]{flex:1;min-width:140px}
+.doctype-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 10px;border:0.5px solid var(--br);border-radius:var(--r);background:var(--sf2);margin-bottom:5px}
+.doctype-name{font-size:0.8571em;color:var(--tx)}
+.doctype-actions{display:flex;gap:3px}
+.dt-btn{border:1px solid var(--br);background:var(--sf);border-radius:4px;cursor:pointer;font-size:0.75em;padding:2px 6px;color:var(--tx2)}
+.dt-btn:hover:not([disabled]){background:var(--acl);color:var(--ac)}
+.dt-btn[disabled]{opacity:.35;cursor:not-allowed}
+.doctype-sub{font-size:0.7857em;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em;margin:12px 0 6px}
+.doctype-empty{font-size:0.8571em;color:var(--tx3);font-style:italic;padding:4px 0}
+.doctype-add{display:flex;gap:7px;margin-top:10px}
+.doctype-add input{flex:1;font-size:0.8571em;padding:6px 9px;border:1px solid var(--br);border-radius:var(--r);background:var(--sf)}
+
 </style>
 <body>
 
@@ -1627,7 +1672,8 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
       <div class="dem-view-tabs">
         <button class="dem-view-tab active" onclick="demSetView('geral',this)">Geral</button>
         <button class="dem-view-tab" onclick="demSetView('saude',this)">Saúde</button>
-        <button class="dem-view-tab" onclick="demSetView('maternidade',this)">Mat / Pat</button>
+        <button class="dem-view-tab" onclick="demSetView('maternidade',this)">Maternidade</button>
+        <button class="dem-view-tab" onclick="demSetView('paternidade',this)">Paternidade</button>
         <button class="dem-view-tab" onclick="demSetView('militar',this)">Militar</button>
         <button class="dem-view-tab" onclick="demSetView('responsavel',this)">Por responsável</button>
       </div>
@@ -1663,10 +1709,10 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
       <select id="demFiltEtapa" onchange="renderDemKanban()">
         <option value="">Todas as etapas</option>
         <optgroup label="Saúde">
-          <option>Suspensão</option><option>Reativação</option><option>Restituição</option><option>Pagamento Retroativo</option>
+          <option>Ciência</option><option>Suspensão</option><option>Reativação</option><option>Desconto</option><option>Restituição</option><option>Pagamento Retroativo</option>
         </optgroup>
-        <optgroup label="Maternidade / Paternidade">
-          <option>Suspensão da Bolsa</option><option value="Reativação (Mat/Pat)">Reativação (Mat/Pat)</option><option>Restituição ao Erário</option><option>Carta de Concessão</option><option value="Pagamento Retroativo (Mat/Pat)">Pagamento Retroativo (Mat/Pat)</option>
+        <optgroup label="Maternidade">
+          <option>Suspensão da Bolsa</option><option value="matpat:Reativação">Reativação (Mat/Pat)</option><option value="matpat:Desconto">Desconto</option><option>Restituição ao Erário</option><option>Carta de Concessão</option><option value="matpat:Pagamento Retroativo">Pagamento Retroativo (Mat/Pat)</option>
         </optgroup>
         <optgroup label="Afastamento Militar">
           <option value="militar:Suspensão">Suspensão</option><option value="militar:Reativação">Reativação</option>
@@ -1910,6 +1956,30 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
     </div>
   </div>
 
+  <!-- v0.79.13: Atualização de status em lote a partir de planilha -->
+  <div class="sv-section" id="cfgSecStatusBackfill">
+    <div class="sv-section-hd">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      <h2>Atualizar status (planilha)</h2>
+    </div>
+    <div class="sv-section-body">
+      <div class="sv-row" style="border-bottom:none;padding-bottom:0">
+        <div class="sv-row-label">
+          Corrigir status dos profissionais
+          <div class="sv-row-desc">Carregue a planilha de afastamentos (com coluna <b>STATUS</b>) para atualizar o status de cada profissional já cadastrado. O casamento é por <b>nome + ciclo</b>, e o status aplicado é o da <b>ocorrência mais recente</b> (data de início). Não cria nem remove profissionais — apenas atualiza o status. Linhas sem correspondência ou ambíguas são listadas no relatório, sem alterar nada.</div>
+        </div>
+        <div class="sv-row-ctrl">
+          <label class="btn btn-primary btn-sm" id="sbkBtn" style="cursor:pointer" title="Carregar planilha (.xlsx)">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>
+            Carregar planilha
+            <input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleStatusBackfill(this)">
+          </label>
+        </div>
+      </div>
+      <div id="sbkReport" style="margin-top:14px"></div>
+    </div>
+  </div>
+
   <!-- Log de Modificações -->
   <div class="sv-section" id="cfgSecLog">
     <div class="sv-section-hd">
@@ -2053,6 +2123,25 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Nova tag customizada
           </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tipos de documento (v1.0.0) -->
+  <div class="sv-section">
+    <div class="sv-section-hd">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <h2>Tipos de documento</h2>
+    </div>
+    <div class="sv-section-body">
+      <div class="sv-row" style="border-bottom:none;padding-bottom:0">
+        <div class="sv-row-label">
+          Catálogo de documentos
+          <div class="sv-row-desc">Tipos que aparecem como opção ao sinalizar documentos recebidos em cada ocorrência (atestado, folha de ponto, laudo, etc.)</div>
+        </div>
+        <div class="sv-row-ctrl">
+          <div id="docTypesCfg"></div>
         </div>
       </div>
     </div>
@@ -2281,11 +2370,14 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
               <label>Status do caso</label>
               <select id="rf-status" onchange="activeStatusFilter=this.value;liveSearch();updateFilterCount()">
                 <option value="">Todos</option>
+                <option value="ativo">Ativo</option>
                 <option value="analisando">Analisando</option>
                 <option value="reativada">Reativada</option>
+                <option value="reat_auto">Reativado Automaticamente</option>
                 <option value="vaga">Vaga Disponibilizada</option>
                 <option value="suspensa">Suspensa</option>
                 <option value="desligamento">Desligamento Voluntário</option>
+                <option value="nao_homologado">Não homologado</option>
               </select>
             </div>
             <div class="rel-field">
@@ -2573,8 +2665,8 @@ input,select,textarea{font-family:inherit;font-size:0.9286em}
 // ──────────────────────────────────────────────────────────────────
 // 1. CONFIG
 // ──────────────────────────────────────────────────────────────────
-const SUPABASE_URL = "https://bwkrmlpcsojxanoldhbr.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ3a3JtbHBjc29qeGFub2xkaGJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMTcwMTQsImV4cCI6MjA5NDc5MzAxNH0.WbZJKB78fPA1utO5T_isNhNKywPxojqyMnv974JR4f8";
+const SUPABASE_URL = "https://ywyikufhtjgcozlumhra.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl3eWlrdWZodGpnY296bHVtaHJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwMjMyNTMsImV4cCI6MjA5NTU5OTI1M30.-kOUab-ZvxgKEr8D_vPCm5kHTZS6KzgN3X5ehJ_mYDM";
 const _supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   global: { fetch: window.__nativeFetch || window.fetch.bind(window) }
 });
@@ -2666,6 +2758,7 @@ const DB = {
             especEntrada:     o.especEntrada     || o.espec_entrada      || "",
             faltasInjust:     o.faltasInjust     || o.faltas_injust      || "",
             retornoDias:      o.retornoDias      || o.retorno_dias       || "",
+            retornoEfetivoUbs: o.retornoEfetivoUbs || o.retorno_efetivo_ubs || "",
             suspBolsa:        o.suspBolsa        || o.susp_bolsa         || "",
             tipoPagSusp:      o.tipoPagSusp      || o.tipo_pag_susp      || "",
             folhaCoapeSupsp:  o.folhaCoapeSupsp  || o.folha_coape_susp   || "",
@@ -2681,6 +2774,8 @@ const DB = {
             procPagRetro:     o.procPagRetro     || o.proc_pag_retro     || "",
             descontoIni:      o.descontoIni      || o.desconto_ini       || "",
             descontoFim:      o.descontoFim      || o.desconto_fim       || "",
+            numProcDesconto:  o.numProcDesconto  || o.num_proc_desconto  || "",
+            descontoArea:     o.descontoArea     || o.desconto_area      || "",
             editadoPor:       o.editadoPor       || o.editado_por        || "",
             editadoEm:        o.editadoEm        || o.editado_em         || "",
             // JSONB e campos compostos
@@ -3015,6 +3110,7 @@ const DB = {
       beneficio_inss_ate: occ.beneficioInssAte || null,
       faltas_injust:    occ.faltasInjust || "",
       retorno_dias:     occ.retornoDias || "",
+      retorno_efetivo_ubs: occ.retornoEfetivoUbs || null,
       dt_entrada_nucleo:occ.dtEntradaNucleo || null,
       dt_ciencia_coord: occ.dtCienciaCoord || null,
       metodo_entrada:   occ.metodoEntrada || "",
@@ -3034,6 +3130,8 @@ const DB = {
       proc_pag_retro:   occ.procPagRetro || "",
       desconto_ini:     occ.descontoIni || null,
       desconto_fim:     occ.descontoFim || null,
+      num_proc_desconto: occ.numProcDesconto || "",
+      desconto_area:    occ.descontoArea || "",
       obs:              occ.obs || "",
       lembrete_data:    occ.lembrete?.data || null,
       lembrete_nota:    occ.lembrete?.nota || "",
@@ -3259,7 +3357,7 @@ function showLoginScreen(reason) {
             <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           </div>
           <div class="auth-title">Gestão de Licenças</div>
-          <div class="auth-sub">Programa Mais Médicos · v0.79.10</div>
+          <div class="auth-sub">Programa Mais Médicos · v1.1.3</div>
         </div>
         <div class="auth-body">
           <div id="authAlert" class="auth-alert"></div>
@@ -3417,10 +3515,50 @@ let isCompact    = false;
 let searchDebounceTimer = null;
 
 // Status do profissional: códigos longos vs. abreviados, classes CSS e dots
-const SL = {an:"Analisando",re:"Reativada",va:"Vaga Disp.",su:"Suspensa",ru:"Retorno UBS",dv:"Desligamento Voluntário"};
-const SC = {analisando:"s-an",reativada:"s-re",vaga:"s-va",suspensa:"s-su",desligamento:"s-dv"};
-const DC = {analisando:"dot-an",reativada:"dot-re",vaga:"dot-va",suspensa:"dot-su",desligamento:"dot-dv"};
-const SK = {analisando:"an",reativada:"re",vaga:"va",suspensa:"su",retorno_ubs:"ru",desligamento:"dv"};
+const APP_VERSION = "1.1.3";
+// v1.1.3: aviso de versão desatualizada. Lê version.json (commitado no repo)
+// no load e a cada foco da aba; só avisa se a versão publicada for MAIS NOVA
+// que a carregada. Fonte da verdade = git/deploy, sem UPDATE no banco.
+let _versionBannerShown = false;
+// Compara "a.b.c": retorna true se `remote` for estritamente mais novo que `local`.
+function isRemoteNewer(remote, local){
+  const pa = String(remote).split(".").map(n=>parseInt(n,10)||0);
+  const pb = String(local).split(".").map(n=>parseInt(n,10)||0);
+  const len = Math.max(pa.length, pb.length);
+  for(let i=0;i<len;i++){
+    const x = pa[i]||0, y = pb[i]||0;
+    if(x>y) return true;
+    if(x<y) return false;
+  }
+  return false;
+}
+async function checkAppVersion(){
+  try{
+    const r = await fetch("version.json?t="+Date.now(), {cache:"no-store"});
+    if(!r.ok) return;
+    const data = await r.json();
+    if(!data || !data.version) return;
+    if(isRemoteNewer(data.version, APP_VERSION)) showVersionBanner(data.version);
+  }catch(e){ /* silencioso — nunca quebra a app */ }
+}
+function showVersionBanner(remote){
+  if(_versionBannerShown) return;
+  _versionBannerShown = true;
+  const bar = document.createElement("div");
+  bar.id = "versionBanner";
+  bar.innerHTML = `<span>Nova versão disponível (${remote}). Atualize para continuar com a versão mais recente.</span>`
+    + `<button onclick="(function(){var u=new URL(location.href);u.searchParams.set(\'v\',Date.now());location.replace(u.toString());})()">Atualizar</button>`;
+  document.body.appendChild(bar);
+}
+function setupVersionCheck(){
+  checkAppVersion();
+  window.addEventListener("focus", checkAppVersion);
+  document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) checkAppVersion(); });
+}
+const SL = {an:"Analisando",re:"Reativada",va:"Vaga Disp.",su:"Suspensa",ru:"Retorno UBS",dv:"Desligamento Voluntário",nh:"Não homologado",ra:"Reativado Automaticamente",at:"Ativo"};
+const SC = {analisando:"s-an",reativada:"s-re",vaga:"s-va",suspensa:"s-su",desligamento:"s-dv",nao_homologado:"s-nh",reat_auto:"s-ra",ativo:"s-at"};
+const DC = {analisando:"dot-an",reativada:"dot-re",vaga:"dot-va",suspensa:"dot-su",desligamento:"dot-dv",nao_homologado:"dot-nh",reat_auto:"dot-ra",ativo:"dot-at"};
+const SK = {analisando:"an",reativada:"re",vaga:"va",suspensa:"su",retorno_ubs:"ru",desligamento:"dv",nao_homologado:"nh",reat_auto:"ra",ativo:"at"};
 
 // v0.76.0: status terminal — nunca sobrescrito pelas transições automáticas
 const STATUS_TERMINAL = new Set(["desligamento"]);
@@ -3467,6 +3605,21 @@ function addMonthsStr(dateStr, months){
 }
 function nowStr(){ const n=new Date(); return n.toLocaleDateString("pt-BR")+" "+n.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); }
 function tsNow(){ return new Date().toISOString().slice(0,10); }
+
+// v0.79.17 item 3: pendência de retorno EFETIVO à UBS.
+// Vale para Mat/Pat + Saúde/Militar; ocorrência encerrada, retorno efetivo
+// vazio e término ≥ go-live (25/06/2026) — não sinaliza legados anteriores.
+const RETORNO_UBS_CUTOFF = "2026-06-25";
+function occRetornoUbsPendente(o){
+  const t = o.tipoAfasta;
+  const isMP = t==="Licença Maternidade"||t==="Licença Paternidade";
+  const isSM = t==="Afastamento por Saúde"||t==="Afastamento Militar";
+  if(!isMP && !isSM) return false;
+  const efetivo = isMP ? (o.matPat?.retornoEfetivo) : o.retornoEfetivoUbs;
+  if(efetivo) return false;
+  const fim = getOccPeriod(o).end;
+  return !!fim && fim < tsNow() && fim >= RETORNO_UBS_CUTOFF;
+}
 // v66: normaliza string removendo acentos para buscas
 function normStr(s){ return (s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase(); }
 
@@ -3569,11 +3722,12 @@ async function withLoading(btn, fn, loadingText){
 
 // ── Cálculos de ocorrência ──
 function calcDates(occ){
-  if(!occ.dataInicio||occ.inss||!occ.periodo) return {dia16:"—",termino:"—"};
+  if(!occ.dataInicio||occ.inss||!occ.periodo) return {dia15:"—",dia16:"—",termino:"—"};
   const d = new Date(occ.dataInicio+"T00:00:00");
+  const d15 = new Date(d); d15.setDate(d15.getDate()+14); // v1.1.3: 15º dia (último dia pago pelo MS)
   const d16 = new Date(d); d16.setDate(d16.getDate()+15);
   const te  = new Date(d); te.setDate(te.getDate()+occ.periodo-1);
-  return {dia16:fmt(d16), termino:fmt(te)};
+  return {dia15:fmt(d15), dia16:fmt(d16), termino:fmt(te)};
 }
 
 function occPendencies(occ){
@@ -3973,7 +4127,7 @@ const OPS_NUM  = ["maior que","maior ou igual a","igual a","menor ou igual a","m
 const OPS_EQ   = ["é igual a","não é"];
 
 const RULE_FIELDS = [
-  {id:"status",         label:"Status do caso",              ops:OPS_EQ,   type:"select", opts:["analisando","suspensa","vaga","reativada","desligamento"]},
+  {id:"status",         label:"Status do caso",              ops:OPS_EQ,   type:"select", opts:["analisando","suspensa","vaga","reativada","desligamento","nao_homologado"]},
   {id:"tipoAfasta",     label:"Tipo de afastamento",         ops:OPS_EQ,   type:"select", opts:["Afastamento por Saúde","Licença Maternidade","Licença Paternidade","Cautelar","Óbito","Violência Doméstica","Afastamento Militar"]},
   {id:"suspBolsa",      label:"Bolsa suspensa",              ops:OPS_EQ,   type:"select", opts:["sim","não"]},
   {id:"vigente",        label:"Afastamento vigente",         ops:OPS_EQ,   type:"select", opts:["sim","não"]},
@@ -4038,8 +4192,8 @@ let FIXED_TAGS = [
    rule:"Tem pendências (campos) é igual a sim",
    sev:"info",  iconIdx:3, colorId:"gray",   fixed:true},
   {id:"ft-retornoubs",  name:"Retorno à UBS pendente",
-   desc:"Licença Mat/Pat encerrada sem retorno à UBS registrado · Some ao preencher a data de Retorno à UBS na ocorrência",
-   rule:"Mat/Pat com término anterior a hoje e Retorno à UBS vazio",
+   desc:"Licença Mat/Pat, Saúde ou Militar encerrada (término ≥ 25/06/2026) sem Retorno Efetivo à UBS registrado · Some ao preencher a data de Retorno Efetivo à UBS na ocorrência",
+   rule:"Mat/Pat, Saúde ou Militar com término anterior a hoje (e ≥ 25/06/2026) e Retorno Efetivo à UBS vazio",
    sev:"warn",  iconIdx:4, colorId:"teal",   fixed:true},
   {id:"ft-susp60",      name:"Suspensão prolongada (≥60d)",
    desc:"Bolsa suspensa por 60+ dias corridos consecutivos (exceto Licença Maternidade) · Some ao registrar a reativação da bolsa",
@@ -4161,14 +4315,7 @@ function evalTag(tag, p){
       }
       case "ft-procfazer":  return p.occurrences.some(o=>[o.numProcSusp,o.numProcReat,o.numProcRest].some(v=>(v||"").toLowerCase().includes("fazer")));
       case "ft-pendencias": return p.occurrences.some(o=>occPendencies(o).length>0);
-      case "ft-retornoubs": return p.occurrences.some(o=>{
-        const isMP = o.tipoAfasta==="Licença Maternidade"||o.tipoAfasta==="Licença Paternidade";
-        if(!isMP) return false;
-        const mp = o.matPat||{};
-        if(mp.retornoUbs) return false;
-        const fim = mp.terminoProrrog||mp.terminoLic;
-        return fim && fim < tsNow();
-      });
+      case "ft-retornoubs": return p.occurrences.some(occRetornoUbsPendente);
       case "ft-susp60": {
         // Dias corridos suspensos consecutivos: ordena ocorrências com suspBolsa por data,
         // encontra sequência mais recente sem reativação entre elas.
@@ -4323,13 +4470,8 @@ function buildTagAlerts(){
         const o = p.occurrences.find(o=>o.lembrete?.data && o.lembrete.data<=today);
         if(o) sub = o.lembrete.nota || `Oc.${o.n} · ${fmtI(o.lembrete.data)}`;
       } else if(t.id==="ft-retornoubs"){
-        const o = p.occurrences.find(o=>{
-          const isMP=o.tipoAfasta==="Licença Maternidade"||o.tipoAfasta==="Licença Paternidade";
-          if(!isMP||o.matPat?.retornoUbs) return false;
-          const fim=(o.matPat?.terminoProrrog||o.matPat?.terminoLic);
-          return fim && fim<today;
-        });
-        if(o) sub = `Oc.${o.n} · ${o.tipoAfasta} · término ${fmtI(o.matPat?.terminoProrrog||o.matPat?.terminoLic)}`;
+        const o = p.occurrences.find(occRetornoUbsPendente);
+        if(o){ const fim=getOccPeriod(o).end; sub = `Oc.${o.n} · ${o.tipoAfasta} · término ${fmtI(fim)}`; }
       } else if(t.id==="ft-susp60"){
         const suspOccs = p.occurrences.filter(o=>o.suspBolsa&&o.tipoAfasta!=="Licença Maternidade").sort((a,b)=>a.suspBolsa.localeCompare(b.suspBolsa));
         let seqStart=null;
@@ -4385,7 +4527,7 @@ function openTagEditor(id){
   // build responsavel opts
   const respOpts = TEAM.map(t=>`<option>${t.name}</option>`).join("");
   // build status opts for rule selects
-  const statusOpts = ["analisando","suspensa","vaga","reativada","desligamento"].map(v=>`<option>${v}</option>`).join("");
+  const statusOpts = ["ativo","analisando","suspensa","vaga","reativada","desligamento","nao_homologado"].map(v=>`<option>${v}</option>`).join("");
 
   const colorDots = TAG_COLORS.map(c=>
     `<div class="tag-color-opt${(tag?.colorId||"blue")===c.id?" active":""}"
@@ -5142,7 +5284,7 @@ function renderTeamTable(allProfs, allDem){
 
   allProfs.forEach(p=>{
     if(!stats[p.responsavel]) return;
-    if(["analisando","suspensa","vaga"].includes(p.status)) stats[p.responsavel].ativosProfs++;
+    if(["analisando","suspensa","vaga","nao_homologado"].includes(p.status)) stats[p.responsavel].ativosProfs++;
     // última edição
     p.occurrences.forEach(o=>{
       if(o.editadoEm){
@@ -5592,14 +5734,62 @@ let DEM_NEXT_ID  = 1;
 let DEM_NEXT_GRP = 1;
 
 const DEM_STATUS        = ["Novas Demandas","Em Andamento","Pendências","Concluídos"];
-const DEM_ETAPAS_SAUDE  = ["Suspensão","Reativação","Restituição","Pagamento Retroativo"];
-const DEM_ETAPAS_MP     = ["Suspensão da Bolsa","Reativação","Restituição ao Erário","Carta de Concessão","Pagamento Retroativo"];
+// v1.1.0: "Ciência" é a etapa de registro/recebimento de documentação.
+//  • Saúde: usada para afastamentos < 15 dias que NÃO geram suspensão de bolsa.
+//  • Paternidade: única etapa (não há suspensão — bolsa nunca é interrompida).
+const DEM_ETAPAS_SAUDE  = ["Ciência","Suspensão","Reativação","Desconto","Restituição","Pagamento Retroativo"];
+const DEM_ETAPAS_MP     = ["Suspensão da Bolsa","Reativação","Desconto","Restituição ao Erário","Carta de Concessão","Pagamento Retroativo"];
+const DEM_ETAPAS_PAT    = ["Ciência"];
 const DEM_ETAPAS_MILITAR = ["Suspensão","Reativação"];
 // v0.76.0: centraliza a escolha de etapas por tipo de afastamento
+// v1.1.0: Maternidade e Paternidade deixam de compartilhar etapas.
 function etapasFor(tipoAfasta){
-  if(tipoAfasta==="Licença Maternidade"||tipoAfasta==="Licença Paternidade") return DEM_ETAPAS_MP;
+  if(tipoAfasta==="Licença Maternidade") return DEM_ETAPAS_MP;
+  if(tipoAfasta==="Licença Paternidade") return DEM_ETAPAS_PAT;
   if(tipoAfasta==="Afastamento Militar") return DEM_ETAPAS_MILITAR;
   return DEM_ETAPAS_SAUDE;
+}
+
+// v0.79.17 — mapa compartilhado seção↔etapa (itens 5 e 6).
+// Retorna true se a ocorrência tem o EVENTO DE BOLSA da etapa preenchido.
+function occEtapaHasBolsaEvent(occ, etapa){
+  if(!occ) return false;
+  const mp = occ.matPat || {};
+  const isMP = occ.tipoAfasta==="Licença Maternidade"||occ.tipoAfasta==="Licença Paternidade";
+  switch(etapa){
+    // v1.1.0: card de Ciência é criado quando a "Data de Ciência da
+    // Coordenação" é registrada (Saúde <15d sem suspensão e Paternidade).
+    case "Ciência":            return !!occ.dtCienciaCoord;
+    case "Suspensão":          return !!occ.suspBolsa;
+    case "Suspensão da Bolsa": return mp.statusBolsa==="Bolsa Suspensa";
+    case "Reativação":
+      if(isMP) return !!(mp.tipoReat || mp.mesAnoReat || mp.statusBolsa==="Bolsa Reativada por Indeferimento");
+      return !!occ.dataReat;
+    case "Desconto":
+      return isMP ? !!mp.descontoIni : !!occ.descontoIni;
+    default: return false;
+  }
+}
+
+// Vai até o card de demanda da (ocorrência, etapa): troca para a aba Demandas e abre o card.
+function goToDemCard(occId, etapa){
+  const d = DEM_ENTRIES.find(x=>x.occId===occId && x.etapa===etapa);
+  if(!d){ showToast("Nenhum card de demanda para esta etapa","info"); return; }
+  const needSwitch = currentTab!=="dem";
+  if(needSwitch) switchTab("dem");
+  setTimeout(()=>demOpenCard(d.id), needSwitch?180:0);
+}
+
+// Botão "Card" ao lado do título da etapa.
+function occEtapaLinkBtn(occ, etapa){
+  if(!occ || !etapa) return "";
+  if(!etapasFor(occ.tipoAfasta).includes(etapa)) return "";
+  const icon = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="11" height="11" style="vertical-align:-1px"><rect x="2" y="3" width="9" height="9" rx="1"/><rect x="13" y="3" width="9" height="9" rx="1"/><rect x="13" y="14" width="9" height="7" rx="1"/><rect x="2" y="14" width="9" height="7" rx="1"/></svg>`;
+  const has = DEM_ENTRIES.some(x=>x.occId===occ.id && x.etapa===etapa);
+  if(has){
+    return `<button type="button" class="occ-demlink" onclick="event.stopPropagation();goToDemCard(${occ.id},'${etapa}')" title="Abrir card de demanda — ${etapa}">${icon} Card</button>`;
+  }
+  return `<button type="button" class="occ-demlink disabled" disabled title="Nenhum card de demanda para esta etapa">${icon} Card</button>`;
 }
 
 // ── BOOTSTRAP FROM EXISTING OCCURRENCES ──
@@ -5786,17 +5976,22 @@ async function _demOnVisible(){
 }
 
 // v65.8: PostgREST limita default em 1000 linhas. Pagina explicitamente.
+// v0.79.13: sinaliza se a última busca à dem_cards teve sucesso (sem erro).
+// Permite distinguir "tabela vazia (base limpa)" de "erro/tabela ausente",
+// já que ambos retornam []. Usado por demBootstrap para não regenerar via fallback.
+let _demFetchOk = false;
 async function _demFetchAllCards(){
   const PAGE = 1000;
   let all = [];
   let from = 0;
+  _demFetchOk = true;
   while(true){
     const { data, error } = await _supa
       .from("dem_cards")
       .select("*")
       .order("created_at", { ascending: true })
       .range(from, from + PAGE - 1);
-    if(error){ console.warn("[_demFetchAllCards] erro:", error); break; }
+    if(error){ console.warn("[_demFetchAllCards] erro:", error); _demFetchOk = false; break; }
     if(!data || !data.length) break;
     all = all.concat(data);
     if(data.length < PAGE) break;
@@ -5899,9 +6094,14 @@ async function demBootstrap(){
   try {
     // v65.8: pagina explicitamente — PostgREST limita default em 1000 linhas
     const cards = await _demFetchAllCards();
-    const error = null;
 
-    if(!error && cards?.length){
+    // v0.79.13: se a busca teve sucesso, a tabela dem_cards é a fonte única de
+    // verdade — mesmo vazia (base recém-limpa). Não regenerar via fallback legado.
+    if(_demFetchOk){
+      usedTable = true;
+    }
+
+    if(_demFetchOk && cards?.length){
       // Montar DEM_ENTRIES a partir da tabela
       cards.forEach(c => {
         // v65.8: busca em ativos + arquivados (profs fora de ciclo vigente ficam em _archivedProfs)
@@ -5935,7 +6135,6 @@ async function demBootstrap(){
       // Ajusta DEM_NEXT_ID para acima do maior id numérico
       const maxId = DEM_ENTRIES.reduce((m,d)=>Math.max(m, typeof d.id==="number"?d.id:0), 0);
       DEM_NEXT_ID = maxId + 1;
-      usedTable = true;
     }
   } catch(e){ console.warn("[demBootstrap] dem_cards unavailable, using legacy:", e); }
 
@@ -6021,49 +6220,156 @@ async function demBootstrap(){
   _demRebuildSeiGroups();
 }
 
-// v0.76.0 (item 5.1.2) — varre ocorrências de Licença Maternidade (não se
-// aplica à Paternidade, cuja licença tem duração diferente) sem "Tipo de
-// Reativação" definido cujo início + 120 dias já passou, e marca
-// "Reativação Automática" + status do profissional "Reativada". Roda em
-// memória (sem leitura extra ao Supabase) a cada carregamento/refresh do
-// app — equivalente ao custo dos alertas de tag. Só grava quando o limite
-// realmente foi cruzado (idempotente: não repete depois de já reativado).
-async function sweepMPReativacaoAutomatica(){
+// ──────────────────────────────────────────────────────────────────
+// v0.79.14 — RECONCILIAÇÃO DE STATUS DO CASO (Fase A)
+// ──────────────────────────────────────────────────────────────────
+// Substitui sweepMPReativacaoAutomatica (v0.76.0). Deriva o status do caso
+// de cada profissional a partir do ÚLTIMO evento que alterou a bolsa,
+// considerando TODAS as ocorrências (Saúde + Maternidade) — não a
+// Maternidade isolada. Corrige o bug de cargas em massa, que nunca passam
+// por saveOcc() e por isso ficavam presas em "Analisando".
+//
+// Regras (confirmadas com o gestor):
+//   • Saúde:       Suspensa quando há "Data de suspensão" (occ.suspBolsa);
+//                  Reativada quando há "Data de reativação" (occ.dataReat).
+//                  Atestado curto sem suspensão registrada → nenhum evento →
+//                  não altera status.
+//   • Maternidade: Suspensa quando statusBolsa="Bolsa Suspensa"
+//                  (data do evento = início da licença); Reativada quando
+//                  tipoReat="Reativação Automática" (data = início+120d) OU
+//                  "Por Indeferimento" / statusBolsa="Bolsa Reativada por
+//                  Indeferimento" (data = Mês/Ano de reativação).
+//   • Militar:     fora do sweep (status definido manualmente).
+//
+// O status do caso = resultado do evento de MAIOR data (última mudança real
+// da bolsa). Status terminal (Desligamento Voluntário) nunca é sobrescrito
+// — garantido por autoSetStatus(). Vaga Disponibilizada e Não Homologado SÃO
+// sobrescritos por nova suspensão/reativação. Idempotente: só grava quando o
+// status realmente muda; roda em memória a cada load (mesmo custo dos
+// alertas de tag). Fase B (próximo passo): backfill completo do histórico.
+// ──────────────────────────────────────────────────────────────────
+
+// "MM/AAAA" → "AAAA-MM-01" (usado só para ordenar os eventos). "" se inválido.
+function _mesAnoToISO(mesAno){
+  const m = /^(\d{2})\/(\d{4})$/.exec((mesAno||"").trim());
+  return m ? `${m[2]}-${m[1]}-01` : "";
+}
+
+// Normaliza uma data para ISO "AAAA-MM-DD". Aceita ISO e formato BR
+// "DD/MM/AAAA". Retorna "" para formato desconhecido — NUNCA lança exceção
+// (cargas antigas com data fora do padrão não devem abortar o sweep).
+function _isoSafe(s){
+  s = (s||"").trim();
+  if(!s) return "";
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const br = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s);
+  if(br) return `${br[3]}-${br[2]}-${br[1]}`;
+  return "";
+}
+
+// Soma N dias a uma data ISO, com segurança. "" se entrada inválida.
+function _addDaysISO(iso, n){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(iso||"")) return "";
+  const d = new Date(iso+"T00:00:00");
+  if(isNaN(d)) return "";
+  d.setDate(d.getDate()+n);
+  return d.toISOString().slice(0,10);
+}
+
+// Eventos {date, status} que uma ocorrência imprime na linha do tempo da bolsa.
+// Para a Maternidade, "Reativado Automaticamente" (reat_auto) é derivado
+// DIRETAMENTE de statusBolsa="Bolsa Suspensa" + (início+120d já passados),
+// sem depender do campo "Tipo de Reativação" gravado — que em cargas antigas
+// vinha preenchido com valores variados e mascarava a reativação.
+function occBolsaEvents(occ){
+  const ev = [];
+  const tipo = occ.tipoAfasta;
+  if(tipo === "Licença Maternidade"){
+    const mp = occ.matPat || {};
+    const ini = _isoSafe(mp.inicioLic);
+    if(mp.statusBolsa === "Bolsa Suspensa" && ini){
+      const lim = _addDaysISO(ini, 120);
+      if(lim && lim < tsNow()){
+        // 120 dias do início já passaram → reativação automática
+        ev.push({date: lim, status: "reat_auto"});
+      } else {
+        // ainda dentro dos 120 dias → bolsa segue suspensa
+        ev.push({date: ini, status: "suspensa"});
+      }
+    } else if(mp.statusBolsa === "Bolsa Reativada por Indeferimento"){
+      ev.push({date: _mesAnoToISO(mp.mesAnoReat) || ini || "", status: "reativada"});
+    }
+    // Demais statusBolsa (Adoção, Indeferimento sem suspensão, Outros, vazio):
+    // sem evento — não altera o status do caso.
+  } else if(tipo === "Afastamento por Saúde"){
+    const susp = _isoSafe(occ.suspBolsa);
+    const reat = _isoSafe(occ.dataReat);
+    if(susp) ev.push({date: susp, status: "suspensa"});
+    if(reat) ev.push({date: reat, status: "reativada"});
+  }
+  // Afastamento Militar: intencionalmente sem eventos (status manual).
+  return ev;
+}
+
+async function sweepReconcileStatus(){
   const hoje = new Date(); hoje.setHours(0,0,0,0);
   for(const prof of DB.getAll()){
+    // (A) Pré-passo Maternidade: marca "Reativação Automática" no campo Tipo de
+    // Reativação das licenças cujo início+120d já passou e que ainda não têm
+    // tipo definido (consistência da ocorrência — o status do caso NÃO depende
+    // mais disso). Idempotente; datas em formato inesperado são ignoradas.
     for(const occ of (prof.occurrences||[])){
-      const isMP = occ.tipoAfasta==="Licença Maternidade";
-      if(!isMP) continue;
-      const mp = occ.matPat||{};
-      if(!mp.inicioLic || mp.tipoReat) continue; // sem início, ou já tem tipo de reativação definido
-      const limite = new Date(mp.inicioLic+"T00:00:00"); limite.setDate(limite.getDate()+120);
-      if(hoje < limite) continue; // ainda não cruzou os 120 dias
-      // Cruzou o limite — grava a transição com a DATA CORRETA (início+120d),
-      // não a data de hoje, para refletir quando o evento realmente ocorreu.
-      const ts = limite.toISOString().slice(0,10);
+      if(occ.tipoAfasta !== "Licença Maternidade") continue;
+      const mp = occ.matPat || {};
+      const ini = _isoSafe(mp.inicioLic);
+      if(!ini || mp.tipoReat) continue;
+      const lim = _addDaysISO(ini, 120);
+      if(!lim || lim >= tsNow()) continue;
       mp.tipoReat = "Reativação Automática";
       occ.matPat = mp;
       await DB.saveOcc(prof.id, occ);
-      const change = autoSetStatus(prof, "reativada", ts);
-      if(change){
-        await DB.save(prof);
-        await DB.saveStatusHistory(prof.id, change.key, ts);
-        await addLog("Status (automático)", prof.id, prof.nome, "Status do caso", change.before, change.after);
-      }
+    }
+    // (B) Deriva o status do caso pelo evento de maior data.
+    const events = [];
+    for(const occ of (prof.occurrences||[])) events.push(...occBolsaEvents(occ));
+    if(!events.length) continue; // nenhuma ocorrência com efeito na bolsa
+    events.sort((a,b)=> (a.date||"") < (b.date||"") ? -1 : ((a.date||"") > (b.date||"") ? 1 : 0));
+    const last = events[events.length-1];
+    // null se terminal (desligamento) ou se já está no status correto.
+    const change = autoSetStatus(prof, last.status, last.date || undefined);
+    if(change){
+      await DB.save(prof);
+      await DB.saveStatusHistory(prof.id, change.key, change.ts);
+      await addLog("Status (automático)", prof.id, prof.nome, "Status do caso", change.before, change.after);
     }
   }
 }
 
 function demInitData(etapa,occ,isMP){
+  // v1.1.0: etapa Ciência (registro/recebimento de doc). Saúde<15d e Paternidade.
+  if(etapa==="Ciência"){
+    const base = {dtEntradaNucleo:occ.dtEntradaNucleo||"", dtCienciaCoord:occ.dtCienciaCoord||"",
+                  metodoEntrada:occ.metodoEntrada||"", especEntrada:occ.especEntrada||""};
+    if(isMP){
+      const m=occ.matPat||{};
+      base.mpInicioLic    = m.inicioLic||"";
+      base.mpTerminoLic   = m.terminoLic||"";
+      base.mpRetornoUbs   = m.retornoUbs||"";
+      base.mpRetornoEfetivo = m.retornoEfetivo||"";
+    }
+    return base;
+  }
   if(!isMP){
     if(etapa==="Suspensão")          return {suspBolsa:occ.suspBolsa||"",folhaCoapeSupsp:occ.folhaCoapeSupsp||"",numProcSusp:occ.numProcSusp||"",emailSusp:"",obsSusp:"",pagamentos:occ.pagSusp?[...occ.pagSusp]:[]};
-    if(etapa==="Reativação")         return {dataReatIni:occ.dataReat||"",folhaCoapeReat:occ.folhaCoapeReat||"",numProcReat:occ.numProcReat||"",descontoIni:occ.descontoIni||"",descontoFim:occ.descontoFim||"",pagamentos:occ.pagReat?[...occ.pagReat]:[]};
+    if(etapa==="Reativação")         return {dataReatIni:occ.dataReat||"",folhaCoapeReat:occ.folhaCoapeReat||"",numProcReat:occ.numProcReat||"",pagamentos:occ.pagReat?[...occ.pagReat]:[]};
+    if(etapa==="Desconto")           return {descontoIni:occ.descontoIni||"",descontoFim:occ.descontoFim||"",numProcDesconto:occ.numProcDesconto||"",descontoArea:occ.descontoArea||""};
     if(etapa==="Restituição")        { const rs=occEnsureRestituicoes(occ); return {restituicoes: rs.length ? rs.map(r=>({...r})) : [restBlank()]}; }
     if(etapa==="Pagamento Retroativo") return {pagamentos:(occ.pagRetro||[]).map(p=>({...p}))};
   } else {
     const m=occ.matPat||{};
     if(etapa==="Suspensão da Bolsa")   return {numProcSusp:m.numProcSusp||"",mesAnoSusp:m.mesAnoSusp||"",emailSusp:"",obsSusp:"",pagamentos:m.pagSusp?[...m.pagSusp]:[]};
     if(etapa==="Reativação")           return {tipoReat:m.tipoReat||"",numProcReat:m.numProcReat||"",mesAnoReat:m.mesAnoReat||"",pagamentos:m.pagReat?[...m.pagReat]:[]};
+    if(etapa==="Desconto")             return {descontoIni:m.descontoIni||"",descontoFim:m.descontoFim||"",numProcDesconto:m.numProcDesconto||"",descontoArea:m.descontoArea||""};
     if(etapa==="Restituição ao Erário") return {procRest:m.procRest||"",mesAnoRest:m.mesAnoRest||""};
     if(etapa==="Carta de Concessão")   return {cartaConcessao:m.cartaConcessao||"",numProcConcessao:m.numProcConcessao||"",valorCompMS:m.valorCompMS||""};
     if(etapa==="Pagamento Retroativo") return {pagamentos:(m.pagRetro||[]).map(p=>({...p}))};
@@ -6117,6 +6423,9 @@ function demGetFiltered(){
       // para não colidir com as etapas de Saúde (mesmo texto: Suspensão/Reativação)
       if(fe.startsWith("militar:")){
         if(d.tipo!=="militar" || d.etapa!==fe.slice(8)) return false;
+      } else if(fe.startsWith("matpat:")){
+        // v1.1.2: etapas Mat/Pat cujo texto colide com Saúde (Reativação/Desconto/Pagamento Retroativo)
+        if((d.tipo!=="maternidade" && d.tipo!=="paternidade") || d.etapa!==fe.slice(7)) return false;
       } else if(d.etapa!==fe || d.tipo==="militar"){
         return false;
       }
@@ -6131,7 +6440,8 @@ function demGetFiltered(){
       if(!nome.includes(fq)&&!email.includes(fq)&&!(qd&&cpf.includes(qd))) return false;
     }
     if(demViewMode==="saude"       && d.tipo!=="saude") return false;
-    if(demViewMode==="maternidade" && d.tipo!=="maternidade" && d.tipo!=="paternidade") return false;
+    if(demViewMode==="maternidade" && d.tipo!=="maternidade") return false;
+    if(demViewMode==="paternidade" && d.tipo!=="paternidade") return false;
     if(demViewMode==="militar"     && d.tipo!=="militar") return false;
     return true;
   });
@@ -6222,7 +6532,7 @@ function demRenderChips(){
   if(mesNome) chips.push({lbl:"Mês: "+mesNome, fn:`var e=document.getElementById('demFiltMes');e.value='';e.dataset.touched='cleared';renderDemKanban()`});
   if(fAno) chips.push({lbl:"Ano: "+fAno,       fn:`var e=document.getElementById('demFiltAno');e.value='';e.dataset.touched='cleared';renderDemKanban()`});
   if(fr) chips.push({lbl:"Resp.: "+fr,          fn:`document.getElementById('demFiltResp').value='';renderDemKanban()`});
-  if(fe) chips.push({lbl:"Etapa: "+fe,          fn:`document.getElementById('demFiltEtapa').value='';renderDemKanban()`});
+  if(fe) chips.push({lbl:"Etapa: "+fe.replace(/^(militar|matpat):/,""), fn:`document.getElementById('demFiltEtapa').value='';renderDemKanban()`});
   if(fs) chips.push({lbl:"Status: "+fs,         fn:`document.getElementById('demFiltStatus').value='';renderDemKanban()`});
   const wrap=document.getElementById("demActiveChips");
   if(!wrap) return;
@@ -6531,11 +6841,13 @@ function demRenderCardBody(d){
   if(d.tipo==="saude"||d.tipo==="militar"){
     if(d.etapa==="Suspensão")            etapaForm=demFormSuspensao(d.demData);
     else if(d.etapa==="Reativação")      etapaForm=demFormReativacao(d.demData);
+    else if(d.etapa==="Desconto")        etapaForm=demFormDesconto(d.demData);
     else if(d.etapa==="Restituição")     etapaForm=demFormRestituicao(d.demData);
     else if(d.etapa==="Pagamento Retroativo") etapaForm=demFormPagRetro(d.demData);
   } else {
     if(d.etapa==="Suspensão da Bolsa")        etapaForm=demFormMPSusp(d.demData);
     else if(d.etapa==="Reativação")           etapaForm=demFormMPReat(d.demData);
+    else if(d.etapa==="Desconto")             etapaForm=demFormDesconto(d.demData);
     else if(d.etapa==="Restituição ao Erário") etapaForm=demFormMPRestErario(d.demData);
     else if(d.etapa==="Carta de Concessão")   etapaForm=demFormMPCarta(d.demData);
     else if(d.etapa==="Pagamento Retroativo") etapaForm=demFormPagRetro(d.demData);
@@ -6574,6 +6886,9 @@ function demRenderCardBody(d){
     fixedTop=demFormEntradaNucleo(d.demData)+demFormAfastamentoCID(d.demData);
   } else if(d.tipo==="militar"){
     fixedTop=demFormEntradaNucleo(d.demData)+demFormAfastamentoMilitar(d.demData);
+  } else if(d.tipo==="paternidade"){
+    // v1.1.0: Paternidade não tem etapas de bolsa — sem "Status da bolsa".
+    fixedTop=demFormEntradaNucleo(d.demData)+demFormPatFixed(d.demData);
   } else {
     fixedTop=demFormMPStatusFixed(d.demData);
   }
@@ -6732,6 +7047,21 @@ function demFormMPStatusFixed(dd){
   </div>`;
 }
 
+// v1.1.0: período da Licença Paternidade no card (sem status de bolsa).
+function demFormPatFixed(dd){
+  return `<div class="dem-dr-section">
+    <div class="dem-dr-section-hd"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Período da Licença</div>
+    <div class="dem-2col">
+      <div class="dem-field"><label>Início da Licença</label><input type="date" id="df-mpInicioLic" value="${dd.mpInicioLic||""}" onchange="demFieldSave()"></div>
+      <div class="dem-field"><label>Término da Licença</label><input type="date" id="df-mpTerminoLic" value="${dd.mpTerminoLic||""}" onchange="demFieldSave()"></div>
+    </div>
+    <div class="dem-2col">
+      <div class="dem-field"><label>Retorno previsto à UBS</label><input type="date" id="df-mpRetornoUbs" value="${dd.mpRetornoUbs||""}" onchange="demFieldSave()"></div>
+      <div class="dem-field"><label>Retorno Efetivo à UBS</label><input type="date" id="df-mpRetornoEfetivo" value="${dd.mpRetornoEfetivo||""}" onchange="demFieldSave()"></div>
+    </div>
+  </div>`;
+}
+
 function demFormSuspensao(dd){
   return `<div class="dem-dr-section">
     <div class="dem-dr-section-hd"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>Suspensão da bolsa</div>
@@ -6760,15 +7090,25 @@ function demFormReativacao(dd){
     </div>
     <div class="dem-2col">
       <div class="dem-field"><label>Nº PROC. Reativação</label><input type="text" id="df-numProcReat" value="${dd.numProcReat||""}" placeholder="NNNNN.NNNNNN/NNNN-NN" style="font-family:'DM Mono',monospace" oninput="procMask(this)" onchange="demFieldSave()"></div>
-      <div class="dem-2col">
-        <div class="dem-field"><label>Desconto Folha — início</label><input type="date" id="df-descontoIni" value="${dd.descontoIni||""}" onchange="demFieldSave()"></div>
-        <div class="dem-field"><label>Desconto Folha — fim</label><input type="date" id="df-descontoFim" value="${dd.descontoFim||""}" onchange="demFieldSave()"></div>
-      </div>
     </div>
   </div>
   ${demFormPagamentosInline(dd,'dem-pag-reat')}`;
 }
 
+
+function demFormDesconto(dd){
+  return `<div class="dem-dr-section">
+    <div class="dem-dr-section-hd"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>Desconto</div>
+    <div class="dem-2col">
+      <div class="dem-field"><label>Desconto Folha — início</label><input type="date" id="df-descontoIni" value="${dd.descontoIni||""}" onchange="demFieldSave()"></div>
+      <div class="dem-field"><label>Desconto Folha — fim</label><input type="date" id="df-descontoFim" value="${dd.descontoFim||""}" onchange="demFieldSave()"></div>
+    </div>
+    <div class="dem-2col">
+      <div class="dem-field"><label>Nº PROC. Desconto</label><input type="text" id="df-numProcDesconto" value="${dd.numProcDesconto||""}" placeholder="NNNNN.NNNNNN/NNNN-NN" style="font-family:'DM Mono',monospace" oninput="procMask(this)" onchange="demFieldSave()"></div>
+      <div class="dem-field"><label>Área responsável</label><select id="df-descontoArea" onchange="demFieldSave()"><option value="">—</option><option${dd.descontoArea==="Pagamento"?" selected":""}>Pagamento</option><option${dd.descontoArea==="Erário"?" selected":""}>Erário</option></select></div>
+    </div>
+  </div>`;
+}
 
 function demRestItemHTML(r, i){
   const TIPOS = ["","DESCONTO","DEVOLUÇÃO VIA GRU","PAGAMENTO RETROATIVO"];
@@ -7152,6 +7492,12 @@ async function demFieldSave(opts){
     dd.dtEntradaNucleo=g("df-dtEntradaNucleo"); dd.dtCienciaCoord=g("df-dtCienciaCoord");
     dd.metodoEntrada=g("df-metodoEntrada"); dd.especEntrada=g("df-especEntrada");
     dd.dataInicio=g("df-dataInicio"); dd.dataPrevTermino=g("df-dataPrevTermino");
+  } else if(d.tipo==="paternidade"){
+    // v1.1.0: card de Ciência da Paternidade — Entrada no Núcleo + período.
+    dd.dtEntradaNucleo=g("df-dtEntradaNucleo"); dd.dtCienciaCoord=g("df-dtCienciaCoord");
+    dd.metodoEntrada=g("df-metodoEntrada"); dd.especEntrada=g("df-especEntrada");
+    dd.mpInicioLic=g("df-mpInicioLic"); dd.mpTerminoLic=g("df-mpTerminoLic");
+    dd.mpRetornoUbs=g("df-mpRetornoUbs"); dd.mpRetornoEfetivo=g("df-mpRetornoEfetivo");
   } else {
     dd.mpStatusBolsa=g("df-mpStatusBolsa"); dd.mpInicioLic=g("df-mpInicioLic");
     dd.mpTerminoLic=g("df-mpTerminoLic"); dd.mpProrrogacao=g("df-mpProrrogacao");
@@ -7172,8 +7518,12 @@ async function demFieldSave(opts){
     }
     else if(d.etapa==="Reativação") {
       dd.dataReatIni=g("df-dataReatIni"); dd.folhaCoapeReat=g("df-folhaCoapeReat");
-      dd.numProcReat=g("df-numProcReat"); dd.descontoIni=g("df-descontoIni"); dd.descontoFim=g("df-descontoFim");
+      dd.numProcReat=g("df-numProcReat");
       dd.pagamentos=collectPag("dem-pag-reat");
+    }
+    else if(d.etapa==="Desconto") {
+      dd.descontoIni=g("df-descontoIni"); dd.descontoFim=g("df-descontoFim");
+      dd.numProcDesconto=g("df-numProcDesconto"); dd.descontoArea=g("df-descontoArea");
     }
     else if(d.etapa==="Restituição") {
       dd.restituicoes=(dd.restituicoes||[restBlank()]).map((_,i)=>({
@@ -7194,6 +7544,7 @@ async function demFieldSave(opts){
     }
     else if(d.etapa==="Restituição ao Erário") { dd.procRest=g("df-procRest"); dd.mesAnoRest=g("df-mesAnoRest"); }
     else if(d.etapa==="Carta de Concessão")    { dd.cartaConcessao=g("df-cartaConcessao"); dd.numProcConcessao=g("df-numProcConcessao"); dd.valorCompMS=g("df-valorCompMS"); }
+    else if(d.etapa==="Desconto") { dd.descontoIni=g("df-descontoIni"); dd.descontoFim=g("df-descontoFim"); dd.numProcDesconto=g("df-numProcDesconto"); dd.descontoArea=g("df-descontoArea"); }
     else if(d.etapa==="Pagamento Retroativo")  { dd.pagamentos=collectPag("dem-pag-retro"); }
   }
   const _syncOcc = demGetOcc(d);
@@ -7293,7 +7644,7 @@ function demSyncToOcc(d, includeBase=false){
   // Guard `!==undefined`: campo nunca tocado no card preserva a ocorrência;
   // campo limpo de propósito ("") limpa a ocorrência.
   if(includeBase){
-    if(d.tipo==="saude" || d.tipo==="militar"){
+    if(d.tipo==="saude" || d.tipo==="militar" || d.tipo==="paternidade"){
       if(dd.dtEntradaNucleo!==undefined) occ.dtEntradaNucleo = dd.dtEntradaNucleo;
       if(dd.dtCienciaCoord !==undefined) occ.dtCienciaCoord  = dd.dtCienciaCoord;
       if(dd.metodoEntrada  !==undefined) occ.metodoEntrada   = dd.metodoEntrada;
@@ -7322,9 +7673,13 @@ function demSyncToOcc(d, includeBase=false){
     if(dd.dataReatIni) occ.dataReat=dd.dataReatIni;
     if(dd.numProcReat) occ.numProcReat=dd.numProcReat;
     if(dd.folhaCoapeReat) occ.folhaCoapeReat=dd.folhaCoapeReat;
+    if(dd.pagamentos) occ.pagReat=[...dd.pagamentos];
+  }
+  else if(d.etapa==="Desconto"&&!occ.matPat) {
     if(dd.descontoIni) occ.descontoIni=dd.descontoIni;
     if(dd.descontoFim) occ.descontoFim=dd.descontoFim;
-    if(dd.pagamentos) occ.pagReat=[...dd.pagamentos];
+    if(dd.numProcDesconto) occ.numProcDesconto=dd.numProcDesconto;
+    if(dd.descontoArea) occ.descontoArea=dd.descontoArea;
   }
   else if(d.etapa==="Restituição") {
     occ.restituicoes = (dd.restituicoes||[]).map(r=>({...r}));
@@ -7360,6 +7715,12 @@ function demSyncToOcc(d, includeBase=false){
     if(dd.mesAnoReat) occ.matPat.mesAnoReat=dd.mesAnoReat;
     if(dd.pagamentos) occ.matPat.pagReat=[...dd.pagamentos];
   }
+  else if(d.etapa==="Desconto"&&occ.matPat) {
+    if(dd.descontoIni) occ.matPat.descontoIni=dd.descontoIni;
+    if(dd.descontoFim) occ.matPat.descontoFim=dd.descontoFim;
+    if(dd.numProcDesconto) occ.matPat.numProcDesconto=dd.numProcDesconto;
+    if(dd.descontoArea) occ.matPat.descontoArea=dd.descontoArea;
+  }
   else if(d.etapa==="Restituição ao Erário") {
     if(!occ.matPat) occ.matPat = {};
     if(dd.procRest) occ.matPat.procRest=dd.procRest;
@@ -7374,6 +7735,14 @@ function demSyncToOcc(d, includeBase=false){
   else if(d.etapa==="Pagamento Retroativo"&&occ.matPat) {
     if(!occ.matPat) occ.matPat = {};
     if(dd.pagamentos) occ.matPat.pagRetro=[...dd.pagamentos];
+  }
+  // v1.1.0: card de Ciência da Paternidade grava o período na ocorrência.
+  else if(d.etapa==="Ciência" && d.tipo==="paternidade") {
+    if(!occ.matPat) occ.matPat = {};
+    if(dd.mpInicioLic)      occ.matPat.inicioLic     = dd.mpInicioLic;
+    if(dd.mpTerminoLic)     occ.matPat.terminoLic    = dd.mpTerminoLic;
+    if(dd.mpRetornoUbs)     occ.matPat.retornoUbs    = dd.mpRetornoUbs;
+    if(dd.mpRetornoEfetivo) occ.matPat.retornoEfetivo= dd.mpRetornoEfetivo;
   }
   // propagate SEI within group
   if(d.seiGrupo){
@@ -7400,11 +7769,18 @@ function demSeedBaseFromOcc(d, occ){
   if(!occ) return;
   const dd=d.demData; if(!dd) return;
   const seed=(k,v)=>{ if(dd[k]===undefined) dd[k]=v; };
-  if(d.tipo==="saude" || d.tipo==="militar"){
+  if(d.tipo==="saude" || d.tipo==="militar" || d.tipo==="paternidade"){
     seed("dtEntradaNucleo", occ.dtEntradaNucleo||"");
     seed("dtCienciaCoord",  occ.dtCienciaCoord||"");
     seed("metodoEntrada",   occ.metodoEntrada||"");
     seed("especEntrada",    occ.especEntrada||"");
+  }
+  if(d.tipo==="paternidade"){
+    const m=occ.matPat||{};
+    seed("mpInicioLic",     m.inicioLic||"");
+    seed("mpTerminoLic",    m.terminoLic||"");
+    seed("mpRetornoUbs",    m.retornoUbs||"");
+    seed("mpRetornoEfetivo",m.retornoEfetivo||"");
   }
   if(d.tipo==="militar"){
     seed("dataInicio", occ.dataInicio||"");
@@ -7426,7 +7802,7 @@ function demHasBaseConflict(d, occ){
   if(!occ) return false;
   const dd=d.demData;
   const diff=(a,b)=>{ const cv=(a==null?"":String(a)).trim(); const ov=(b==null?"":String(b)).trim(); return !!cv && !!ov && cv!==ov; };
-  if(d.tipo==="saude" || d.tipo==="militar"){
+  if(d.tipo==="saude" || d.tipo==="militar" || d.tipo==="paternidade"){
     if(diff(dd.dtEntradaNucleo,occ.dtEntradaNucleo) || diff(dd.dtCienciaCoord,occ.dtCienciaCoord) ||
        diff(dd.metodoEntrada,occ.metodoEntrada)     || diff(dd.especEntrada,occ.especEntrada)) return true;
   }
@@ -7795,7 +8171,10 @@ function demConfirmNewOcc(){
   const tipo=document.getElementById("npNewTipo")?.value;
   if(!tipo){showToast("Selecione o tipo de afastamento","warn");return;}
 
-  const newOccId=Math.max(0,...(prof.occurrences||[]).map(o=>o.id))+100+prof.id;
+  // v0.79.17: id TEMPORÁRIO em faixa alta (>900M) para nunca colidir com id real
+  // de ocorrência de OUTRO profissional no banco. O id real é atribuído no INSERT
+  // (DB.saveOcc) forçado por _isNew=true logo abaixo.
+  const newOccId=900000000+(Date.now()%100000000);
   const newN=(prof.occurrences||[]).length+1;
   const newOcc={
     id:newOccId,n:newN,tipoDoc:"ATESTADO",tipoAfasta:tipo,cids:[],
@@ -7804,6 +8183,7 @@ function demConfirmNewOcc(){
     dataReat:"",tipoPagReat:"",folhaCoapeReat:"",numProcReat:"",
     tipoRest:"",periodoRest:"",numProcRest:"",periodoPagos:"",procPagRetro:"",
     obs:"",lembrete:{data:"",nota:""},
+    _isNew:true, // v0.79.17: força INSERT e impede vínculo a ocorrência existente por id colidido
     editadoPor:ME.name,editadoEm:new Date().toLocaleString("pt-BR")
   };
   prof.occurrences=prof.occurrences||[];
@@ -8131,7 +8511,7 @@ function switchTab(t){
   document.getElementById("view-"+t)?.classList.add("active");
   if(t==="dash") renderDashboard();
   if(t==="cfg"){
-    renderSettingsLog(); renderThemeSwatches(); renderUserOpts(); renderTagCatalog(); spBaseInit(); renderFolhaDeadlines();
+    renderSettingsLog(); renderThemeSwatches(); renderUserOpts(); renderTagCatalog(); renderDocTypesConfig(); spBaseInit(); renderFolhaDeadlines();
     ["cfgSecBackup","cfgSecCarga","cfgSecLog","cfgSecSharePoint"].forEach(id=>{
       const el=document.getElementById(id);
       if(el) el.style.display = isVisitante() ? "none" : "";
@@ -8649,7 +9029,7 @@ function editStatusEntry(idx){
       <div>
         <label style="font-size:0.6875em;font-weight:600;color:var(--tx3)">Status</label>
         <select class="dlg-select" id="shEditStatus">
-          ${Object.entries({analisando:"Analisando",reativada:"Reativada",vaga:"Vaga Disp.",suspensa:"Suspensa"})
+          ${Object.entries({analisando:"Analisando",reativada:"Reativada",vaga:"Vaga Disp.",suspensa:"Suspensa",nao_homologado:"Não homologado"})
             .map(([k,v])=>`<option value="${k}"${h.s===k?" selected":""}>${v}</option>`).join("")}
         </select>
       </div>
@@ -8702,7 +9082,7 @@ function openStatusDialog(){
   document.getElementById("dlgMsg").textContent   = `Profissional: ${currentProf.nome}`;
   document.getElementById("dlgExtra").innerHTML   = `
     <select class="dlg-select" id="newStatus">
-      ${Object.entries({analisando:"Analisando",reativada:"Reativada",vaga:"Vaga Disp.",suspensa:"Suspensa",desligamento:"Desligamento Voluntário"})
+      ${Object.entries({ativo:"Ativo",analisando:"Analisando",reativada:"Reativada",vaga:"Vaga Disp.",suspensa:"Suspensa",desligamento:"Desligamento Voluntário"})
         .map(([k,v])=>`<option value="${k}"${currentProf.status===k?" selected":""}>${v}</option>`).join("")}
     </select>`;
   document.getElementById("dlgOk").textContent = "Salvar";
@@ -8765,7 +9145,7 @@ function renderOccurrences(){
 }
 
 function buildOccCard(occ, idx){
-  const {dia16,termino} = calcDates(occ);
+  const {dia15,dia16,termino} = calcDates(occ);
   const pend      = occPendencies(occ);
   const hasPend   = pend.length > 0;
   const isMpOcc = occ.tipoAfasta==="Licença Maternidade"||occ.tipoAfasta==="Licença Paternidade";
@@ -8821,6 +9201,8 @@ function buildOccCard(occ, idx){
   // vigente badge
   const isVig = occStatus(occ) === "vigente";
   const vigBadge = isVig ? `<span class="occ-vig-badge">Vigente</span>` : "";
+  // v1.1.0: Paternidade nunca suspende bolsa — sinaliza "Ativo" (recebendo bolsa).
+  const ativoBadge = occ.tipoAfasta==="Licença Paternidade" ? `<span class="occ-ativo-badge">Ativo</span>` : "";
 
   // overlap badge — check against all other occurrences of this prof
   const overlaps = currentProf ? detectOverlaps(currentProf.occurrences) : {};
@@ -8840,6 +9222,8 @@ function buildOccCard(occ, idx){
 
   const dateLabel = occ.inss
     ? `INSS até ${fmtI(occ.beneficioInssAte)||"—"}`
+    : isMpOcc
+    ? `${fmtI(getOccPeriod(occ).start)||"—"} · Término ${fmtI(getOccPeriod(occ).end)||"—"}`
     : `${fmtI(occ.dataInicio)} · ${occ.periodo??"-"} dias · Término ${termino}`;
 
   const card = document.createElement("div");
@@ -8850,7 +9234,7 @@ function buildOccCard(occ, idx){
     <div class="occ-head" onclick="toggleOcc(${occ.id})">
       <div class="occ-num">${occ.n}</div>
       <div class="occ-tw">
-        <div class="occ-title">${tipoLabel.toUpperCase()}${vigBadge}${overlapBadge}</div>
+        <div class="occ-title">${tipoLabel.toUpperCase()}${vigBadge}${ativoBadge}${overlapBadge}</div>
         <div class="occ-dates">${dateLabel}</div>
       </div>
       <div class="occ-chips">${chips}</div>
@@ -8875,9 +9259,202 @@ function buildOccCard(occ, idx){
 
 function buildFormHTML(occ){
   const tipo = occ.tipoAfasta||"";
-  if(tipo==="Licença Maternidade"||tipo==="Licença Paternidade")
-    return buildFormMatPat(occ);
-  return buildFormSaude(occ); // Saúde + Cautelar + Óbito + Violência Dom. + blank
+  const base = tipo==="Licença Maternidade"
+    ? buildFormMatPat(occ)
+    : tipo==="Licença Paternidade"
+    ? buildFormPaternidade(occ)
+    : buildFormSaude(occ); // Saúde + Cautelar + Óbito + Violência Dom. + blank
+  return occDocsPanelHTML(occ) + base;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// DOCUMENTOS RECEBIDOS POR OCORRÊNCIA (Fase 1) — v1.0.0
+// Só metadados; os arquivos vivem no SharePoint. Molde de Tags: acesso
+// direto às tabelas via PostgREST + RLS aberta; o gate de papel é no
+// frontend (gestor edita o catálogo; visitante só lê). occ_id e
+// doc_type_id sem FK (ocorrência pode migrar p/ arquivo; tipo nunca é
+// deletado de fato, só desativado).
+// ════════════════════════════════════════════════════════════════════
+let DOC_TYPES = [];   // [{id, nome, ordem, ativo}]
+let OCC_DOCS  = [];   // [{id, occId, docTypeId, dataReceb, obs, addedBy, createdAt}]
+const _ddEsc = s => String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+async function docTypesLoad(){
+  try{
+    const {data,error} = await _supa.from("doc_types").select("*").order("ordem",{ascending:true}).order("nome",{ascending:true});
+    if(error) throw error;
+    DOC_TYPES = (data||[]).map(r=>({id:r.id, nome:r.nome, ordem:r.ordem||0, ativo:r.ativo!==false}));
+  }catch(e){ console.warn("[docTypesLoad]", e?.message||e); DOC_TYPES=[]; }
+}
+
+async function occDocsLoad(){
+  try{
+    const {data,error} = await _supa.from("occurrence_docs").select("*").order("created_at",{ascending:true});
+    if(error) throw error;
+    OCC_DOCS = (data||[]).map(r=>({id:r.id, occId:r.occ_id, docTypeId:r.doc_type_id, dataReceb:r.data_recebimento||"", obs:r.observacao||"", addedBy:r.added_by||"", createdAt:r.created_at}));
+  }catch(e){ console.warn("[occDocsLoad]", e?.message||e); OCC_DOCS=[]; }
+}
+
+function docTypeName(id){ const t=DOC_TYPES.find(x=>String(x.id)===String(id)); return t?t.nome:"(tipo removido)"; }
+
+// ── CATÁLOGO (Configurações) ─────────────────────────────────────────
+function renderDocTypesConfig(){
+  const el = document.getElementById("docTypesCfg"); if(!el) return;
+  const gestor = isGestor();
+  const ativos   = DOC_TYPES.filter(t=>t.ativo).sort((a,b)=>(a.ordem||0)-(b.ordem||0));
+  const inativos = DOC_TYPES.filter(t=>!t.ativo);
+  const row = (t, idx, arr) => `
+    <div class="doctype-row" data-id="${t.id}">
+      <span class="doctype-name">${_ddEsc(t.nome)}</span>
+      ${gestor ? `<span class="doctype-actions">
+        ${t.ativo?`<button class="dt-btn" title="Subir" ${idx===0?"disabled":""} onclick="docTypeMove(${t.id},-1)">&#9650;</button>
+        <button class="dt-btn" title="Descer" ${idx===arr.length-1?"disabled":""} onclick="docTypeMove(${t.id},1)">&#9660;</button>`:""}
+        <button class="dt-btn" title="Renomear" onclick="docTypeRename(${t.id})">&#9998;</button>
+        <button class="dt-btn" title="${t.ativo?"Desativar":"Reativar"}" onclick="docTypeToggle(${t.id})">${t.ativo?"&#10680;":"&#8634;"}</button>
+      </span>`:""}
+    </div>`;
+  let html = ativos.length ? ativos.map((t,i)=>row(t,i,ativos)).join("")
+                           : `<div class="doctype-empty">Nenhum tipo cadastrado ainda.</div>`;
+  if(inativos.length){
+    html += `<div class="doctype-sub">Desativados (mantidos para registros antigos)</div>`;
+    html += inativos.map((t,i)=>row(t,i,inativos)).join("");
+  }
+  if(gestor){
+    html += `<div class="doctype-add">
+      <input id="docTypeNew" placeholder="Novo tipo de documento" onkeydown="if(event.key==='Enter')docTypeAdd()">
+      <button class="btn btn-ghost btn-sm" onclick="docTypeAdd()">Adicionar</button>
+    </div>`;
+  }
+  el.innerHTML = html;
+}
+
+async function docTypeAdd(){
+  if(!isGestor()) return;
+  const inp = document.getElementById("docTypeNew"); if(!inp) return;
+  const nome = (inp.value||"").trim(); if(!nome) return;
+  if(DOC_TYPES.some(t=>t.nome.toLowerCase()===nome.toLowerCase())){ showToast("Já existe um tipo com esse nome","warn"); return; }
+  const ordem = DOC_TYPES.length ? Math.max(...DOC_TYPES.map(t=>t.ordem||0))+1 : 1;
+  try{
+    const {data,error} = await _supa.from("doc_types").insert({nome, ordem, ativo:true}).select().single();
+    if(error) throw error;
+    DOC_TYPES.push({id:data.id, nome:data.nome, ordem:data.ordem||ordem, ativo:true});
+    inp.value=""; renderDocTypesConfig(); showToast("Tipo adicionado","success");
+  }catch(e){ console.error(e); showToast("Erro ao adicionar tipo","error"); }
+}
+
+async function docTypeRename(id){
+  if(!isGestor()) return;
+  const t = DOC_TYPES.find(x=>String(x.id)===String(id)); if(!t) return;
+  const nome = (prompt("Renomear tipo de documento:", t.nome)||"").trim();
+  if(!nome || nome===t.nome) return;
+  try{
+    const {error} = await _supa.from("doc_types").update({nome}).eq("id", id);
+    if(error) throw error;
+    t.nome = nome; renderDocTypesConfig();
+  }catch(e){ console.error(e); showToast("Erro ao renomear","error"); }
+}
+
+async function docTypeToggle(id){
+  if(!isGestor()) return;
+  const t = DOC_TYPES.find(x=>String(x.id)===String(id)); if(!t) return;
+  try{
+    const {error} = await _supa.from("doc_types").update({ativo:!t.ativo}).eq("id", id);
+    if(error) throw error;
+    t.ativo = !t.ativo; renderDocTypesConfig();
+  }catch(e){ console.error(e); showToast("Erro ao atualizar","error"); }
+}
+
+async function docTypeMove(id, dir){
+  if(!isGestor()) return;
+  const t = DOC_TYPES.find(x=>String(x.id)===String(id)); if(!t || !t.ativo) return;
+  const scope = DOC_TYPES.filter(x=>x.ativo).sort((a,b)=>(a.ordem||0)-(b.ordem||0));
+  const i = scope.findIndex(x=>String(x.id)===String(id));
+  const j = i+dir; if(j<0||j>=scope.length) return;
+  const a = scope[i], b = scope[j];
+  const ao=a.ordem||0, bo=b.ordem||0;
+  try{
+    await _supa.from("doc_types").update({ordem:bo}).eq("id", a.id);
+    await _supa.from("doc_types").update({ordem:ao}).eq("id", b.id);
+    a.ordem=bo; b.ordem=ao;
+    renderDocTypesConfig();
+  }catch(e){ console.error(e); showToast("Erro ao reordenar","error"); }
+}
+
+// ── PAINEL POR OCORRÊNCIA (na ficha) ─────────────────────────────────
+function occDocsPanelHTML(occ){
+  if(occ._isNew || !occ.id){
+    return `<div class="occ-docs"><div class="occ-docs-hd">Documentos recebidos</div>
+      <div class="occ-docs-empty">Salve a ocorrência primeiro para anexar documentos.</div></div>`;
+  }
+  const docs = OCC_DOCS.filter(d=>String(d.occId)===String(occ.id));
+  const podeEditar = canWrite();
+  const ativos = DOC_TYPES.filter(t=>t.ativo).sort((a,b)=>(a.ordem||0)-(b.ordem||0));
+  let list;
+  if(docs.length){
+    list = `<div class="occ-docs-chips">` + docs.map(d=>{
+      const dt = d.dataReceb ? new Date(d.dataReceb+"T00:00:00").toLocaleDateString("pt-BR") : "—";
+      return `<span class="occ-doc-chip" title="${_ddEsc(d.obs||"")}">
+        <span class="ch-tipo">${_ddEsc(docTypeName(d.docTypeId))}</span>
+        <span class="ch-data">${dt}</span>
+        ${podeEditar?`<button class="occ-doc-rm" title="Remover" onclick="occDocRemove(${d.id}, ${occ.id})">&#10005;</button>`:``}
+      </span>`;
+    }).join("") + `</div>`;
+  } else {
+    list = `<div class="occ-docs-empty">Nenhum documento sinalizado.</div>`;
+  }
+  let adder = "";
+  if(podeEditar){
+    if(ativos.length){
+      adder = `<div class="occ-docs-add">
+        <select id="occDocType-${occ.id}">${ativos.map(t=>`<option value="${t.id}">${_ddEsc(t.nome)}</option>`).join("")}</select>
+        <input type="date" id="occDocDate-${occ.id}" title="Data de recebimento">
+        <input type="text" id="occDocObs-${occ.id}" placeholder="Observação (opcional)">
+        <button class="btn btn-ghost btn-sm" onclick="occDocAdd(${occ.id})">Adicionar</button>
+      </div>`;
+    } else {
+      adder = `<div class="occ-docs-empty">Nenhum tipo de documento cadastrado. Cadastre em Configurações &rarr; Tipos de documento.</div>`;
+    }
+  }
+  return `<div class="occ-docs"><div class="occ-docs-hd">Documentos recebidos</div>${list}${adder}</div>`;
+}
+
+function occDocsRerender(occId){
+  const occ = (currentProf&&currentProf.occurrences) ? currentProf.occurrences.find(o=>String(o.id)===String(occId)) : null;
+  const host = document.querySelector(`#body-${occId} .occ-docs`);
+  if(!occ || !host) return;
+  host.outerHTML = occDocsPanelHTML(occ);
+}
+
+async function occDocAdd(occId){
+  if(!canWrite()) return;
+  const sel = document.getElementById("occDocType-"+occId);
+  const dEl = document.getElementById("occDocDate-"+occId);
+  const oEl = document.getElementById("occDocObs-"+occId);
+  if(!sel || !sel.value){ showToast("Selecione um tipo de documento","warn"); return; }
+  const payload = {
+    occ_id: occId,
+    doc_type_id: Number(sel.value),
+    data_recebimento: (dEl&&dEl.value) ? dEl.value : null,
+    observacao: (oEl&&oEl.value.trim()) ? oEl.value.trim() : null,
+    added_by: ME.name||""
+  };
+  try{
+    const {data,error} = await _supa.from("occurrence_docs").insert(payload).select().single();
+    if(error) throw error;
+    OCC_DOCS.push({id:data.id, occId:data.occ_id, docTypeId:data.doc_type_id, dataReceb:data.data_recebimento||"", obs:data.observacao||"", addedBy:data.added_by||"", createdAt:data.created_at});
+    occDocsRerender(occId); showToast("Documento sinalizado","success");
+  }catch(e){ console.error(e); showToast("Erro ao adicionar documento","error"); }
+}
+
+async function occDocRemove(docId, occId){
+  if(!canWrite()) return;
+  if(!confirm("Remover este documento da ocorrência?")) return;
+  try{
+    const {error} = await _supa.from("occurrence_docs").delete().eq("id", docId);
+    if(error) throw error;
+    OCC_DOCS = OCC_DOCS.filter(d=>String(d.id)!==String(docId));
+    occDocsRerender(occId);
+  }catch(e){ console.error(e); showToast("Erro ao remover","error"); }
 }
 
 // ── SHARED FIELD HELPERS ──
@@ -8936,13 +9513,13 @@ function occRemoveRestituicao(occId, idx){
 // (reutiliza .dem-rest-remove; classes próprias abaixo)
 
 function buildFormSaude(occ){
-  const {dia16,termino} = calcDates(occ);
+  const {dia15,dia16,termino} = calcDates(occ);
   const id = occ.id;
   const isMilitar = occ.tipoAfasta==="Afastamento Militar";
   const prevTerminoVal = occ.dataPrevTermino || (occ.dataInicio ? addMonthsStr(occ.dataInicio,18) : "");
   return `<div style="padding-top:12px">
   <div class="fs">
-    <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M8 5v6"/></svg>Entrada no Núcleo</div>
+    <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M8 5v6"/></svg>Entrada no Núcleo${occEtapaLinkBtn(occ,"Ciência")}</div>
     <div class="fg-grid g4">
       <div class="field"><label>Data de Entrada no Núcleo ${req()}</label><input type="date" id="f${id}-dtEntradaNucleo" value="${occ.dtEntradaNucleo||""}" oninput="onChange(${id})"></div>
       <div class="field"><label>Data de Ciência da Coordenação</label><input type="date" id="f${id}-dtCienciaCoord" value="${occ.dtCienciaCoord||""}" oninput="onChange(${id})"></div>
@@ -8982,11 +9559,13 @@ function buildFormSaude(occ){
     <div class="fg-grid g5" style="margin-top:8px">
       <div class="field"><label>Data de Início ${req()}</label><input type="date" id="f${id}-dataInicio" value="${occ.dataInicio||""}" class="${mis(occ.dataInicio)}" oninput="militarPrevTerminoSync(${id});onChange(${id})"></div>
       <div class="field"><label>Data prevista término</label><input type="date" id="f${id}-dataPrevTermino" value="${prevTerminoVal}" oninput="this.dataset.touched='1';onChange(${id})"></div>
+      <div class="field"><label>Retorno Efetivo à UBS</label><input type="date" id="f${id}-retornoEfetivoUbs" value="${occ.retornoEfetivoUbs||""}" oninput="onChange(${id})"></div>
     </div>`:`
-    <div class="fg-grid g5" style="margin-top:8px">
+    <div class="fg-grid g6" style="margin-top:8px">
       <div class="field"><label>CID 4</label><input id="f${id}-cid3" value="${occ.cids[3]||""}" oninput="onChange(${id})"></div>
       <div class="field"><label>Data início ${req()}</label><input type="date" id="f${id}-dataInicio" value="${occ.dataInicio||""}" class="${mis(occ.dataInicio)}" oninput="onChange(${id})"></div>
       <div class="field"><label>Período (dias) ${req()}</label><input type="number" id="f${id}-periodo" value="${occ.periodo||""}" class="${(!occ.inss&&!occ.periodo)?"missing":""}" placeholder="INSS=vazio" oninput="onChange(${id})"></div>
+      <div class="field"><label>15º dia (auto)</label><div class="computed" id="f${id}-d15">${dia15}</div></div>
       <div class="field"><label>16º dia (auto)</label><div class="computed" id="f${id}-d16">${dia16}</div></div>
       <div class="field"><label>Término (auto)</label><div class="computed" id="f${id}-te">${termino}</div></div>
     </div>`}
@@ -8995,10 +9574,11 @@ function buildFormSaude(occ){
       <div class="field"><label>Benefício INSS até</label><input type="date" id="f${id}-inssAte" value="${occ.beneficioInssAte||""}" oninput="onChange(${id})"></div>
       <div class="field"><label>Faltas injustificadas</label><input id="f${id}-faltas" value="${occ.faltasInjust||""}" oninput="onChange(${id})"></div>
       <div class="field sp2"><label>Retorno / dias trabalhados</label><input id="f${id}-retorno" value="${occ.retornoDias||""}" oninput="onChange(${id})"></div>
+      <div class="field"><label>Retorno Efetivo à UBS</label><input type="date" id="f${id}-retornoEfetivoUbs" value="${occ.retornoEfetivoUbs||""}" oninput="onChange(${id})"></div>
     </div>`}
   </div>
   <div class="fs">
-    <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>Suspensão da Bolsa</div>
+    <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>Suspensão da Bolsa${occEtapaLinkBtn(occ,"Suspensão")}</div>
     <div class="fg-grid g4">
       <div class="field"><label>Data suspensão</label><input type="date" id="f${id}-suspBolsa" value="${occ.suspBolsa||""}" oninput="onChange(${id})"></div>
       <div class="field"><label>Folha COAPE (susp.)</label><input type="date" id="f${id}-folhaSusp" value="${occ.folhaCoapeSupsp||""}" oninput="onChange(${id})"></div>
@@ -9011,15 +9591,11 @@ function buildFormSaude(occ){
     ${occPagListHTML(id, "susp", occ.pagSusp)}
   </div>
   <div class="fs">
-    <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><polyline points="10 1 14 5 10 9"/><path d="M2 6v-1a4 4 0 014-4h8M6 15l-4-4 4-4"/></svg>Reativação da Bolsa</div>
+    <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><polyline points="10 1 14 5 10 9"/><path d="M2 6v-1a4 4 0 014-4h8M6 15l-4-4 4-4"/></svg>Reativação da Bolsa${occEtapaLinkBtn(occ,"Reativação")}</div>
     <div class="fg-grid g4">
       <div class="field"><label>Data reativação</label><input type="date" id="f${id}-dataReat" value="${occ.dataReat||""}" oninput="onChange(${id})"></div>
       <div class="field"><label>Folha COAPE (reat.)</label><input type="date" id="f${id}-folhaReat" value="${occ.folhaCoapeReat||""}" oninput="onChange(${id})"></div>
       <div class="field"><label>Nº proc. reativação</label><input id="f${id}-numProcReat" value="${occ.numProcReat||""}" oninput="procMask(this);onChange(${id})" style="font-family:'DM Mono',monospace;font-size:0.7857em" placeholder="${SEI_PH}"></div>
-      <div class="field"><label>Desconto Folha — início</label><input type="date" id="f${id}-descontoIni" value="${occ.descontoIni||""}" oninput="onChange(${id})"></div>
-    </div>
-    <div class="fg-grid g4" style="margin-top:8px">
-      <div class="field"><label>Desconto Folha — fim</label><input type="date" id="f${id}-descontoFim" value="${occ.descontoFim||""}" oninput="onChange(${id})"></div>
     </div>
     <div class="fs-sub-hd" style="display:flex;align-items:center;justify-content:space-between;margin-top:10px">
       <span style="font-size:0.78em;font-weight:600;color:var(--tx2)">Pagamentos da Reativação</span>
@@ -9028,15 +9604,29 @@ function buildFormSaude(occ){
     ${occPagListHTML(id, "reat", occ.pagReat)}
   </div>
   <div class="fs">
+    <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><line x1="8" y1="1" x2="8" y2="15"/><path d="M11 4H5.5a2.5 2.5 0 000 5h5a2.5 2.5 0 010 5H4"/></svg>Desconto${occEtapaLinkBtn(occ,"Desconto")}</div>
+    <div class="fg-grid g4">
+      <div class="field"><label>Desconto Folha — início</label><input type="date" id="f${id}-descontoIni" value="${occ.descontoIni||""}" oninput="onChange(${id})"></div>
+      <div class="field"><label>Desconto Folha — fim</label><input type="date" id="f${id}-descontoFim" value="${occ.descontoFim||""}" oninput="onChange(${id})"></div>
+      <div class="field"><label>Nº proc. desconto</label><input id="f${id}-numProcDesconto" value="${occ.numProcDesconto||""}" oninput="procMask(this);onChange(${id})" style="font-family:'DM Mono',monospace;font-size:0.7857em" placeholder="${SEI_PH}"></div>
+      <div class="field"><label>Área responsável</label>
+        <select id="f${id}-descontoArea" onchange="onChange(${id})">
+          <option value="">—</option>
+          <option${occ.descontoArea==="Pagamento"?" selected":""}>Pagamento</option>
+          <option${occ.descontoArea==="Erário"?" selected":""}>Erário</option>
+        </select></div>
+    </div>
+  </div>
+  <div class="fs">
     <div class="fs-title" style="display:flex;align-items:center;justify-content:space-between">
-      <span><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5" style="display:inline;vertical-align:middle;margin-right:4px"><line x1="8" y1="1" x2="8" y2="15"/><path d="M11 4H5.5a2.5 2.5 0 000 5h5a2.5 2.5 0 010 5H4"/></svg>Restituição ao Erário</span>
+      <span><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5" style="display:inline;vertical-align:middle;margin-right:4px"><line x1="8" y1="1" x2="8" y2="15"/><path d="M11 4H5.5a2.5 2.5 0 000 5h5a2.5 2.5 0 010 5H4"/></svg>Restituição ao Erário${occEtapaLinkBtn(occ,"Restituição")}</span>
       <button type="button" class="btn btn-ghost btn-sm" style="font-size:0.72em" onclick="occAddRestituicao(${id})">+ Adicionar</button>
     </div>
     ${occRestListHTML(id, occ)}
   </div>
   <div class="fs">
     <div class="fs-title" style="display:flex;align-items:center;justify-content:space-between">
-      <span><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5" style="display:inline;vertical-align:middle;margin-right:4px"><rect x="1" y="3" width="14" height="10" rx="1"/><line x1="1" y1="7" x2="15" y2="7"/></svg>Pagamento Retroativo</span>
+      <span><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5" style="display:inline;vertical-align:middle;margin-right:4px"><rect x="1" y="3" width="14" height="10" rx="1"/><line x1="1" y1="7" x2="15" y2="7"/></svg>Pagamento Retroativo${occEtapaLinkBtn(occ,"Pagamento Retroativo")}</span>
       <button type="button" class="btn btn-ghost btn-sm" style="font-size:0.72em" onclick="occAddPag(${id},'retro')">+ Adicionar</button>
     </div>
     ${occPagListHTML(id, "retro", occ.pagRetro)}
@@ -9124,7 +9714,7 @@ function buildFormMatPat(occ){
     </div>
   </div>
   <div class="fs">
-    <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>Suspensão da Bolsa</div>
+    <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>Suspensão da Bolsa${occEtapaLinkBtn(occ,"Suspensão da Bolsa")}</div>
     <div class="fg-grid g4">
       <div class="field"><label>Nº Processo de Suspensão</label>
         <input id="f${id}-mpNumProcSusp" value="${mp.numProcSusp||""}" oninput="procMask(this);onChange(${id})" style="font-family:'DM Mono',monospace;font-size:0.7857em" placeholder="${SEI_PH}"></div>
@@ -9138,7 +9728,7 @@ function buildFormMatPat(occ){
     ${occPagListHTML(id, "susp", mp.pagSusp)}
   </div>
   <div class="fs">
-    <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><polyline points="10 1 14 5 10 9"/><path d="M2 6v-1a4 4 0 014-4h8M6 15l-4-4 4-4"/></svg>Reativação</div>
+    <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><polyline points="10 1 14 5 10 9"/><path d="M2 6v-1a4 4 0 014-4h8M6 15l-4-4 4-4"/></svg>Reativação${occEtapaLinkBtn(occ,"Reativação")}</div>
     <div class="fg-grid g4">
       <div class="field"><label>Tipo de Reativação</label>
         <select id="f${id}-mpTipoReat" onchange="onChange(${id})">
@@ -9158,7 +9748,21 @@ function buildFormMatPat(occ){
     ${occPagListHTML(id, "reat", mp.pagReat)}
   </div>
   <div class="fs">
-    <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><path d="M2 10h12M6 6h4M4 2h8v12H4z"/></svg>Restituição ao Erário</div>
+    <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><line x1="8" y1="1" x2="8" y2="15"/><path d="M11 4H5.5a2.5 2.5 0 000 5h5a2.5 2.5 0 010 5H4"/></svg>Desconto${occEtapaLinkBtn(occ,"Desconto")}</div>
+    <div class="fg-grid g4">
+      <div class="field"><label>Desconto Folha — início</label><input type="date" id="f${id}-mpDescontoIni" value="${mp.descontoIni||""}" oninput="onChange(${id})"></div>
+      <div class="field"><label>Desconto Folha — fim</label><input type="date" id="f${id}-mpDescontoFim" value="${mp.descontoFim||""}" oninput="onChange(${id})"></div>
+      <div class="field"><label>Nº proc. desconto</label><input id="f${id}-mpNumProcDesconto" value="${mp.numProcDesconto||""}" oninput="procMask(this);onChange(${id})" style="font-family:'DM Mono',monospace;font-size:0.7857em" placeholder="${SEI_PH}"></div>
+      <div class="field"><label>Área responsável</label>
+        <select id="f${id}-mpDescontoArea" onchange="onChange(${id})">
+          <option value="">—</option>
+          <option${mp.descontoArea==="Pagamento"?" selected":""}>Pagamento</option>
+          <option${mp.descontoArea==="Erário"?" selected":""}>Erário</option>
+        </select></div>
+    </div>
+  </div>
+  <div class="fs">
+    <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><path d="M2 10h12M6 6h4M4 2h8v12H4z"/></svg>Restituição ao Erário${occEtapaLinkBtn(occ,"Restituição ao Erário")}</div>
     <div class="fg-grid g4">
       <div class="field sp2"><label>Período da Restituição ao Erário</label>
         <input id="f${id}-mpPeriodoRest" value="${mp.periodoRest||""}" oninput="onChange(${id})" placeholder="ex: 01/03/2025 a 31/03/2025"></div>
@@ -9173,7 +9777,7 @@ function buildFormMatPat(occ){
     </div>
   </div>
   <div class="fs">
-    <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><path d="M14 2H4a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1V3a1 1 0 00-1-1zM10 2v5l-2-1-2 1V2"/></svg>Carta de Concessão</div>
+    <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><path d="M14 2H4a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1V3a1 1 0 00-1-1zM10 2v5l-2-1-2 1V2"/></svg>Carta de Concessão${occEtapaLinkBtn(occ,"Carta de Concessão")}</div>
     <div class="fg-grid g4">
       <div class="field"><label>Carta de Concessão</label>
         <select id="f${id}-mpCartaConcessao" onchange="onChange(${id})">
@@ -9191,7 +9795,7 @@ function buildFormMatPat(occ){
   </div>
   <div class="fs">
     <div class="fs-title" style="display:flex;align-items:center;justify-content:space-between">
-      <span><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5" style="display:inline;vertical-align:middle;margin-right:4px"><rect x="1" y="3" width="14" height="10" rx="1"/><line x1="1" y1="7" x2="15" y2="7"/></svg>Pagamento Retroativo</span>
+      <span><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5" style="display:inline;vertical-align:middle;margin-right:4px"><rect x="1" y="3" width="14" height="10" rx="1"/><line x1="1" y1="7" x2="15" y2="7"/></svg>Pagamento Retroativo${occEtapaLinkBtn(occ,"Pagamento Retroativo")}</span>
       <button type="button" class="btn btn-ghost btn-sm" style="font-size:0.72em" onclick="occAddPag(${id},'retro')">+ Adicionar</button>
     </div>
     ${occPagListHTML(id, "retro", mp.pagRetro)}
@@ -9209,7 +9813,76 @@ function buildFormMatPat(occ){
   </div>`;
 }
 
-// ── PAGAMENTO ITEM HTML NA TELA INDIVIDUAL ──
+// ── FORM 3: LICENÇA PATERNIDADE (v1.1.0) ──
+// Paternidade não suspende bolsa: o profissional segue recebendo, afastado por
+// 20 dias. Não há suspensão/reativação/restituição/carta/pagamento retroativo —
+// apenas Ciência/Recebimento/Registro de documentação. Campos guardados em
+// occ.matPat (mesma base da Maternidade): inicioLic, terminoLic, retornoUbs,
+// retornoEfetivo.
+function buildFormPaternidade(occ){
+  const id = occ.id;
+  const mp = occ.matPat||{};
+
+  function addDays(isoStr, n){
+    if(!isoStr) return "";
+    const d = new Date(isoStr+"T00:00:00");
+    if(isNaN(d)) return "";
+    d.setDate(d.getDate()+n);
+    return d.toISOString().slice(0,10);
+  }
+  // Término = início + 19 dias (20 dias corridos); Retorno previsto = término+1.
+  const terminoLicVal = mp.terminoLic || (mp.inicioLic ? addDays(mp.inicioLic,19) : "");
+  const retornoVal    = mp.retornoUbs || (terminoLicVal ? addDays(terminoLicVal,1) : "");
+
+  return `<div style="padding-top:12px">
+  <div class="fs">
+    <div class="fs-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5" style="display:inline;vertical-align:middle;margin-right:4px"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M8 5v6"/></svg>Entrada no Núcleo e Ciência${occEtapaLinkBtn(occ,"Ciência")}</span>
+    </div>
+    <div class="fg-grid g4">
+      <div class="field"><label>Data de Entrada no Núcleo ${req()}</label><input type="date" id="f${id}-dtEntradaNucleo" value="${occ.dtEntradaNucleo||""}" oninput="onChange(${id})"></div>
+      <div class="field"><label>Data de Ciência da Coordenação</label><input type="date" id="f${id}-dtCienciaCoord" value="${occ.dtCienciaCoord||""}" oninput="onChange(${id})"></div>
+    </div>
+  </div>
+  <div class="fs">
+    <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>Período da Licença</div>
+    <div class="fg-grid g4">
+      <div class="field"><label>Início da Licença ${req()}</label>
+        <input type="date" id="f${id}-mpInicioLic" value="${mp.inicioLic||""}" oninput="patAutoFill(${id})"></div>
+      <div class="field"><label>Término da Licença</label>
+        <input type="date" id="f${id}-mpTerminoLic" value="${terminoLicVal}" oninput="onChange(${id})"></div>
+      <div class="field"><label>Retorno previsto à UBS</label>
+        <input type="date" id="f${id}-mpRetornoUbs" value="${retornoVal}" oninput="onChange(${id})"></div>
+      <div class="field"><label>Retorno Efetivo à UBS</label>
+        <input type="date" id="f${id}-mpRetornoEfetivo" value="${mp.retornoEfetivo||""}" oninput="onChange(${id})"></div>
+    </div>
+  </div>
+  <div class="fs" style="margin-bottom:0">
+    <div class="fs-title"><svg fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12v9a1 1 0 01-1 1H3a1 1 0 01-1-1V4zM5 2h6"/></svg>Observação e Lembrete</div>
+    <div class="field" style="margin-bottom:8px">
+      <textarea id="f${id}-obs" oninput="onChange(${id})" rows="2" placeholder="Anotações livres…">${occ.obs||""}</textarea></div>
+    <div class="lembrete-row">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+      <input type="date" id="f${id}-lembData" value="${occ.lembrete?.data||""}" oninput="onChange(${id})" title="Data do lembrete">
+      <input type="text" id="f${id}-lembNota" value="${occ.lembrete?.nota||""}" oninput="onChange(${id})" placeholder="Nota do lembrete…">
+    </div>
+  </div>
+  </div>`;
+}
+
+// v1.1.0: auto-preenche Término (+19d) e Retorno previsto (+1d) na Paternidade,
+// só enquanto os campos não foram editados manualmente.
+function patAutoFill(id){
+  const ini = document.getElementById(`f${id}-mpInicioLic`)?.value;
+  const term = document.getElementById(`f${id}-mpTerminoLic`);
+  const ret  = document.getElementById(`f${id}-mpRetornoUbs`);
+  const addD = (iso,n)=>{ if(!iso) return ""; const d=new Date(iso+"T00:00:00"); if(isNaN(d)) return ""; d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); };
+  if(ini){
+    if(term && !term.dataset.touched) term.value = addD(ini,19);
+    if(ret && !ret.dataset.touched)  ret.value  = term?.value ? addD(term.value,1) : "";
+  }
+  onChange(id);
+}
 // ── HELPERS PARA RENDERIZAR LISTAS DE PAGAMENTO/RESTITUIÇÃO (EVITA TEMPLATE LITERALS PROBLEMÁTICAS) ──
 function occPagListHTML(occId, prefix, arr){
   const list = arr||[];
@@ -9380,8 +10053,10 @@ function onChange(id){
   const pe = parseInt(g(id,"periodo"));
   if(di && pe){
     const d   = new Date(di+"T00:00:00");
+    const d15 = new Date(d); d15.setDate(d15.getDate()+14);
     const d16 = new Date(d); d16.setDate(d16.getDate()+15);
     const te  = new Date(d); te.setDate(te.getDate()+pe-1);
+    const el15 = document.getElementById(`f${id}-d15`); if(el15) el15.textContent = fmt(d15);
     const el16 = document.getElementById(`f${id}-d16`); if(el16) el16.textContent = fmt(d16);
     const elte = document.getElementById(`f${id}-te`);  if(elte) elte.textContent  = fmt(te);
     const tipoAfEl = document.getElementById(`f${id}-tipoAfasta`);
@@ -9424,23 +10099,52 @@ async function saveOcc(id, ev){
   try {
   const occ = currentProf.occurrences.find(o=>o.id===id);
   if(!occ) return;
+  // v0.79.17 item 6: snapshot do evento de bolsa ANTES de aplicar os campos do form.
+  const _wasNew = !!occ._isNew;
+  const _prevBolsa = {};
+  etapasFor(occ.tipoAfasta).forEach(et=>{ _prevBolsa[et] = occEtapaHasBolsaEvent(occ, et); });
   const tipo = occ.tipoAfasta || document.getElementById(`f${id}-tipoAfasta`)?.value || "";
-  const isMP = tipo==="Licença Maternidade"||tipo==="Licença Paternidade";
+  const isMat = tipo==="Licença Maternidade";
+  const isPat = tipo==="Licença Paternidade";
+  const isMP = isMat||isPat;
+  // v1.1.0: newMP em escopo de função — antes era const dentro do bloco isMP e
+  // ficava fora de escopo no bloco de auto-status abaixo (bug latente).
+  let newMP = null;
 
   const changes = [];
   const track = (label, oldVal, newVal)=>{
     if(String(newVal)!==String(oldVal) && (newVal||oldVal)) changes.push({label, antes:String(oldVal), depois:String(newVal)});
   };
 
-  if(isMP){
+  if(isPat){
+    // v1.1.0: Paternidade — preserva matPat existente, grava só os 4 campos de
+    // período + Entrada no Núcleo/Ciência + obs/lembrete. NUNCA suspende bolsa.
+    const gmp = k=> document.getElementById(`f${id}-mp${k}`)?.value??"";
+    const old = occ.matPat||{};
+    newMP = {...old};
+    [["InicioLic","Início da licença"],["TerminoLic","Término da licença"],
+     ["RetornoUbs","Retorno previsto à UBS"],["RetornoEfetivo","Retorno Efetivo à UBS"]]
+      .forEach(([f,label])=>{ const k=f.charAt(0).toLowerCase()+f.slice(1); newMP[k]=gmp(f); track(label, old[k]||"", newMP[k]); });
+    track("Data entrada núcleo", occ.dtEntradaNucleo||"", g(id,"dtEntradaNucleo"));
+    track("Data ciência coord.", occ.dtCienciaCoord||"", g(id,"dtCienciaCoord"));
+    occ.matPat          = newMP;
+    occ.tipoAfasta      = tipo;
+    occ.dtEntradaNucleo = g(id,"dtEntradaNucleo");
+    occ.dtCienciaCoord  = g(id,"dtCienciaCoord");
+    occ.dataInicio      = newMP.inicioLic;
+    occ.periodo         = null;
+    occ.obs             = g(id,"obs");
+    occ.lembrete        = {data:g(id,"lembData"), nota:g(id,"lembNota")};
+  } else if(isMP){
     // save mat/pat form
     const gmp = k=> document.getElementById(`f${id}-mp${k}`)?.value??"";
     const old = occ.matPat||{};
     const fields = ["StatusBolsa","InicioLic","TerminoLic","Prorrogacao","InicioProrrog","TerminoProrrog",
       "RetornoUbs","RetornoEfetivo","NumProcSusp","MesAnoSusp","TipoReat","NumProcReat","MesAnoReat",
+      "DescontoIni","DescontoFim","NumProcDesconto","DescontoArea",
       "PeriodoRest","GruDesconto","ProcRest","MesAnoRest",
       "CartaConcessao","NumProcConcessao","ValorCompMS"];
-    const newMP = {};
+    newMP = {};
     fields.forEach(f=>{ const k=f.charAt(0).toLowerCase()+f.slice(1); newMP[k]=gmp(f); track(f, old[k]||"", newMP[k]); });
     // Salvar pagamentos inline (suspensão, reativação, retroativo)
     occSavePagamentos(id, "susp");
@@ -9500,6 +10204,7 @@ async function saveOcc(id, ev){
     occ.beneficioInssAte= g(id,"inssAte");
     occ.faltasInjust    = g(id,"faltas");
     occ.retornoDias     = g(id,"retorno");
+    occ.retornoEfetivoUbs = g(id,"retornoEfetivoUbs");
     occ.suspBolsa       = g(id,"suspBolsa");
     occ.folhaCoapeSupsp = g(id,"folhaSusp");
     occ.numProcSusp     = g(id,"numProcSusp");
@@ -9508,6 +10213,8 @@ async function saveOcc(id, ev){
     occ.numProcReat     = g(id,"numProcReat");
     occ.descontoIni     = g(id,"descontoIni");
     occ.descontoFim     = g(id,"descontoFim");
+    occ.numProcDesconto = g(id,"numProcDesconto");
+    occ.descontoArea    = g(id,"descontoArea");
     // Pagamentos de suspensão, reativação e retroativo — ler do DOM
     occSavePagamentos(id, "susp");
     occSavePagamentos(id, "reat");
@@ -9532,7 +10239,7 @@ async function saveOcc(id, ev){
   // Aplicadas sobre currentProf antes do save; sobrescrevem status manual,
   // exceto status terminais (Desligamento Voluntário — ver STATUS_TERMINAL).
   const autoStatusChanges = [];
-  if(isMP){
+  if(isMat){
     if(newMP.inicioLic){ const c=autoSetStatus(currentProf,"suspensa");  if(c) autoStatusChanges.push(c); }
     if(newMP.tipoReat){  const c=autoSetStatus(currentProf,"reativada"); if(c) autoStatusChanges.push(c); }
   } else {
@@ -9567,6 +10274,32 @@ async function saveOcc(id, ev){
 
   for(const c of changes) await addLog("Edição",currentProf.id,currentProf.nome,`Oc.${occ.n} — ${c.label}`,c.antes,c.depois);
   if(!changes.length) await addLog("Edição",currentProf.id,currentProf.nome,`Ocorrência nº ${occ.n}`,"","(salvo sem alterações rastreadas)");
+
+  // v0.79.17 item 6: auto-criar card de demanda para cada etapa cujo evento de
+  // bolsa esteja preenchido. Nova ocorrência: todas as preenchidas; edição: só
+  // as que passaram de vazio→preenchido. Nunca duplica (checa occId+etapa).
+  try {
+    const isMPocc = occ.tipoAfasta==="Licença Maternidade"||occ.tipoAfasta==="Licença Paternidade";
+    const tipoCard = isMPocc ? (occ.tipoAfasta==="Licença Maternidade"?"maternidade":"paternidade")
+                    : occ.tipoAfasta==="Afastamento Militar" ? "militar" : "saude";
+    const perCard = occ.dataInicio ? (()=>{const d=new Date(occ.dataInicio+"T00:00:00");return isNaN(d.getTime())?"":d.toLocaleString("pt-BR",{month:"long",year:"numeric"});})() : "";
+    let _autoCards = 0;
+    for(const et of etapasFor(occ.tipoAfasta)){
+      if(!occEtapaHasBolsaEvent(occ, et)) continue;
+      if(!_wasNew && _prevBolsa[et]) continue;
+      if(DEM_ENTRIES.some(x=>x.occId===occ.id && x.etapa===et)) continue;
+      const card = {
+        id: DEM_NEXT_ID++, profId: currentProf.id, profNome: currentProf.nome,
+        occId: occ.id, occN: occ.n, tipo: tipoCard, etapa: et,
+        status: "Novas Demandas", responsavel: currentProf.responsavel||ME.name,
+        periodo: perCard, seiGrupo: null, createdAt: new Date().toISOString(),
+        demData: demInitData(et, occ, isMPocc),
+      };
+      const okc = await dbSaveDemCard(card);
+      if(okc){ DEM_ENTRIES.push(card); _autoCards++; }
+    }
+    if(_autoCards) showToast(`${_autoCards} card${_autoCards>1?"s":""} de demanda criado${_autoCards>1?"s":""}`, "info");
+  } catch(e){ console.warn("[saveOcc] auto-card:", e); }
 
   document.getElementById(`occ-${id}`)?.classList.remove("editing");
   renderOccurrences();
@@ -9741,6 +10474,7 @@ function exportPDF(){
           ${o.inss?fld("INSS até",fmtI(o.beneficioInssAte)):""}
           ${o.faltasInjust?fld("Faltas injust.",o.faltasInjust):""}
           ${o.retornoDias?fld("Retorno",o.retornoDias):""}
+          ${o.retornoEfetivoUbs?fld("Retorno Efetivo à UBS",fmtI(o.retornoEfetivoUbs)):""}
         </div>`;
       if(o.suspBolsa||o.dataReat){
         body += `<div class="pr-section-title">Suspensão e Reativação</div>
@@ -9953,9 +10687,7 @@ const REL_COLS = [
   {key:"lastOcc",   label:"Período (última oc.)",vis:true, sortable:true,  fn:p=>{
     const o=[...p.occurrences].sort((a,b)=>(b.dataInicio||"").localeCompare(a.dataInicio||""))[0];
     if(!o) return "—";
-    const {termino} = calcDates(o);
-    const ini = fmtI(o.dataInicio)||"—";
-    const fim = o.inss ? `INSS até ${fmtI(o.beneficioInssAte)||"—"}` : termino;
+    const {ini,fim} = occPeriodDisplay(o);
     const dur = o.periodo ? ` (${o.periodo}d)` : "";
     return `<span style="font-size:0.8571em">${ini} até ${fim}${dur}</span>`;
   }},
@@ -9968,6 +10700,13 @@ const REL_COLS = [
 
 // ── OCC HELPERS ──
 function occStatus(occ){
+  // Maternidade/Paternidade: o período está em matPat (terminoLic/terminoProrrog),
+  // não nos campos genéricos dataInicio/periodo — usa getOccPeriod para o término.
+  if(occ.tipoAfasta==="Licença Maternidade"||occ.tipoAfasta==="Licença Paternidade"){
+    const {end} = getOccPeriod(occ);
+    if(!end) return "vigente";
+    return end >= tsNow() ? "vigente" : "encerrado";
+  }
   if(occ.inss){
     if(!occ.beneficioInssAte) return "vigente";
     return occ.beneficioInssAte >= tsNow() ? "vigente" : "encerrado";
@@ -10280,11 +11019,9 @@ function renderOccSubTable(profId){
   </div>`;
 
   const rows = occs.map(o=>{
-    const {termino} = calcDates(o);
     const st = occStatus(o);
     const isVig = st==="vigente";
-    const ini = fmtI(o.dataInicio)||"—";
-    const fim = o.inss ? `INSS até ${fmtI(o.beneficioInssAte)||"—"}` : termino;
+    const {ini,fim} = occPeriodDisplay(o);
     const vagaDisp = p.status==="vaga";
     return `<div class="occ-card-row ${isVig?"vig":"enc"}" onclick="openRelProfAndOcc(${p.id},${o.id},event)">
       <div class="occ-cr-n">${o.n}</div>
@@ -10412,10 +11149,10 @@ function renderRelTable(){
 }
 
 function renderRelSummary(){
-  const counts = {analisando:0,reativada:0,vaga:0,suspensa:0};
+  const counts = {ativo:0,analisando:0,reativada:0,reat_auto:0,vaga:0,suspensa:0};
   relResults.forEach(p=>{ if(counts[p.status]!==undefined) counts[p.status]++; });
-  const colors = {analisando:"var(--am)",reativada:"var(--tl)",vaga:"var(--bl)",suspensa:"var(--rd)"};
-  const bg     = {analisando:"var(--aml)",reativada:"var(--tll)",vaga:"var(--bll)",suspensa:"var(--rdl)"};
+  const colors = {ativo:"var(--gn)",analisando:"var(--am)",reativada:"var(--tl)",reat_auto:"var(--pu)",vaga:"var(--bl)",suspensa:"var(--rd)"};
+  const bg     = {ativo:"var(--gnl)",analisando:"var(--aml)",reativada:"var(--tll)",reat_auto:"var(--pul)",vaga:"var(--bll)",suspensa:"var(--rdl)"};
   const el     = document.getElementById("relSummary");
   el.innerHTML = `<span style="font-size:0.8571em;color:var(--tx2);font-weight:500">${relResults.length} profissional${relResults.length!==1?"is":""}</span>`+
     Object.entries(counts).map(([k,v])=>{
@@ -10626,9 +11363,12 @@ function relDetailedRows(profs){
   profs.forEach(p=>{
     p.occurrences.forEach(o=>{
       const {dia16,termino}=calcDates(o);
+      const isMP = o.tipoAfasta==="Licença Maternidade"||o.tipoAfasta==="Licença Paternidade";
+      const dataIniCol = isMP ? (fmtI(getOccPeriod(o).start)||fmtI(o.dataInicio)) : fmtI(o.dataInicio);
+      const terminoCol = isMP ? (fmtI(getOccPeriod(o).end)||"") : termino;
       const cids=o.cids||[];
       rows.push([p.nome,p.cpf,p.programa,p.ciclo,p.uf,p.municipio,statusLbl(p.status),p.responsavel,
-        o.n,o.tipoDoc,cids[0]||"",cids[1]||"",cids[2]||"",cids[3]||"",fmtI(o.dataInicio),o.periodo??"",dia16,termino,
+        o.n,o.tipoDoc,cids[0]||"",cids[1]||"",cids[2]||"",cids[3]||"",dataIniCol,o.periodo??"",dia16,terminoCol,
         fmtI(o.suspBolsa),fmtI(o.dataReat),o.tipoRest,fmtI(o.beneficioInssAte),(o.obs||"").replace(/\n/g," ")]);
     });
   });
@@ -11085,6 +11825,199 @@ function renderUploadSection(){
       </div>
     </div>`;
   }).join("");
+}
+
+// ──────────────────────────────────────────────────────────────────
+// v0.79.13: ATUALIZAÇÃO DE STATUS EM LOTE (planilha → profissionais)
+// Casa por (nome normalizado + cicloId) e aplica o status da ocorrência
+// mais recente (data início; desempate = última linha na ordem da planilha).
+// Fluxo: handleStatusBackfill (dry-run/preview) → applyStatusBackfill (grava).
+// Não cria/remove profissionais; só atualiza o campo status.
+// ──────────────────────────────────────────────────────────────────
+const SBK_VALID_STATUS = new Set(["analisando","suspensa","vaga","reativada","desligamento","nao_homologado"]);
+let _sbkPlan = null; // { updates:[{prof,from,to}], counts, issues:{...} }
+
+function _sbkDateKey(v){
+  // Aceita Date (cellDates) ou string "YYYY-MM-DD..."; retorna "YYYY-MM-DD" ou "".
+  if(!v) return "";
+  if(v instanceof Date && !isNaN(v)) return v.toISOString().slice(0,10);
+  const s = String(v).trim();
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return `${m[1]}-${m[2]}-${m[3]}`;
+  // dd/mm/yyyy
+  const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if(br) return `${br[3]}-${br[2]}-${br[1]}`;
+  return "";
+}
+
+async function handleStatusBackfill(input){
+  const file = input.files && input.files[0];
+  input.value = "";
+  if(!file) return;
+  if(typeof isGestor==="function" && !isGestor()){
+    showToast("Ação restrita ao perfil Gestor","error"); return;
+  }
+  const rep = document.getElementById("sbkReport");
+  rep.innerHTML = `<div style="color:var(--tx3)">Lendo planilha…</div>`;
+
+  let rows;
+  try {
+    const buf = await file.arrayBuffer();
+    const wb  = XLSX.read(new Uint8Array(buf), {type:"array", cellDates:true});
+    const ws  = wb.Sheets[wb.SheetNames[0]];
+    rows = XLSX.utils.sheet_to_json(ws, {defval:null});
+  } catch(e){
+    rep.innerHTML = `<div style="color:var(--rd)">Falha ao ler a planilha: ${e.message}</div>`;
+    return;
+  }
+  if(!rows.length){ rep.innerHTML = `<div style="color:var(--rd)">Planilha vazia.</div>`; return; }
+
+  // Detecta nomes de coluna (tolera variações de caixa/acentos)
+  const sample = rows[0];
+  const findCol = (cands)=>{
+    const keys = Object.keys(sample);
+    for(const c of cands){
+      const hit = keys.find(k=>normStr(k)===normStr(c));
+      if(hit) return hit;
+    }
+    return null;
+  };
+  const colNome   = findCol(["NOME","Nome do Profisional","Nome do Profissional"]);
+  const colCiclo  = findCol(["CICLO","Ciclo"]);
+  const colData   = findCol(["DATA INICIO AFASTAMENTO","DATA INÍCIO AFASTAMENTO","Data inicio afastamento"]);
+  const colStatus = findCol(["STATUS","Status"]);
+  if(!colNome || !colCiclo || !colStatus){
+    rep.innerHTML = `<div style="color:var(--rd)">Colunas obrigatórias não encontradas. Preciso de: <b>NOME</b>, <b>CICLO</b>, <b>STATUS</b>${!colData?' (e DATA INICIO AFASTAMENTO para o desempate)':''}.</div>`;
+    return;
+  }
+
+  // 1) Agrupa por (nome+ciclo) e escolhe o status da ocorrência mais recente
+  const groups = new Map(); // profKey → {nameKey, cicloId, cicloTxt, nomeOrig, best:{date,order,status}}
+  const issues = { invalidStatus:[], unresolvedCiclo:[], conflicts:[] };
+  const seenKey = new Map(); // (nome+ciclo+data+periodo) → status (detecta conflito exato)
+  const colPer = findCol(["PERÍODO","PERIODO","Período"]);
+
+  rows.forEach((r, i)=>{
+    const nome = r[colNome];
+    if(!nome || !String(nome).trim()) return;
+    const cicloTxt = r[colCiclo];
+    const status   = r[colStatus] ? String(r[colStatus]).trim() : "";
+    const dateKey  = colData ? _sbkDateKey(r[colData]) : "";
+    const perTxt   = colPer ? (r[colPer]==null?"":String(r[colPer]).trim()) : "";
+
+    if(!SBK_VALID_STATUS.has(status)){
+      issues.invalidStatus.push({nome:String(nome).trim(), ciclo:cicloTxt, status, linha:i+2});
+      return;
+    }
+    const cicloId = resolveCicloId(cicloTxt);
+    const nameKey = normStr(nome);
+    if(cicloId==null){
+      issues.unresolvedCiclo.push({nome:String(nome).trim(), ciclo:cicloTxt, linha:i+2});
+      return;
+    }
+    const profKey = `${nameKey}__${cicloId}`;
+
+    // conflito exato (mesma chave nome+ciclo+data+periodo com status diferente)
+    const ek = `${profKey}__${dateKey}__${perTxt}`;
+    if(seenKey.has(ek) && seenKey.get(ek)!==status){
+      issues.conflicts.push({nome:String(nome).trim(), ciclo:cicloTxt, data:dateKey, periodo:perTxt, status1:seenKey.get(ek), status2:status, linha:i+2});
+    }
+    seenKey.set(ek, status);
+
+    const g = groups.get(profKey) || {nameKey, cicloId, cicloTxt, nomeOrig:String(nome).trim(), best:null};
+    // vencedor: maior data; desempate = maior ordem (linha posterior na planilha)
+    const cand = {date:dateKey, order:i, status};
+    if(!g.best){ g.best = cand; }
+    else {
+      const a = g.best, b = cand;
+      const aD = a.date||"", bD = b.date||"";
+      if(bD > aD || (bD===aD && b.order>a.order)) g.best = b;
+    }
+    groups.set(profKey, g);
+  });
+
+  // 2) Casa com profissionais e monta plano
+  const active = DB.getAll();
+  const archived = (typeof DB.getArchived==="function") ? DB.getArchived() : [];
+  const idxActive = new Map(), idxArch = new Map();
+  active.forEach(p=>{ const k=`${normStr(p.nome)}__${p.cicloId}`; (idxActive.get(k)||idxActive.set(k,[]).get(k)).push(p); });
+  archived.forEach(p=>{ const k=`${normStr(p.nome)}__${p.cicloId}`; (idxArch.get(k)||idxArch.set(k,[]).get(k)).push(p); });
+
+  const updates=[], unchanged=[], notFound=[], ambiguous=[], inArchive=[];
+  groups.forEach(g=>{
+    const k = `${g.nameKey}__${g.cicloId}`;
+    const hits = idxActive.get(k) || [];
+    if(hits.length===0){
+      if((idxArch.get(k)||[]).length>0) inArchive.push(g);
+      else notFound.push(g);
+      return;
+    }
+    if(hits.length>1){ ambiguous.push({g, n:hits.length}); return; }
+    const prof = hits[0];
+    if(prof.status===g.best.status) unchanged.push(g);
+    else updates.push({prof, from:prof.status, to:g.best.status});
+  });
+
+  _sbkPlan = { updates, issues };
+
+  // 3) Renderiza preview
+  const li = (arr, fmt, lim=50)=> arr.slice(0,lim).map(fmt).join("") + (arr.length>lim?`<div style="color:var(--tx3);font-size:.8em">…e mais ${arr.length-lim}</div>`:"");
+  const box = (title,color,arr,html)=> !arr.length?"":`<details style="margin-top:8px"><summary style="cursor:pointer;color:${color};font-weight:600">${title} (${arr.length})</summary><div style="margin:6px 0 0 12px;font-size:.85em">${html}</div></details>`;
+
+  rep.innerHTML = `
+    <div style="background:var(--sf2);border-radius:var(--r);padding:14px">
+      <div style="font-weight:700;margin-bottom:8px">Pré-visualização — nada foi gravado ainda</div>
+      <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:.9em">
+        <span style="color:var(--tl)"><b>${updates.length}</b> a atualizar</span>
+        <span style="color:var(--tx3)"><b>${unchanged.length}</b> já corretos</span>
+        <span style="color:var(--am)"><b>${notFound.length}</b> não encontrados</span>
+        <span style="color:var(--rd)"><b>${ambiguous.length}</b> ambíguos</span>
+        ${inArchive.length?`<span style="color:var(--tx3)"><b>${inArchive.length}</b> em ciclo arquivado</span>`:""}
+      </div>
+      ${box("Serão atualizados","var(--tl)",updates,li(updates,u=>`<div>${u.prof.nome} · ${u.prof.ciclo} · <s style="color:var(--tx3)">${statusLbl(u.from)}</s> → <b>${statusLbl(u.to)}</b></div>`))}
+      ${box("Não encontrados (nome+ciclo)","var(--am)",notFound,li(notFound,g=>`<div>${g.nomeOrig} · ciclo ${g.cicloTxt} → ${statusLbl(g.best.status)}</div>`))}
+      ${box("Ambíguos (mais de um profissional p/ nome+ciclo) — não tocados","var(--rd)",ambiguous,li(ambiguous,a=>`<div>${a.g.nomeOrig} · ciclo ${a.g.cicloTxt} (${a.n} profissionais)</div>`))}
+      ${box("Em ciclo arquivado — não atualizados aqui","var(--tx3)",inArchive,li(inArchive,g=>`<div>${g.nomeOrig} · ciclo ${g.cicloTxt} → ${statusLbl(g.best.status)}</div>`))}
+      ${box("Status inválido na planilha","var(--rd)",issues.invalidStatus,li(issues.invalidStatus,x=>`<div>linha ${x.linha}: ${x.nome} · "${x.status}"</div>`))}
+      ${box("Ciclo não reconhecido","var(--am)",issues.unresolvedCiclo,li(issues.unresolvedCiclo,x=>`<div>linha ${x.linha}: ${x.nome} · ciclo "${x.ciclo}"</div>`))}
+      ${box("Conflitos na mesma chave (nome+data+período) — vence a última linha","var(--am)",issues.conflicts,li(issues.conflicts,x=>`<div>linha ${x.linha}: ${x.nome} · ${x.status1} vs ${x.status2}</div>`))}
+      <div style="margin-top:14px;display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm" id="sbkApplyBtn" onclick="applyStatusBackfill()" ${updates.length?"":"disabled"}>Aplicar ${updates.length} atualizações</button>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('sbkReport').innerHTML='';_sbkPlan=null">Cancelar</button>
+      </div>
+    </div>`;
+}
+
+async function applyStatusBackfill(){
+  if(!_sbkPlan || !_sbkPlan.updates.length) return;
+  const btn = document.getElementById("sbkApplyBtn");
+  if(btn){ btn.disabled = true; btn.textContent = "Aplicando…"; }
+  const ts = tsNow();
+  let ok=0, fail=0; const errs=[];
+  for(const u of _sbkPlan.updates){
+    try {
+      const prof = u.prof;
+      if(!prof.statusHistory) prof.statusHistory = [];
+      prof.statusHistory.push({s:u.to, ts});
+      prof.status = u.to;
+      const res = await DB.save(prof);
+      if(!res || !res.ok){ fail++; errs.push(`${prof.nome}: ${res&&res.error||"erro"}`); prof.status=u.from; continue; }
+      await DB.saveStatusHistory(prof.id, u.to, ts);
+      if(typeof addLog==="function") await addLog("Status (carga)", prof.id, prof.nome, "Atualização em lote", statusLbl(u.from), statusLbl(u.to));
+      ok++;
+    } catch(e){ fail++; errs.push(`${u.prof.nome}: ${e.message}`); }
+  }
+  const rep = document.getElementById("sbkReport");
+  rep.innerHTML = `
+    <div style="background:var(--sf2);border-radius:var(--r);padding:14px">
+      <div style="font-weight:700;color:var(--tl);margin-bottom:6px">Concluído</div>
+      <div style="font-size:.9em"><b>${ok}</b> atualizados${fail?` · <span style="color:var(--rd)"><b>${fail}</b> falharam</span>`:""}.</div>
+      ${fail?`<details style="margin-top:8px"><summary style="cursor:pointer;color:var(--rd)">Erros (${fail})</summary><div style="margin:6px 0 0 12px;font-size:.85em">${errs.slice(0,50).map(e=>`<div>${e}</div>`).join("")}</div></details>`:""}
+    </div>`;
+  _sbkPlan = null;
+  if(typeof renderDashboard==="function") renderDashboard();
+  if(typeof liveSearch==="function") liveSearch();
+  showToast(`${ok} status atualizados`, fail?"info":"success");
 }
 
 function downloadTemplate(typeId){
@@ -12285,6 +13218,17 @@ function getOccPeriod(occ){
   return {start, end}; // end null = open/ongoing
 }
 
+// Período já formatado (pt-BR) para exibição. Maternidade/Paternidade usam
+// getOccPeriod (fim = término da prorrogação, se houver, senão término da
+// licença). Saúde mantém calcDates. INSS mostra a data-limite do benefício.
+function occPeriodDisplay(o){
+  const isMP = o.tipoAfasta==="Licença Maternidade"||o.tipoAfasta==="Licença Paternidade";
+  if(o.inss) return {ini: fmtI(o.dataInicio)||"—", fim: `INSS até ${fmtI(o.beneficioInssAte)||"—"}`};
+  if(isMP){ const {start,end}=getOccPeriod(o); return {ini: fmtI(start)||"—", fim: fmtI(end)||"—"}; }
+  const {termino}=calcDates(o);
+  return {ini: fmtI(o.dataInicio)||"—", fim: termino};
+}
+
 // ── DETECT OVERLAPS — RETURNS MAP<OCCID, [OCCN, ...]> ──
 function detectOverlaps(occs){
   const result = {};
@@ -12702,10 +13646,12 @@ async function initApp(){
   // v0.76.0 (item 5.1.2): roda em background — não bloqueia o carregamento
   // do app, mesmo que haja muitos registros ou a rede esteja lenta. Erros
   // são apenas logados no console (não-fatais), sem travar o app.
-  sweepMPReativacaoAutomatica().catch(e=>console.warn("[sweepMPReativacaoAutomatica] falhou (não-fatal):", e));
+  sweepReconcileStatus().catch(e=>console.warn("[sweepReconcileStatus] falhou (não-fatal):", e));
   demRealtimeInit();   // v71.1: escuta mudanças em dem_cards em tempo real
   await folhaDeadlineLoad(); // v66
   await ofTemplatesLoad();   // v69
+  await docTypesLoad();      // v1.0.0
+  await occDocsLoad();       // v1.0.0
 
   // Inicializa escopo do dashboard para evitar erro na primeira renderização
   window.dashScope = (isGestor()||isVisitante()) ? "equipe" : "mine";
@@ -12713,6 +13659,7 @@ async function initApp(){
 
   document.getElementById("appLoading")?.remove();
   switchTab(sessionStorage.getItem("activeTab")||"lic");
+  setupVersionCheck();
 }
 
 bootstrap();
@@ -14572,7 +15519,7 @@ const OF_VARS = [
   ]},
   {grupo:"Ocorrência", itens:[
     ["tipo_afastamento","Tipo de afastamento"],["data_inicio","Data de início da licença"],
-    ["periodo_dias","Período (dias)"],["dia16","16º dia da licença"],
+    ["periodo_dias","Período (dias)"],["dia15","15º dia da licença (fim MS)"],["dia16","16º dia da licença"],
     ["termino","Término da licença"],["beneficio_inss_ate","Benefício INSS até"],
     ["data_reativacao","Data de reativação"],["desconto_inicio","Desconto — início"],
     ["desconto_fim","Desconto — fim"]
@@ -14834,7 +15781,7 @@ function ofBuildContext(d, extra, linkedCards){
   const p = DB.getById(d.profId) || {};
   const occ = demGetOcc(d) || {};
   const dd = d.demData || {};
-  const {dia16,termino} = (typeof calcDates==="function") ? calcDates(occ) : {dia16:"",termino:""};
+  const {dia15,dia16,termino} = (typeof calcDates==="function") ? calcDates(occ) : {dia15:"",dia16:"",termino:""};
   const ctx = {
     // vars escalares = card de origem (para prose do corpo)
     nome:p.nome||d.profNome||"", cpf:ofCpf(p.cpf), siape:p.siape||"",
@@ -14842,11 +15789,13 @@ function ofBuildContext(d, extra, linkedCards){
     email:p.email||"", responsavel:d.responsavel||p.responsavel||"",
     etapa:d.etapa||"", tipo_afastamento:occ.tipoAfasta||occ.tipoDoc||"",
     data_inicio:fmtI(occ.dataInicio)||"", periodo_dias:(occ.periodo||"")+"",
-    dia16:dia16==="—"?"":dia16, termino:termino==="—"?"":termino,
+    dia15:dia15==="—"?"":dia15, dia16:dia16==="—"?"":dia16, termino:termino==="—"?"":termino,
     beneficio_inss_ate:fmtI(occ.beneficioInssAte||dd.inssAte)||"",
     data_reativacao:fmtI(dd.dataReatIni||occ.dataReat)||"",
-    desconto_inicio:fmtI(dd.descontoIni||occ.descontoIni)||"",
-    desconto_fim:fmtI(dd.descontoFim||occ.descontoFim)||"",
+    desconto_inicio:fmtI(dd.descontoIni||occ.descontoIni||occ.matPat?.descontoIni)||"",
+    desconto_fim:fmtI(dd.descontoFim||occ.descontoFim||occ.matPat?.descontoFim)||"",
+    num_proc_desconto:dd.numProcDesconto||occ.numProcDesconto||occ.matPat?.numProcDesconto||"",
+    desconto_area:dd.descontoArea||occ.descontoArea||occ.matPat?.descontoArea||"",
     num_proc_susp:dd.numProcSusp||occ.numProcSusp||"",
     num_proc_reat:dd.numProcReat||occ.numProcReat||"",
     num_proc_rest:dd.numProcRest||occ.numProcRest||"",
@@ -14872,9 +15821,9 @@ function ofTabelaSuspensao(cards){
   const rows = cards.map((card,idx)=>{
     const p = DB.getById(card.profId)||{};
     const occ = demGetOcc(card)||{};
-    const {dia16,termino} = (typeof calcDates==="function") ? calcDates(occ) : {dia16:"",termino:""};
+    const {dia15,dia16,termino} = (typeof calcDates==="function") ? calcDates(occ) : {dia15:"",dia16:"",termino:""};
     const t15 = (occ.dataInicio && occ.periodo)
-      ? `${fmtI(occ.dataInicio).toUpperCase()} A ${(termino==="—"?"":termino).toUpperCase()}`
+      ? `${fmtI(occ.dataInicio).toUpperCase()} A ${(dia15==="—"?"":dia15).toUpperCase()}`
       : "";
     const d16 = (dia16==="—"?"":dia16).toUpperCase();
     const pags = (card.demData||{}).pagamentos||[];
